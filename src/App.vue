@@ -1,26 +1,36 @@
 <template>
-  <img alt="Vue logo" src="./assets/logo.png">
-  <HelloWorld msg="Welcome to Your Vue.js App"/>
+  <LoginPage v-if="!isGuest" @guest="isGuest = true" />
+  <DashboardPage v-else @logout="isGuest = false" />
 </template>
 
 <script>
-import HelloWorld from './components/HelloWorld.vue'
+import LoginPage from './components/LoginPage.vue'
+import DashboardPage from './components/DashboardPage.vue'
 
 export default {
   name: 'App',
   components: {
-    HelloWorld
+    LoginPage,
+    DashboardPage
+  },
+  data() {
+    return {
+      isGuest: false
+    }
   }
 }
 </script>
 
 <style>
-#app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
 }
 </style>
