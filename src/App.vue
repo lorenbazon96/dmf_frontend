@@ -1,33 +1,58 @@
 <template>
-  <LoginPage v-if="!isGuest" @guest="isGuest = true" />
-  <DashboardPage v-else @logout="isGuest = false" />
+  <LoginPage v-if="currentView === 'login'" @guest="currentView = 'dashboard'" />
+  <DashboardPage
+    v-else-if="currentView === 'dashboard'"
+    @logout="currentView = 'login'"
+    @view-project="openProject"
+  />
+  <ProjectDetailPage
+    v-else-if="currentView === 'project'"
+    :project="selectedProject"
+    @back="currentView = 'dashboard'"
+    @logout="currentView = 'login'"
+    @view-drawing="openDrawing"
+  />
+  <DrawingDetailPage
+    v-else-if="currentView === 'drawing'"
+    :project="selectedProject"
+    :drawing="selectedDrawing"
+    @back="currentView = 'project'"
+    @home="currentView = 'dashboard'"
+    @logout="currentView = 'login'"
+  />
 </template>
 
 <script>
 import LoginPage from './components/LoginPage.vue'
 import DashboardPage from './components/DashboardPage.vue'
+import ProjectDetailPage from './components/ProjectDetailPage.vue'
+import DrawingDetailPage from './components/DrawingDetailPage.vue'
 
 export default {
   name: 'App',
-  components: {
-    LoginPage,
-    DashboardPage
-  },
+  components: { LoginPage, DashboardPage, ProjectDetailPage, DrawingDetailPage },
   data() {
     return {
-      isGuest: false
+      currentView: 'login',
+      selectedProject: null,
+      selectedDrawing: null,
     }
-  }
+  },
+  methods: {
+    openProject(project) {
+      this.selectedProject = project
+      this.currentView = 'project'
+    },
+    openDrawing(drawing) {
+      this.selectedDrawing = drawing
+      this.currentView = 'drawing'
+    },
+  },
 }
 </script>
 
 <style>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
+* { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
