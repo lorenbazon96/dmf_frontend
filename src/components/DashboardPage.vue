@@ -76,7 +76,7 @@
         <div class="row g-3 g-lg-4 align-items-start">
           <div class="col-lg-3 col-md-4 col-12">
             <div class="d-flex flex-column gap-2">
-              <button class="btn btn-action">
+              <button class="btn btn-action" @click="$emit('create-project')">
                 <span>{{ $t("dashboard.createProject") }}</span>
                 <span class="action-icon">+</span>
               </button>
@@ -108,7 +108,7 @@
                   />
                 </svg>
               </button>
-              <button class="btn btn-action">
+              <button class="btn btn-action" @click="$emit('analytics')">
                 <span>{{ $t("dashboard.analytics") }}</span>
                 <svg
                   width="18"
@@ -195,7 +195,7 @@ import SidebarNav from "./SidebarNav.vue";
 export default {
   name: "DashboardPage",
   components: { SidebarNav },
-  emits: ["logout", "view-project"],
+  emits: ["logout", "view-project", "create-project", "analytics"],
   data() {
     return {
       companies: ["Company 1", "Company 2", "Company 3", "Company 4"],

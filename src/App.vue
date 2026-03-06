@@ -4,6 +4,8 @@
     v-else-if="currentView === 'dashboard'"
     @logout="currentView = 'login'"
     @view-project="openProject"
+    @create-project="currentView = 'create-project'"
+    @analytics="currentView = 'analytics'"
   />
   <ProjectDetailPage
     v-else-if="currentView === 'project'"
@@ -20,6 +22,16 @@
     @home="currentView = 'dashboard'"
     @logout="currentView = 'login'"
   />
+  <CreateProjectPage
+    v-else-if="currentView === 'create-project'"
+    @back="currentView = 'dashboard'"
+    @logout="currentView = 'login'"
+  />
+  <AnalyticsPage
+    v-else-if="currentView === 'analytics'"
+    @back="currentView = 'dashboard'"
+    @logout="currentView = 'login'"
+  />
 </template>
 
 <script>
@@ -27,10 +39,12 @@ import LoginPage from './components/LoginPage.vue'
 import DashboardPage from './components/DashboardPage.vue'
 import ProjectDetailPage from './components/ProjectDetailPage.vue'
 import DrawingDetailPage from './components/DrawingDetailPage.vue'
+import CreateProjectPage from './components/CreateProjectPage.vue'
+import AnalyticsPage from './components/AnalyticsPage.vue'
 
 export default {
   name: 'App',
-  components: { LoginPage, DashboardPage, ProjectDetailPage, DrawingDetailPage },
+  components: { LoginPage, DashboardPage, ProjectDetailPage, DrawingDetailPage, CreateProjectPage, AnalyticsPage },
   data() {
     return {
       currentView: 'login',
