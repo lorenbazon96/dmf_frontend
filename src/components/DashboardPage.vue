@@ -80,7 +80,7 @@
                 <span>{{ $t("dashboard.createProject") }}</span>
                 <span class="action-icon">+</span>
               </button>
-              <button class="btn btn-action">
+              <button class="btn btn-action" @click="$emit('workers-clients')">
                 <span>{{ $t("dashboard.allWorkers") }}</span>
                 <svg
                   width="18"
@@ -195,7 +195,7 @@ import SidebarNav from "./SidebarNav.vue";
 export default {
   name: "DashboardPage",
   components: { SidebarNav },
-  emits: ["logout", "view-project", "create-project", "analytics"],
+  emits: ["logout", "view-project", "create-project", "analytics", "workers-clients"],
   data() {
     return {
       companies: ["Company 1", "Company 2", "Company 3", "Company 4"],
