@@ -2,8 +2,12 @@
   <div class="dashboard-layout d-flex min-vh-100">
     <SidebarNav
       :companies="companies"
+      :selected-company="selectedCompany"
       @logout="$emit('logout')"
-      @add-company="addCompany"
+      @add-company="$emit('add-company')"
+      @edit-profile="$emit('edit-profile')"
+      @select-company="$emit('select-company', $event)"
+      @update-companies="$emit('update-companies', $event)"
     />
 
     <main class="main-content flex-grow-1">
@@ -28,7 +32,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="p in projects" :key="p.rn">
+                <tr v-for="p in filteredProjects" :key="p.rn">
                   <td class="fw-semibold text-dark">{{ p.rn }}</td>
                   <td>{{ p.name }}</td>
                   <td class="d-none d-md-table-cell text-muted">
@@ -94,7 +98,7 @@
                   />
                 </svg>
               </button>
-              <button class="btn btn-action">
+              <button class="btn btn-action" @click="$emit('warehouse')">
                 <span>{{ $t("dashboard.warehouse") }}</span>
                 <svg
                   width="18"
@@ -122,7 +126,7 @@
                   />
                 </svg>
               </button>
-              <button class="btn btn-action">
+              <button class="btn btn-action" @click="$emit('production-history')">
                 <span>{{ $t("dashboard.productionHistory") }}</span>
                 <svg
                   width="18"
@@ -159,7 +163,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(a, i) in assemblies" :key="i">
+                    <tr v-for="(a, i) in filteredAssemblies" :key="i">
                       <td class="fw-semibold text-dark">{{ a.rn }}</td>
                       <td>{{ a.operation }}</td>
                       <td class="d-none d-sm-table-cell text-muted">
@@ -195,10 +199,13 @@ import SidebarNav from "./SidebarNav.vue";
 export default {
   name: "DashboardPage",
   components: { SidebarNav },
-  emits: ["logout", "view-project", "create-project", "analytics", "workers-clients"],
+  props: {
+    companies: { type: Array, default: () => [] },
+    selectedCompany: { type: String, default: '' },
+  },
+  emits: ["logout", "view-project", "create-project", "analytics", "workers-clients", "warehouse", "production-history", "edit-profile", "select-company", "add-company", "update-companies"],
   data() {
     return {
-      companies: ["Company 1", "Company 2", "Company 3", "Company 4"],
       projects: [
         {
           rn: "RN-12",
@@ -208,6 +215,7 @@ export default {
           progress: 75,
           color: "green",
           est: "10.01.2026. 12:30",
+          company: "Company 1",
         },
         {
           rn: "RN-15",
@@ -217,6 +225,7 @@ export default {
           progress: 40,
           color: "blue",
           est: "11.01.2026. 09:00",
+          company: "Company 2",
         },
         {
           rn: "RN-13",
@@ -226,6 +235,7 @@ export default {
           progress: 60,
           color: "green",
           est: "10.01.2026. 16:00",
+          company: "Company 1",
         },
         {
           rn: "RN-16",
@@ -235,6 +245,7 @@ export default {
           progress: 25,
           color: "yellow",
           est: "-",
+          company: "Company 3",
         },
       ],
       assemblies: [
@@ -245,6 +256,7 @@ export default {
           est: "10.01.2026. 10:30",
           progress: 100,
           color: "green",
+          company: "Company 1",
         },
         {
           rn: "RN-12",
@@ -253,6 +265,7 @@ export default {
           est: "10.01.2026. 11:20",
           progress: 90,
           color: "green",
+          company: "Company 1",
         },
         {
           rn: "RN-12",
@@ -261,6 +274,7 @@ export default {
           est: "10.01.2026. 12:30",
           progress: 80,
           color: "green",
+          company: "Company 1",
         },
         {
           rn: "RN-15",
@@ -269,6 +283,7 @@ export default {
           est: "11.01.2026. 09:00",
           progress: 70,
           color: "green",
+          company: "Company 2",
         },
         {
           rn: "RN-13",
@@ -277,6 +292,7 @@ export default {
           est: "10.01.2026. 13:30",
           progress: 50,
           color: "yellow",
+          company: "Company 1",
         },
         {
           rn: "RN-13",
@@ -285,6 +301,7 @@ export default {
           est: "10.01.2026. 14:40",
           progress: 45,
           color: "yellow",
+          company: "Company 1",
         },
         {
           rn: "RN-13",
@@ -293,6 +310,7 @@ export default {
           est: "10.01.2026. 16:00",
           progress: 30,
           color: "blue",
+          company: "Company 1",
         },
         {
           rn: "RN-16",
@@ -301,6 +319,7 @@ export default {
           est: "-",
           progress: 20,
           color: "yellow",
+          company: "Company 3",
         },
         {
           rn: "RN-16",
@@ -309,6 +328,7 @@ export default {
           est: "-",
           progress: 10,
           color: "red",
+          company: "Company 3",
         },
         {
           rn: "RN-16",
@@ -317,14 +337,19 @@ export default {
           est: "-",
           progress: 5,
           color: "red",
+          company: "Company 3",
         },
       ],
     };
   },
-  methods: {
-    addCompany() {
-      const n = this.companies.length + 1;
-      this.companies.push("New Factory " + n);
+  computed: {
+    filteredProjects() {
+      if (!this.selectedCompany) return this.projects;
+      return this.projects.filter(p => p.company === this.selectedCompany);
+    },
+    filteredAssemblies() {
+      if (!this.selectedCompany) return this.assemblies;
+      return this.assemblies.filter(a => a.company === this.selectedCompany);
     },
   },
 };

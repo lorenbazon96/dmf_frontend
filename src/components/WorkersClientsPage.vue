@@ -2,8 +2,12 @@
   <div class="dashboard-layout d-flex min-vh-100">
     <SidebarNav
       :companies="companies"
+      :selected-company="selectedCompany"
       @logout="$emit('logout')"
-      @add-company="addCompany"
+      @add-company="$emit('add-company')"
+      @edit-profile="$emit('edit-profile')"
+      @select-company="$emit('select-company', $event)"
+      @update-companies="$emit('update-companies', $event)"
     />
 
     <main class="main-content flex-grow-1">
@@ -41,7 +45,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="w in workers" :key="w.id">
+                <tr v-for="w in filteredWorkers" :key="w.id">
                   <td class="fw-semibold text-dark">{{ w.id }}</td>
                   <td>{{ w.fullName }}</td>
                   <td class="text-muted">{{ w.contact }}</td>
@@ -142,7 +146,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="c in clients" :key="c.id">
+                    <tr v-for="c in filteredClients" :key="c.id">
                       <td class="fw-semibold text-dark">{{ c.id }}</td>
                       <td>{{ c.clientName }}</td>
                       <td class="text-muted">{{ c.country }}</td>
@@ -185,38 +189,45 @@ import SidebarNav from "./SidebarNav.vue";
 export default {
   name: "WorkersClientsPage",
   components: { SidebarNav },
-  emits: ["back", "logout", "add-client", "add-worker", "view-worker", "view-client"],
+  props: {
+    companies: { type: Array, default: () => [] },
+    selectedCompany: { type: String, default: '' },
+  },
+  emits: ["back", "logout", "add-client", "add-worker", "view-worker", "view-client", "edit-profile", "select-company", "add-company", "update-companies"],
   data() {
     return {
-      companies: ["Company 1", "Company 2", "Company 3", "Company 4"],
       workers: [
-        { id: 1, fullName: 'Marko Marković', contact: '+385912345678', cp: 100, cs: 100, d: 100, g: 100, b: 100, w: 100, a: 100, rating: 100 },
-        { id: 2, fullName: 'Elvis Elvisić', contact: '+385912345678', cp: 100, cs: 20, d: 95, g: 100, b: 20, w: 100, a: 10, rating: 68 },
-        { id: 3, fullName: 'Tomislav Tomić', contact: '+385912345678', cp: 20, cs: 95, d: 100, g: 20, b: 100, w: 10, a: 0, rating: 68 },
-        { id: 4, fullName: 'Igor Iggy', contact: '+385912345678', cp: 95, cs: 100, d: 20, g: 100, b: 10, w: 0, a: 100, rating: 68 },
-        { id: 5, fullName: 'Curt Mall', contact: '+385912345678', cp: 100, cs: 20, d: 100, g: 10, b: 0, w: 100, a: 20, rating: 68 },
-        { id: 6, fullName: 'Johnn Marić', contact: '+385912345678', cp: 20, cs: 100, d: 10, g: 0, b: 100, w: 20, a: 95, rating: 68 },
-        { id: 7, fullName: 'Ivica Ivanković', contact: '+385912345678', cp: 10, cs: 10, d: 50, g: 10, b: 10, w: 10, a: 10, rating: 31 },
-        { id: 8, fullName: 'Mirko Slavek', contact: '+385912345678', cp: 10, cs: 50, d: 50, g: 10, b: 10, w: 100, a: 31, rating: 31 },
+        { id: 1, fullName: 'Marko Marković', contact: '+385912345678', cp: 100, cs: 100, d: 100, g: 100, b: 100, w: 100, a: 100, rating: 100, company: 'Company 1' },
+        { id: 2, fullName: 'Elvis Elvisić', contact: '+385912345678', cp: 100, cs: 20, d: 95, g: 100, b: 20, w: 100, a: 10, rating: 68, company: 'Company 1' },
+        { id: 3, fullName: 'Tomislav Tomić', contact: '+385912345678', cp: 20, cs: 95, d: 100, g: 20, b: 100, w: 10, a: 0, rating: 68, company: 'Company 2' },
+        { id: 4, fullName: 'Igor Iggy', contact: '+385912345678', cp: 95, cs: 100, d: 20, g: 100, b: 10, w: 0, a: 100, rating: 68, company: 'Company 2' },
+        { id: 5, fullName: 'Curt Mall', contact: '+385912345678', cp: 100, cs: 20, d: 100, g: 10, b: 0, w: 100, a: 20, rating: 68, company: 'Company 3' },
+        { id: 6, fullName: 'Johnn Marić', contact: '+385912345678', cp: 20, cs: 100, d: 10, g: 0, b: 100, w: 20, a: 95, rating: 68, company: 'Company 3' },
+        { id: 7, fullName: 'Ivica Ivanković', contact: '+385912345678', cp: 10, cs: 10, d: 50, g: 10, b: 10, w: 10, a: 10, rating: 31, company: 'Company 4' },
+        { id: 8, fullName: 'Mirko Slavek', contact: '+385912345678', cp: 10, cs: 50, d: 50, g: 10, b: 10, w: 100, a: 31, rating: 31, company: 'Company 4' },
       ],
       clients: [
-        { id: 1, clientName: 'Metal Const d.o.o', country: 'Croatia', adressa: 'Industrijska BB, Rijeka' },
-        { id: 2, clientName: 'Evo d.o.o', country: 'Croatia', adressa: 'Industrijska 11, Buje' },
-        { id: 3, clientName: 'MartArt d.d.', country: 'Croatia', adressa: 'Ulica 2 perona 74, Pula' },
-        { id: 4, clientName: 'Const d.o.o', country: 'Croatia', adressa: 'Industrijska BB, Pula' },
-        { id: 5, clientName: 'Metal d.o.o', country: 'Croatia', adressa: 'Istarska ulica 11, Pazin' },
-        { id: 6, clientName: 'MetalLab d.o.o', country: 'Croatia', adressa: 'Rudarska BB, Labin' },
-        { id: 7, clientName: 'IndustryT d.o.o', country: 'Croatia', adressa: 'Stradunska 22, Dubrovnika' },
-        { id: 8, clientName: 'Metallic d.o.o', country: 'Croatia', adressa: 'Neka ulica BB, Rovinj' },
-        { id: 9, clientName: 'SStell d.o.o', country: 'Croatia', adressa: 'Stipanova 43, Poreč' },
-        { id: 10, clientName: 'Total d.o.o', country: 'Croatia', adressa: 'Industrijska 37, Rijeka' },
+        { id: 1, clientName: 'Metal Const d.o.o', country: 'Croatia', adressa: 'Industrijska BB, Rijeka', company: 'Company 1' },
+        { id: 2, clientName: 'Evo d.o.o', country: 'Croatia', adressa: 'Industrijska 11, Buje', company: 'Company 1' },
+        { id: 3, clientName: 'MartArt d.d.', country: 'Croatia', adressa: 'Ulica 2 perona 74, Pula', company: 'Company 1' },
+        { id: 4, clientName: 'Const d.o.o', country: 'Croatia', adressa: 'Industrijska BB, Pula', company: 'Company 2' },
+        { id: 5, clientName: 'Metal d.o.o', country: 'Croatia', adressa: 'Istarska ulica 11, Pazin', company: 'Company 2' },
+        { id: 6, clientName: 'MetalLab d.o.o', country: 'Croatia', adressa: 'Rudarska BB, Labin', company: 'Company 2' },
+        { id: 7, clientName: 'IndustryT d.o.o', country: 'Croatia', adressa: 'Stradunska 22, Dubrovnika', company: 'Company 3' },
+        { id: 8, clientName: 'Metallic d.o.o', country: 'Croatia', adressa: 'Neka ulica BB, Rovinj', company: 'Company 3' },
+        { id: 9, clientName: 'SStell d.o.o', country: 'Croatia', adressa: 'Stipanova 43, Poreč', company: 'Company 4' },
+        { id: 10, clientName: 'Total d.o.o', country: 'Croatia', adressa: 'Industrijska 37, Rijeka', company: 'Company 4' },
       ],
     };
   },
-  methods: {
-    addCompany() {
-      const n = this.companies.length + 1;
-      this.companies.push("New Factory " + n);
+  computed: {
+    filteredWorkers() {
+      if (!this.selectedCompany) return this.workers;
+      return this.workers.filter(w => w.company === this.selectedCompany);
+    },
+    filteredClients() {
+      if (!this.selectedCompany) return this.clients;
+      return this.clients.filter(c => c.company === this.selectedCompany);
     },
   },
 };

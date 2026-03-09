@@ -2,8 +2,12 @@
   <div class="dashboard-layout d-flex min-vh-100">
     <SidebarNav
       :companies="companies"
+      :selected-company="selectedCompany"
       @logout="$emit('logout')"
-      @add-company="addCompany"
+      @add-company="$emit('add-company')"
+      @edit-profile="$emit('edit-profile')"
+      @select-company="$emit('select-company', $event)"
+      @update-companies="$emit('update-companies', $event)"
     />
 
     <main class="main-content flex-grow-1">
@@ -16,26 +20,26 @@
 
                 <div class="stat-line">
                   <span class="stat-label">{{ $t("analytics.projects") }}</span>
-                  <span class="stat-value text-primary">24</span>
+                  <span class="stat-value text-primary">{{ statsProjects }}</span>
                 </div>
                 <div class="stat-line">
                   <span class="stat-label">{{
                     $t("analytics.completed")
                   }}</span>
-                  <span class="stat-value text-primary">18</span>
+                  <span class="stat-value text-primary">{{ statsCompleted }}</span>
                 </div>
                 <div class="stat-line">
                   <span class="stat-label">{{
                     $t("analytics.avgDuration")
                   }}</span>
-                  <span class="stat-value text-primary">5h 45m</span>
+                  <span class="stat-value text-primary">{{ statsAvgDuration }}</span>
                 </div>
                 <div class="stat-line">
                   <span class="stat-label">{{ $t("analytics.accuracy") }}</span>
-                  <span class="stat-value text-primary">89%</span>
+                  <span class="stat-value text-primary">{{ statsAccuracy }}</span>
                 </div>
 
-                <div class="mt-3">
+                <div v-if="showBottleneck" class="mt-3">
                   <span class="stat-label"
                     >{{ $t("analytics.bottleneck") }}:</span
                   >
@@ -264,27 +268,14 @@ export default {
     LineChart: Line,
     BarChart: Bar,
   },
-  emits: ["back", "logout"],
+  props: {
+    companies: { type: Array, default: () => [] },
+    selectedCompany: { type: String, default: '' },
+  },
+  emits: ["back", "logout", "edit-profile", "select-company", "add-company", "update-companies"],
   data() {
     return {
       activeTab: "general",
-      companies: ["Company 1", "Company 2", "Company 3", "Company 4"],
-      pieData: {
-        labels: ["Cutting", "Drilling", "Welding", "Grinding", "Assembly"],
-        datasets: [
-          {
-            data: [20, 15, 30, 15, 20],
-            backgroundColor: [
-              "#42a5f5",
-              "#ec407a",
-              "#ffa726",
-              "#ffee58",
-              "#66bb6a",
-            ],
-            borderWidth: 0,
-          },
-        ],
-      },
       pieOptions: {
         responsive: true,
         maintainAspectRatio: false,
@@ -294,21 +285,6 @@ export default {
             labels: { font: { size: 10 }, boxWidth: 12 },
           },
         },
-      },
-      lineData: {
-        labels: ["Jan", "Feb", "Mar", "Apr", "May"],
-        datasets: [
-          {
-            label: "Projects",
-            data: [5, 7, 8, 10, 12],
-            borderColor: "#42a5f5",
-            backgroundColor: "rgba(66,165,245,0.1)",
-            fill: true,
-            tension: 0.3,
-            pointRadius: 4,
-            pointBackgroundColor: "#42a5f5",
-          },
-        ],
       },
       lineOptions: {
         responsive: true,
@@ -324,21 +300,6 @@ export default {
           x: { ticks: { font: { size: 10 } } },
         },
       },
-      estVsRealData: {
-        labels: ["P1", "P2", "P3", "P4"],
-        datasets: [
-          {
-            label: "Estimated",
-            data: [280, 300, 250, 350],
-            backgroundColor: "#90caf9",
-          },
-          {
-            label: "Real",
-            data: [260, 310, 270, 330],
-            backgroundColor: "#f48fb1",
-          },
-        ],
-      },
       barOptions: {
         responsive: true,
         maintainAspectRatio: false,
@@ -352,27 +313,6 @@ export default {
           y: { beginAtZero: true, ticks: { font: { size: 10 } } },
           x: { ticks: { font: { size: 10 } } },
         },
-      },
-      workerBarData: {
-        labels: [
-          "Marko",
-          "Ivan",
-          "Tomislav",
-          "Igor",
-          "Mate",
-          "Luka",
-          "Josip",
-          "Mario",
-          "Filip",
-          "Petar",
-        ],
-        datasets: [
-          {
-            label: "Efficiency %",
-            data: [115, 120, 118, 110, 105, 100, 108, 95, 90, 102],
-            backgroundColor: "#90caf9",
-          },
-        ],
       },
       workerBarOptions: {
         responsive: true,
@@ -388,90 +328,113 @@ export default {
           x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
         },
       },
-      operationInsights: [
-        {
-          name: "WELDING",
-          best: "Tomislav (+20%)",
-          worst: "Mario (-30%)",
-          avg: "99%",
+      allCompanyData: {
+        "Company 1": {
+          projects: 8, completed: 6, avgDuration: "5h 45m", accuracy: "89%",
+          bottleneck: true,
+          pie: [20, 15, 30, 15, 20],
+          line: [5, 7, 8, 10, 12],
+          est: [280, 300, 250, 350], real: [260, 310, 270, 330],
+          workers: [
+            { name: "Marko", value: 115, tasks: 25, avgTime: "60 min", efficiency: "115%" },
+            { name: "Tomislav", value: 120, tasks: 22, avgTime: "58 min", efficiency: "120%" },
+          ],
+          workerEff: { labels: ["Marko", "Tomislav"], data: [115, 120] },
+          insights: [
+            { name: "WELDING", best: "Tomislav (+20%)", worst: "Marko (-5%)", avg: "107%" },
+            { name: "CUTTING", best: "Marko (+10%)", worst: "Tomislav (-3%)", avg: "103%" },
+          ],
         },
-        {
-          name: "DRILLING",
-          best: "Ivan (+5%)",
-          worst: "Filip (-20%)",
-          avg: "94%",
+        "Company 2": {
+          projects: 6, completed: 4, avgDuration: "6h 10m", accuracy: "85%",
+          bottleneck: false,
+          pie: [25, 10, 25, 20, 20],
+          line: [3, 5, 6, 7, 9],
+          est: [200, 260, 310, 290], real: [220, 250, 330, 280],
+          workers: [
+            { name: "Igor", value: 110, tasks: 20, avgTime: "55 min", efficiency: "110%" },
+            { name: "Ivan", value: 90, tasks: 15, avgTime: "45 min", efficiency: "90%" },
+          ],
+          workerEff: { labels: ["Igor", "Ivan"], data: [110, 90] },
+          insights: [
+            { name: "WELDING", best: "Igor (+15%)", worst: "Ivan (-10%)", avg: "100%" },
+            { name: "DRILLING", best: "Ivan (+5%)", worst: "Igor (-2%)", avg: "98%" },
+          ],
         },
-        {
-          name: "CUTTING",
-          best: "Ivan (+10%)",
-          worst: "Tomislav (-5%)",
-          avg: "101%",
+        "Company 3": {
+          projects: 5, completed: 4, avgDuration: "4h 30m", accuracy: "92%",
+          bottleneck: false,
+          pie: [15, 20, 25, 25, 15],
+          line: [2, 4, 5, 6, 8],
+          est: [180, 220, 200, 260], real: [170, 230, 195, 250],
+          workers: [
+            { name: "Josip", value: 115, tasks: 22, avgTime: "58 min", efficiency: "115%" },
+            { name: "Mate", value: 105, tasks: 18, avgTime: "53 min", efficiency: "105%" },
+          ],
+          workerEff: { labels: ["Josip", "Mate"], data: [115, 105] },
+          insights: [
+            { name: "GRINDING", best: "Josip (+12%)", worst: "Mate (-8%)", avg: "102%" },
+            { name: "ASSEMBLY", best: "Mate (+6%)", worst: "Josip (-3%)", avg: "101%" },
+          ],
         },
-      ],
-      workerPerformance: [
-        {
-          name: "Tomislav",
-          value: 120,
-          tasks: 25,
-          avgTime: "60 min",
-          efficiency: "120%",
+        "Company 4": {
+          projects: 5, completed: 4, avgDuration: "5h 00m", accuracy: "88%",
+          bottleneck: true,
+          pie: [30, 10, 20, 15, 25],
+          line: [4, 3, 6, 8, 7],
+          est: [300, 250, 280, 320], real: [310, 240, 300, 310],
+          workers: [
+            { name: "Petar", value: 102, tasks: 16, avgTime: "51 min", efficiency: "102%" },
+            { name: "Filip", value: 100, tasks: 12, avgTime: "50 min", efficiency: "100%" },
+            { name: "Luka", value: 95, tasks: 14, avgTime: "48 min", efficiency: "95%" },
+          ],
+          workerEff: { labels: ["Petar", "Filip", "Luka"], data: [102, 100, 95] },
+          insights: [
+            { name: "WELDING", best: "Petar (+8%)", worst: "Luka (-15%)", avg: "95%" },
+            { name: "CUTTING", best: "Filip (+4%)", worst: "Petar (-2%)", avg: "101%" },
+          ],
         },
-        {
-          name: "Josip",
-          value: 115,
-          tasks: 22,
-          avgTime: "58 min",
-          efficiency: "115%",
-        },
-        {
-          name: "Marko",
-          value: 110,
-          tasks: 20,
-          avgTime: "55 min",
-          efficiency: "110%",
-        },
-        {
-          name: "Mate",
-          value: 105,
-          tasks: 18,
-          avgTime: "53 min",
-          efficiency: "105%",
-        },
-        {
-          name: "Petar",
-          value: 102,
-          tasks: 16,
-          avgTime: "51 min",
-          efficiency: "102%",
-        },
-        {
-          name: "Filip",
-          value: 100,
-          tasks: 12,
-          avgTime: "50 min",
-          efficiency: "100%",
-        },
-        {
-          name: "Luka",
-          value: 95,
-          tasks: 14,
-          avgTime: "48 min",
-          efficiency: "95%",
-        },
-        {
-          name: "Ivan",
-          value: 90,
-          tasks: 15,
-          avgTime: "45 min",
-          efficiency: "90%",
-        },
-      ],
+      },
     };
   },
-  methods: {
-    addCompany() {
-      this.companies.push("New Factory " + (this.companies.length + 1));
+  computed: {
+    cd() {
+      return this.allCompanyData[this.selectedCompany] || this.allCompanyData["Company 1"];
     },
+    statsProjects() { return this.cd.projects; },
+    statsCompleted() { return this.cd.completed; },
+    statsAvgDuration() { return this.cd.avgDuration; },
+    statsAccuracy() { return this.cd.accuracy; },
+    showBottleneck() { return this.cd.bottleneck; },
+    pieData() {
+      return {
+        labels: ["Cutting", "Drilling", "Welding", "Grinding", "Assembly"],
+        datasets: [{ data: this.cd.pie, backgroundColor: ["#42a5f5", "#ec407a", "#ffa726", "#ffee58", "#66bb6a"], borderWidth: 0 }],
+      };
+    },
+    lineData() {
+      return {
+        labels: ["Jan", "Feb", "Mar", "Apr", "May"],
+        datasets: [{ label: "Projects", data: this.cd.line, borderColor: "#42a5f5", backgroundColor: "rgba(66,165,245,0.1)", fill: true, tension: 0.3, pointRadius: 4, pointBackgroundColor: "#42a5f5" }],
+      };
+    },
+    estVsRealData() {
+      return {
+        labels: ["P1", "P2", "P3", "P4"],
+        datasets: [
+          { label: "Estimated", data: this.cd.est, backgroundColor: "#90caf9" },
+          { label: "Real", data: this.cd.real, backgroundColor: "#f48fb1" },
+        ],
+      };
+    },
+    workerBarData() {
+      return {
+        labels: this.cd.workerEff.labels,
+        datasets: [{ label: "Efficiency %", data: this.cd.workerEff.data, backgroundColor: "#90caf9" }],
+      };
+    },
+    operationInsights() { return this.cd.insights; },
+    workerPerformance() { return this.cd.workers; },
   },
 };
 </script>

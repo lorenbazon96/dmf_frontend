@@ -2,8 +2,12 @@
   <div class="dashboard-layout d-flex min-vh-100">
     <SidebarNav
       :companies="companies"
+      :selected-company="selectedCompany"
       @logout="$emit('logout')"
-      @add-company="addCompany"
+      @add-company="$emit('add-company')"
+      @edit-profile="$emit('edit-profile')"
+      @select-company="$emit('select-company', $event)"
+      @update-companies="$emit('update-companies', $event)"
     />
 
     <main class="main-content flex-grow-1">
@@ -313,11 +317,12 @@ export default {
   components: { SidebarNav },
   props: {
     worker: { type: Object, required: true },
+    companies: { type: Array, default: () => [] },
+    selectedCompany: { type: String, default: '' },
   },
-  emits: ["back", "home", "logout"],
+  emits: ["back", "home", "logout", "edit-profile", "select-company", "add-company", "update-companies"],
   data() {
     return {
-      companies: ["Company 1", "Company 2", "Company 3", "Company 4"],
       form: {
         fullName: this.worker.fullName || "",
         email: this.worker.email || "",
@@ -335,11 +340,6 @@ export default {
         projectsCompleted: this.worker.projectsCompleted || "",
       },
     };
-  },
-  methods: {
-    addCompany() {
-      this.companies.push("New Factory " + (this.companies.length + 1));
-    },
   },
 };
 </script>

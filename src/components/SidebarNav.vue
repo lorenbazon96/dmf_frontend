@@ -53,6 +53,7 @@
           height="14"
           viewBox="0 0 16 16"
           fill="#6b7d93"
+          @click="$emit('edit-profile')"
         >
           <path
             d="M11.534 7h3.932a.25.25 0 01.192.41l-1.966 2.36a.25.25 0 01-.384 0l-1.966-2.36a.25.25 0 01.192-.41m-11 2h3.932a.25.25 0 00.192-.41L2.692 6.23a.25.25 0 00-.384 0L.342 8.59A.25.25 0 00.534 9"
@@ -121,12 +122,19 @@
         </div>
         <ul v-show="prodOpen" class="list-unstyled mt-1 mb-0">
           <li
-            v-for="c in companies"
-            :key="c"
+            v-for="(c, index) in companies"
+            :key="index"
             class="company-item d-flex align-items-center justify-content-between"
+            :class="{ 'company-active': c === selectedCompany }"
+            @click="$emit('select-company', c)"
           >
             <div class="d-flex align-items-center gap-2">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="#6b7d93">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 16 16"
+                :fill="c === selectedCompany ? '#4caf50' : '#6b7d93'"
+              >
                 <path
                   d="M14.763.075A.5.5 0 0115 .5v15a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5V14h-1v1.5a.5.5 0 01-.5.5h-9a.5.5 0 01-.5-.5V10a.5.5 0 01.342-.474L6 7.64V4.5a.5.5 0 01.276-.447l8-4a.5.5 0 01.487.022M6 8.694L1 10.36V15h9V10.36zM7 15h2v-1.5a.5.5 0 01.5-.5h2a.5.5 0 01.5.5V15h2V1.309l-7 3.5z"
                 />
@@ -139,6 +147,7 @@
               height="12"
               viewBox="0 0 16 16"
               fill="#4a5c6e"
+              @click.stop="openEditModal(index)"
             >
               <path
                 d="M12.146.146a.5.5 0 01.708 0l3 3a.5.5 0 010 .708l-10 10a.5.5 0 01-.168.11l-5 2a.5.5 0 01-.65-.65l2-5a.5.5 0 01.11-.168zM11.207 2.5L13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 01.5.5v.5h.5a.5.5 0 01.5.5v.5h.293z"
@@ -178,6 +187,48 @@
         </div>
       </div>
     </aside>
+
+    <Transition name="modal-fade">
+      <div
+        v-if="showEditModal"
+        class="edit-modal-overlay"
+        @click.self="closeEditModal"
+        @keydown.esc="closeEditModal"
+      >
+        <div class="edit-modal-card">
+          <h6 class="edit-modal-title">{{ $t("dashboard.editCompany") }}</h6>
+          <label class="edit-modal-label">{{
+            $t("dashboard.companyName")
+          }}</label>
+          <input
+            v-model="editCompanyName"
+            type="text"
+            class="form-control form-control-sm edit-modal-input"
+            ref="editInput"
+            @keydown.enter="saveCompany"
+            @keydown.esc="closeEditModal"
+          />
+          <button
+            class="btn btn-sm edit-modal-btn edit-modal-btn-save"
+            @click="saveCompany"
+          >
+            {{ $t("dashboard.save") }}
+          </button>
+          <button
+            class="btn btn-sm edit-modal-btn edit-modal-btn-delete"
+            @click="deleteCompany"
+          >
+            {{ $t("dashboard.deleteCompany") }}
+          </button>
+          <button
+            class="btn btn-sm edit-modal-btn edit-modal-btn-cancel"
+            @click="closeEditModal"
+          >
+            {{ $t("dashboard.cancel") }}
+          </button>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -189,13 +240,65 @@ export default {
       type: Array,
       default: () => [],
     },
+    selectedCompany: {
+      type: String,
+      default: "",
+    },
   },
-  emits: ["logout", "add-company"],
+  emits: [
+    "logout",
+    "add-company",
+    "edit-profile",
+    "update-companies",
+    "select-company",
+  ],
   data() {
     return {
       sidebarOpen: false,
       prodOpen: true,
+      showEditModal: false,
+      editingCompany: null,
+      editCompanyName: "",
     };
+  },
+  methods: {
+    openEditModal(index) {
+      this.editingCompany = index;
+      this.editCompanyName = this.companies[index];
+      this.showEditModal = true;
+      this.$nextTick(() => {
+        this.$refs.editInput?.focus();
+      });
+      document.addEventListener(
+        "keydown",
+        (this._escHandler = (e) => {
+          if (e.key === "Escape") this.closeEditModal();
+        }),
+      );
+    },
+    saveCompany() {
+      if (!this.editCompanyName.trim()) return;
+      const updated = [...this.companies];
+      updated[this.editingCompany] = this.editCompanyName.trim();
+      this.$emit("update-companies", updated);
+      this.closeEditModal();
+    },
+    deleteCompany() {
+      const updated = this.companies.filter(
+        (_, i) => i !== this.editingCompany,
+      );
+      this.$emit("update-companies", updated);
+      this.closeEditModal();
+    },
+    closeEditModal() {
+      this.showEditModal = false;
+      this.editingCompany = null;
+      this.editCompanyName = "";
+      if (this._escHandler) {
+        document.removeEventListener("keydown", this._escHandler);
+        this._escHandler = null;
+      }
+    },
   },
 };
 </script>
@@ -301,6 +404,13 @@ export default {
 .company-item:hover .edit-icon {
   opacity: 1;
 }
+.company-active {
+  background: rgba(43, 87, 154, 0.25);
+}
+.company-active .company-name {
+  color: #fff;
+  font-weight: 600;
+}
 .company-add {
   color: #6b7d93;
 }
@@ -329,5 +439,82 @@ export default {
 }
 .mobile-logo {
   height: 60px;
+}
+
+.edit-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.edit-modal-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 350px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+.edit-modal-title {
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  color: #1c2936;
+}
+.edit-modal-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #4a5c6e;
+  margin-bottom: 0.3rem;
+  display: block;
+}
+.edit-modal-input {
+  margin-bottom: 1rem;
+}
+.edit-modal-btn {
+  width: 100%;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.45rem;
+  border-radius: 6px;
+  margin-bottom: 0.45rem;
+}
+.edit-modal-btn-save {
+  background: #2b579a;
+  color: #fff;
+  border: none;
+}
+.edit-modal-btn-save:hover {
+  background: #1e3f73;
+  color: #fff;
+}
+.edit-modal-btn-delete {
+  background: #c0392b;
+  color: #fff;
+  border: none;
+}
+.edit-modal-btn-delete:hover {
+  background: #96281b;
+  color: #fff;
+}
+.edit-modal-btn-cancel {
+  background: transparent;
+  color: #6b7d93;
+  border: 1px solid #ccc;
+}
+.edit-modal-btn-cancel:hover {
+  background: #f0f0f0;
+}
+
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
 }
 </style>
