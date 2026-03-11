@@ -1,5 +1,6 @@
 <template>
-  <LoginPage v-if="currentView === 'login'" @guest="currentView = 'dashboard'" />
+  <LoginPage v-if="currentView === 'login'" @guest="currentView = 'dashboard'" @forgot-password="currentView = 'forgot-password'" />
+  <ForgotPasswordPage v-else-if="currentView === 'forgot-password'" @back="currentView = 'login'" />
   <DashboardPage
     v-else-if="currentView === 'dashboard'"
     :companies="companies"
@@ -169,6 +170,7 @@
 
 <script>
 import LoginPage from './components/LoginPage.vue'
+import ForgotPasswordPage from './components/ForgotPasswordPage.vue'
 import DashboardPage from './components/DashboardPage.vue'
 import ProjectDetailPage from './components/ProjectDetailPage.vue'
 import DrawingDetailPage from './components/DrawingDetailPage.vue'
@@ -184,7 +186,7 @@ import ProfileEditPage from './components/ProfileEditPage.vue'
 
 export default {
   name: 'App',
-  components: { LoginPage, DashboardPage, ProjectDetailPage, DrawingDetailPage, CreateProjectPage, AnalyticsPage, WorkersClientsPage, WorkerDetailPage, ClientDetailPage, WarehousePage, WarehouseAddItemPage, ProductionHistoryPage, ProfileEditPage },
+  components: { LoginPage, ForgotPasswordPage, DashboardPage, ProjectDetailPage, DrawingDetailPage, CreateProjectPage, AnalyticsPage, WorkersClientsPage, WorkerDetailPage, ClientDetailPage, WarehousePage, WarehouseAddItemPage, ProductionHistoryPage, ProfileEditPage },
   data() {
     return {
       currentView: 'login',

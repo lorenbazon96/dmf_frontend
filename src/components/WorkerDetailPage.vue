@@ -300,6 +300,25 @@
                     />
                   </div>
                 </div>
+
+                <div class="row g-2 mb-3">
+                  <div class="col-12">
+                    <label class="form-label-sm">{{ $t("workerDetail.operations") }}:</label>
+                    <div class="d-flex flex-wrap gap-3 mt-1">
+                      <div class="form-check" v-for="op in operationsList" :key="op.key">
+                        <input
+                          class="form-check-input"
+                          type="checkbox"
+                          :id="'op-' + op.key"
+                          v-model="form.operations[op.key]"
+                        />
+                        <label class="form-check-label op-check-label" :for="'op-' + op.key">
+                          {{ op.label }}
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </section>
           </div>
@@ -338,7 +357,25 @@ export default {
         grindingRating: this.worker.grindingRating || "",
         bendingRating: this.worker.bendingRating || "",
         projectsCompleted: this.worker.projectsCompleted || "",
+        operations: {
+          pipeCutting: true,
+          sheetCutting: true,
+          welding: true,
+          bending: true,
+          grinding: true,
+          drilling: true,
+          assembly: true,
+        },
       },
+      operationsList: [
+        { key: 'pipeCutting', label: 'Rezanje cijevi / Pipe cutting' },
+        { key: 'sheetCutting', label: 'Rezanje lima / Sheet cutting' },
+        { key: 'welding', label: 'Zavarivanje / Welding' },
+        { key: 'bending', label: 'Savijanje / Bending' },
+        { key: 'grinding', label: 'Brušenje / Grinding' },
+        { key: 'drilling', label: 'Bušenje / Drilling' },
+        { key: 'assembly', label: 'Montaža / Assembly' },
+      ],
     };
   },
 };
@@ -454,5 +491,13 @@ export default {
   .content-wrap {
     padding: 0.75rem !important;
   }
+}
+.op-check-label {
+  font-size: 0.82rem;
+  color: #444;
+}
+.form-check-input:checked {
+  background-color: #2b579a;
+  border-color: #2b579a;
 }
 </style>

@@ -42,20 +42,8 @@
               <li class="d-flex align-items-start mb-3">
                 <span class="feature-icon me-3">
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <circle
-                      cx="10"
-                      cy="10"
-                      r="10"
-                      fill="#2b579a"
-                      opacity="0.1"
-                    />
-                    <path
-                      d="M6 10l3 3 5-5"
-                      stroke="#2b579a"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
+                    <circle cx="10" cy="10" r="10" fill="#2b579a" opacity="0.1" />
+                    <path d="M6 10l3 3 5-5" stroke="#2b579a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
                 </span>
                 <span>{{ $t("branding.feature1") }}</span>
@@ -63,20 +51,8 @@
               <li class="d-flex align-items-start mb-3">
                 <span class="feature-icon me-3">
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <circle
-                      cx="10"
-                      cy="10"
-                      r="10"
-                      fill="#2b579a"
-                      opacity="0.1"
-                    />
-                    <path
-                      d="M6 10l3 3 5-5"
-                      stroke="#2b579a"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
+                    <circle cx="10" cy="10" r="10" fill="#2b579a" opacity="0.1" />
+                    <path d="M6 10l3 3 5-5" stroke="#2b579a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
                 </span>
                 <span>{{ $t("branding.feature2") }}</span>
@@ -84,20 +60,8 @@
               <li class="d-flex align-items-start">
                 <span class="feature-icon me-3">
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <circle
-                      cx="10"
-                      cy="10"
-                      r="10"
-                      fill="#2b579a"
-                      opacity="0.1"
-                    />
-                    <path
-                      d="M6 10l3 3 5-5"
-                      stroke="#2b579a"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
+                    <circle cx="10" cy="10" r="10" fill="#2b579a" opacity="0.1" />
+                    <path d="M6 10l3 3 5-5" stroke="#2b579a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                   </svg>
                 </span>
                 <span>{{ $t("branding.feature3") }}</span>
@@ -119,16 +83,25 @@
             </div>
 
             <h1 class="login-title text-center mb-1">
-              {{ $t("login.title") }}
+              {{ $t("forgotPassword.title") }}
             </h1>
             <p class="text-muted text-center small mb-4">
-              {{ $t("login.subtitle") }}
+              {{ $t("forgotPassword.subtitle") }}
             </p>
 
-            <form @submit.prevent="handleLogin">
+            <div v-if="sent" class="success-box text-center mb-4">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" class="mb-3">
+                <circle cx="12" cy="12" r="11" stroke="#27ae60" stroke-width="2" />
+                <path d="M7 12l3 3 7-7" stroke="#27ae60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <p class="fw-semibold mb-1" style="color:#27ae60">{{ $t("forgotPassword.sentTitle") }}</p>
+              <p class="text-muted small mb-0">{{ $t("forgotPassword.sentMessage") }}</p>
+            </div>
+
+            <form v-else @submit.prevent="handleSubmit">
               <div class="mb-4">
                 <label
-                  for="email"
+                  for="resetEmail"
                   class="form-label small fw-semibold text-uppercase letter-spacing"
                 >
                   {{ $t("login.email") }}
@@ -147,90 +120,30 @@
                     <path d="M22 7l-10 7L2 7" />
                   </svg>
                   <input
-                    id="email"
+                    id="resetEmail"
                     v-model="email"
                     type="email"
                     class="form-control form-input"
                     :placeholder="$t('login.emailPlaceholder')"
                     autocomplete="email"
+                    required
                   />
                 </div>
-              </div>
-
-              <div class="mb-3">
-                <label
-                  for="password"
-                  class="form-label small fw-semibold text-uppercase letter-spacing"
-                >
-                  {{ $t("login.password") }}
-                </label>
-                <div class="input-icon-wrapper">
-                  <svg
-                    class="input-icon"
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#9ca3af"
-                    stroke-width="2"
-                  >
-                    <rect x="3" y="11" width="18" height="11" rx="2" />
-                    <path d="M7 11V7a5 5 0 0110 0v4" />
-                  </svg>
-                  <input
-                    id="password"
-                    v-model="password"
-                    type="password"
-                    class="form-control form-input"
-                    :placeholder="$t('login.passwordPlaceholder')"
-                    autocomplete="current-password"
-                  />
-                </div>
-              </div>
-
-              <div
-                class="d-flex justify-content-between align-items-center mb-4 mt-3"
-              >
-                <div class="form-check">
-                  <input
-                    id="rememberMe"
-                    v-model="rememberMe"
-                    type="checkbox"
-                    class="form-check-input"
-                  />
-                  <label
-                    for="rememberMe"
-                    class="form-check-label small text-muted"
-                  >
-                    {{ $t("login.rememberMe") }}
-                  </label>
-                </div>
-                <a href="#" class="small text-decoration-none forgot-link" @click.prevent="$emit('forgot-password')">
-                  {{ $t("login.forgotPassword") }}
-                </a>
               </div>
 
               <button
                 type="submit"
                 class="btn btn-primary w-100 fw-semibold py-2 btn-login mb-3"
               >
-                {{ $t("login.submit") }}
-              </button>
-
-              <div class="divider-text d-flex align-items-center my-3">
-                <hr class="flex-grow-1" />
-                <span class="px-3 text-muted small">{{ $t("login.or") }}</span>
-                <hr class="flex-grow-1" />
-              </div>
-
-              <button
-                type="button"
-                class="btn btn-outline-dark w-100 py-2 btn-guest"
-                @click="$emit('guest')"
-              >
-                {{ $t("login.guest") }}
+                {{ $t("forgotPassword.submit") }}
               </button>
             </form>
+
+            <div class="text-center mt-3">
+              <a href="#" class="small text-decoration-none forgot-link" @click.prevent="$emit('back')">
+                {{ $t("forgotPassword.backToLogin") }}
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -240,18 +153,17 @@
 
 <script>
 export default {
-  name: "LoginPage",
-  emits: ["guest", "forgot-password"],
+  name: "ForgotPasswordPage",
+  emits: ["back"],
   data() {
     return {
       email: "",
-      password: "",
-      rememberMe: false,
+      sent: false,
     };
   },
   methods: {
-    handleLogin() {
-      console.log("Login:", this.email, this.password, this.rememberMe);
+    handleSubmit() {
+      this.sent = true;
     },
     switchLang(lang) {
       this.$i18n.locale = lang;
@@ -271,7 +183,6 @@ export default {
   background: linear-gradient(135deg, #f8f9fb 0%, #ebeef3 100%);
   position: relative;
 }
-
 .branding-side::after {
   content: "";
   position: absolute;
@@ -293,7 +204,6 @@ export default {
 .logo {
   max-width: 320px;
 }
-
 .logo-mobile {
   max-width: 200px;
 }
@@ -317,7 +227,6 @@ export default {
   font-size: 0.92rem;
   line-height: 1.5;
 }
-
 .feature-icon {
   flex-shrink: 0;
   margin-top: 2px;
@@ -331,11 +240,9 @@ export default {
   border-radius: 6px;
   transition: all 0.2s;
 }
-
 .lang-btn:hover {
   color: #2b579a;
 }
-
 .lang-active {
   color: #2b579a !important;
   background: rgba(43, 87, 154, 0.1) !important;
@@ -360,7 +267,6 @@ export default {
 .input-icon-wrapper {
   position: relative;
 }
-
 .input-icon {
   position: absolute;
   left: 14px;
@@ -377,13 +283,11 @@ export default {
   background: #f9fafb;
   transition: all 0.2s;
 }
-
 .form-input:focus {
   border-color: #2b579a;
   background: #fff;
   box-shadow: 0 0 0 3px rgba(43, 87, 154, 0.1);
 }
-
 .form-input::placeholder {
   color: #b0b7c3;
 }
@@ -397,59 +301,35 @@ export default {
   transition: all 0.25s;
   box-shadow: 0 2px 8px rgba(43, 87, 154, 0.3);
 }
-
 .btn-login:hover {
   background: linear-gradient(135deg, #1e3f73 0%, #162d54 100%);
   box-shadow: 0 4px 16px rgba(43, 87, 154, 0.4);
   transform: translateY(-1px);
 }
 
-.btn-guest {
-  border-radius: 10px;
-  font-size: 0.9rem;
-  border-color: #d1d5db;
-  color: #4a5568;
-  transition: all 0.2s;
-}
-
-.btn-guest:hover {
-  border-color: #2b579a;
-  color: #2b579a;
-  background: rgba(43, 87, 154, 0.04);
-}
-
-.form-check-input {
-  border-radius: 4px;
-}
-
-.form-check-input:checked {
-  background-color: #2b579a;
-  border-color: #2b579a;
-}
-
 .forgot-link {
   color: #2b579a;
   font-weight: 500;
 }
-
 .forgot-link:hover {
   text-decoration: underline !important;
 }
 
-.divider-text hr {
-  border-color: #e5e7eb;
+.success-box {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 1.5rem;
 }
 
 @media (max-width: 991.98px) {
   .branding-side {
     display: none !important;
   }
-
   .form-side {
     background: linear-gradient(135deg, #f8f9fb 0%, #ebeef3 100%);
     min-height: 100vh;
   }
-
   .login-card {
     background: #fff;
     border-radius: 20px;

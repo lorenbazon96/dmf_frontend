@@ -59,55 +59,6 @@
             </div>
 
             <div class="d-flex flex-column gap-2">
-              <button class="btn btn-action">
-                <span>{{ $t("dashboard.createProject") }}</span>
-                <span class="action-icon">+</span>
-              </button>
-              <button class="btn btn-action">
-                <span>{{ $t("dashboard.allWorkers") }}</span>
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  opacity="0.8"
-                >
-                  <path
-                    d="M8 8a3 3 0 100-6 3 3 0 000 6m2-3a2 2 0 11-4 0 2 2 0 014 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"
-                  />
-                </svg>
-              </button>
-              <button class="btn btn-action">
-                <span>{{ $t("dashboard.warehouse") }}</span>
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  opacity="0.8"
-                >
-                  <path
-                    d="M8.186 1.113a.5.5 0 00-.372 0L1.846 3.5 8 5.961 14.154 3.5zM15 4.239l-6.5 2.6v7.922l6.5-2.6V4.24zM7.5 14.762V6.838L1 4.239v7.923zM7.443.184a1.5 1.5 0 011.114 0l7.129 2.852A.5.5 0 0116 3.5v8.662a1 1 0 01-.629.928l-7.185 2.874a.5.5 0 01-.372 0L.63 13.09a1 1 0 01-.63-.928V3.5a.5.5 0 01.314-.464z"
-                  />
-                </svg>
-              </button>
-              <button class="btn btn-action">
-                <span>{{ $t("dashboard.productionHistory") }}</span>
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  opacity="0.8"
-                >
-                  <path
-                    d="M8.515 1.019A7 7 0 008 1V0a8 8 0 01.589.022zm2.004.45a7 7 0 00-.985-.299l.219-.976q.576.129 1.126.342zm1.37.71a7 7 0 00-.439-.27l.493-.87a8 8 0 01.979.654l-.615.789a7 7 0 00-.418-.302zm1.834 1.79a7 7 0 00-.653-.796l.724-.69q.406.429.747.91zm.744 1.352a7 7 0 00-.214-.468l.893-.45a8 8 0 01.45 1.088l-.95.313a7 7 0 00-.179-.483m.53 2.507a7 7 0 00-.1-1.025l.985-.17q.1.58.116 1.17zm-.131 1.538q.05-.254.081-.51l.993.123a8 8 0 01-.23 1.155l-.964-.267q.069-.247.12-.501m-.952 2.379q.276-.436.486-.908l.914.405q-.253.573-.585 1.1zM8 1a7 7 0 104.95 11.95l.707.707A8 8 0 118 0z"
-                  />
-                  <path
-                    d="M7.5 3a.5.5 0 01.5.5v5.21l3.248 1.856a.5.5 0 01-.496.868l-3.5-2A.5.5 0 017 9V3.5a.5.5 0 01.5-.5"
-                  />
-                </svg>
-              </button>
               <button class="btn btn-action-danger">
                 <span>{{ $t("project.deleteProject") }}</span>
                 <svg
@@ -207,11 +158,6 @@
                   {{ $t("project.productionPlan") }}
                 </h5>
                 <div class="panel-header-actions pe-2 pt-2">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="#555">
-                    <path
-                      d="M12.146.146a.5.5 0 01.708 0l3 3a.5.5 0 010 .708l-10 10a.5.5 0 01-.168.11l-5 2a.5.5 0 01-.65-.65l2-5a.5.5 0 01.11-.168zM11.207 2.5L13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 01.5.5v.5h.5a.5.5 0 01.5.5v.5h.293z"
-                    />
-                  </svg>
                   <svg
                     width="16"
                     height="16"
