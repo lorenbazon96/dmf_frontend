@@ -125,6 +125,8 @@
               {{ $t("login.subtitle") }}
             </p>
 
+            <div v-if="error" class="alert alert-danger py-2 text-center small">{{ error }}</div>
+
             <form @submit.prevent="handleLogin">
               <div class="mb-4">
                 <label
@@ -239,19 +241,31 @@
 </template>
 
 <script>
+import api from "../api";
+
 export default {
   name: "LoginPage",
-  emits: ["guest", "forgot-password"],
+  emits: ["guest", "forgot-password", "login"],
   data() {
     return {
       email: "",
       password: "",
       rememberMe: false,
+      error: "",
     };
   },
   methods: {
-    handleLogin() {
-      console.log("Login:", this.email, this.password, this.rememberMe);
+    async handleLogin() {
+      this.error = "";
+      try {
+        const { data } = await api.post("/auth/login", {
+          email: this.email,
+          password: this.password,
+        });
+        this.$emit("login", data);
+      } catch (err) {
+        this.error = err.response?.data?.error || "Login failed";
+      }
     },
     switchLang(lang) {
       this.$i18n.locale = lang;

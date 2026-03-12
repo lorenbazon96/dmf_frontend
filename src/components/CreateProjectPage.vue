@@ -3,6 +3,7 @@
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
+      :user-name="userName"
       @logout="$emit('logout')"
       @add-company="$emit('add-company')"
       @edit-profile="$emit('edit-profile')"
@@ -49,9 +50,7 @@
                     class="form-select form-select-sm"
                   >
                     <option value=""></option>
-                    <option>City Montana</option>
-                    <option>Bridge Mont II</option>
-                    <option>Telekom Com</option>
+                    <option v-for="c in clients" :key="c._id" :value="c.clientName">{{ c.clientName }}</option>
                   </select>
                 </div>
 
@@ -64,9 +63,7 @@
                     class="form-select form-select-sm"
                   >
                     <option value=""></option>
-                    <option>David Mallys</option>
-                    <option>Marko Marković</option>
-                    <option>Ivo Ivić</option>
+                    <option v-for="w in allWorkers" :key="w.id" :value="w.name">{{ w.name }}</option>
                   </select>
                 </div>
 
@@ -670,6 +667,7 @@
 
 <script>
 import SidebarNav from "./SidebarNav.vue";
+import api from "../api";
 
 export default {
   name: "CreateProjectPage",
@@ -677,6 +675,7 @@ export default {
   props: {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
+    userName: { type: String, default: '' },
   },
   emits: ["back", "logout", "edit-profile", "select-company", "add-company", "update-companies"],
   data() {
@@ -706,38 +705,18 @@ export default {
       showMaterialModal: false,
       materialSelected: [],
 
-      allWorkers: [
-        { id: 1, name: 'Marko Marković', busy: false, freeIn: '', company: 'Company 1', ratings: { pipeCutting: 100, sheetCutting: 100, welding: 100, bending: 100, grinding: 100, drilling: 100, assembly: 100 }, operations: { pipeCutting: true, sheetCutting: true, welding: true, bending: true, grinding: true, drilling: true, assembly: true } },
-        { id: 2, name: 'Elvis Elvisić', busy: true, freeIn: '2h 30min', company: 'Company 1', ratings: { pipeCutting: 100, sheetCutting: 20, welding: 100, bending: 20, grinding: 100, drilling: 95, assembly: 10 }, operations: { pipeCutting: true, sheetCutting: true, welding: true, bending: true, grinding: true, drilling: true, assembly: true } },
-        { id: 3, name: 'Tomislav Tomić', busy: false, freeIn: '', company: 'Company 2', ratings: { pipeCutting: 20, sheetCutting: 95, welding: 10, bending: 100, grinding: 20, drilling: 100, assembly: 0 }, operations: { pipeCutting: true, sheetCutting: true, welding: true, bending: true, grinding: true, drilling: true, assembly: false } },
-        { id: 4, name: 'Igor Iggy', busy: true, freeIn: '45min', company: 'Company 2', ratings: { pipeCutting: 95, sheetCutting: 100, welding: 0, bending: 10, grinding: 100, drilling: 20, assembly: 100 }, operations: { pipeCutting: true, sheetCutting: true, welding: false, bending: true, grinding: true, drilling: true, assembly: true } },
-        { id: 5, name: 'Curt Mall', busy: false, freeIn: '', company: 'Company 3', ratings: { pipeCutting: 100, sheetCutting: 20, welding: 100, bending: 0, grinding: 10, drilling: 100, assembly: 20 }, operations: { pipeCutting: true, sheetCutting: true, welding: true, bending: false, grinding: true, drilling: true, assembly: true } },
-        { id: 6, name: 'Johnn Marić', busy: true, freeIn: '1h 15min', company: 'Company 3', ratings: { pipeCutting: 20, sheetCutting: 100, welding: 20, bending: 100, grinding: 0, drilling: 10, assembly: 95 }, operations: { pipeCutting: true, sheetCutting: true, welding: true, bending: true, grinding: false, drilling: true, assembly: true } },
-        { id: 7, name: 'Ivica Ivanković', busy: false, freeIn: '', company: 'Company 4', ratings: { pipeCutting: 10, sheetCutting: 10, welding: 10, bending: 10, grinding: 10, drilling: 50, assembly: 10 }, operations: { pipeCutting: true, sheetCutting: true, welding: true, bending: true, grinding: true, drilling: true, assembly: true } },
-        { id: 8, name: 'Mirko Slavek', busy: false, freeIn: '', company: 'Company 4', ratings: { pipeCutting: 10, sheetCutting: 50, welding: 100, bending: 10, grinding: 10, drilling: 50, assembly: 31 }, operations: { pipeCutting: true, sheetCutting: true, welding: true, bending: true, grinding: true, drilling: true, assembly: true } },
-      ],
-
-      allWarehouseItems: [
-        { id: 1, type: "Sheet", name: "3000 x 1500 x 10", specs: "AISI304", qty: 1250, company: "Company 1" },
-        { id: 2, type: "Sheet", name: "3000 x 1500 x 8", specs: "AISI304", qty: 870, company: "Company 1" },
-        { id: 3, type: "Sheet", name: "2500 x 1250 x 6", specs: "S275JR", qty: 1540, company: "Company 1" },
-        { id: 4, type: "Screw", name: "M16 x 150", specs: "Fischer anchor", qty: 3200, company: "Company 1" },
-        { id: 5, type: "Screw", name: "M12 x 80", specs: "Fischer anchor", qty: 4100, company: "Company 2" },
-        { id: 6, type: "Pipe", name: "114.3 x 3.6 x 6000", specs: "S275JR", qty: 620, company: "Company 2" },
-        { id: 7, type: "Pipe", name: "88.9 x 3.2 x 6000", specs: "AISI304", qty: 980, company: "Company 2" },
-        { id: 8, type: "Sheet", name: "2000 x 1000 x 12", specs: "S355JR", qty: 450, company: "Company 2" },
-        { id: 9, type: "Screw", name: "M20 x 200", specs: "Fischer anchor", qty: 1800, company: "Company 3" },
-        { id: 10, type: "Pipe", name: "60.3 x 2.9 x 6000", specs: "S275JR", qty: 740, company: "Company 3" },
-        { id: 11, type: "Sheet", name: "3000 x 1500 x 5", specs: "AISI316", qty: 560, company: "Company 3" },
-        { id: 12, type: "Screw", name: "M10 x 60", specs: "Fischer anchor", qty: 2800, company: "Company 3" },
-        { id: 13, type: "Pipe", name: "168.3 x 4.0 x 6000", specs: "S355JR", qty: 310, company: "Company 4" },
-        { id: 14, type: "Sheet", name: "2500 x 1250 x 3", specs: "S275JR", qty: 920, company: "Company 4" },
-        { id: 15, type: "Screw", name: "M8 x 40", specs: "Fischer anchor", qty: 5200, company: "Company 4" },
-        { id: 16, type: "Pipe", name: "48.3 x 2.6 x 6000", specs: "AISI304", qty: 1100, company: "Company 4" },
-      ],
+      allWorkers: [],
+      allWarehouseItems: [],
+      clients: [],
 
       autoEstimatedTime: "",
     };
+  },
+  watch: {
+    selectedCompany: {
+      immediate: true,
+      handler() { this.fetchData(); },
+    },
   },
   computed: {
     workers() {
@@ -811,6 +790,32 @@ export default {
     },
   },
   methods: {
+    async fetchData() {
+      const params = this.selectedCompany ? { company: this.selectedCompany } : {};
+      const [workersRes, warehouseRes, clientsRes] = await Promise.all([
+        api.get("/workers", { params }),
+        api.get("/warehouse", { params }),
+        api.get("/clients", { params }),
+      ]);
+      this.clients = clientsRes.data;
+      this.allWorkers = workersRes.data.map(w => ({
+        id: w._id,
+        name: w.fullName,
+        busy: w.busy,
+        freeIn: w.freeIn,
+        company: w.company,
+        ratings: w.ratings,
+        operations: w.operations,
+      }));
+      this.allWarehouseItems = warehouseRes.data.map(i => ({
+        id: i._id,
+        type: i.type,
+        name: i.name,
+        specs: i.specs,
+        qty: i.qty,
+        company: i.company,
+      }));
+    },
     createEmptyTreatment() {
       return {
         pipeCutting: { qty: "", m: "", thickness: "" },

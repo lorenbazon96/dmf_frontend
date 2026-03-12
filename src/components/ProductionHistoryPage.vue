@@ -3,6 +3,7 @@
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
+      :user-name="userName"
       @logout="$emit('logout')"
       @add-company="$emit('add-company')"
       @edit-profile="$emit('edit-profile')"
@@ -150,6 +151,7 @@
 
 <script>
 import SidebarNav from "./SidebarNav.vue";
+import api from "../api";
 
 export default {
   name: "ProductionHistoryPage",
@@ -157,6 +159,7 @@ export default {
   props: {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
+    userName: { type: String, default: '' },
   },
   emits: ["back", "logout", "view-project", "edit-profile", "select-company", "add-company", "update-companies"],
   data() {
@@ -167,27 +170,11 @@ export default {
       sortAsc: true,
       showFilterDropdown: false,
       showSortDropdown: false,
-      completedProjects: [
-        { rn: "RN-1", client: "Metal Const d.o.o", name: "Construction bridge", completedOn: "05.09.2025.", progress: 100, color: "green", est: "05.09.2025. 14:00", company: "Company 1" },
-        { rn: "RN-2", client: "Evo d.o.o", name: "Steel platform", completedOn: "12.08.2025.", progress: 100, color: "green", est: "12.08.2025. 10:00", company: "Company 1" },
-        { rn: "RN-3", client: "MartArt d.d.", name: "Roof structure", completedOn: "28.07.2025.", progress: 100, color: "green", est: "28.07.2025. 16:30", company: "Company 1" },
-        { rn: "RN-4", client: "Const d.o.o", name: "Pipe installation", completedOn: "15.07.2025.", progress: 100, color: "green", est: "15.07.2025. 09:00", company: "Company 2" },
-        { rn: "RN-5", client: "Metal d.o.o", name: "Staircase frame", completedOn: "01.07.2025.", progress: 100, color: "green", est: "01.07.2025. 11:00", company: "Company 2" },
-        { rn: "RN-6", client: "MetalLab d.o.o", name: "Tank support", completedOn: "20.06.2025.", progress: 100, color: "green", est: "20.06.2025. 13:00", company: "Company 2" },
-        { rn: "RN-7", client: "IndustryT d.o.o", name: "Conveyor frame", completedOn: "10.06.2025.", progress: 100, color: "green", est: "10.06.2025. 08:30", company: "Company 3" },
-        { rn: "RN-8", client: "Metallic d.o.o", name: "Fence panels", completedOn: "28.05.2025.", progress: 100, color: "green", est: "28.05.2025. 15:00", company: "Company 3" },
-        { rn: "RN-9", client: "SStell d.o.o", name: "Beam assembly", completedOn: "15.05.2025.", progress: 100, color: "green", est: "15.05.2025. 12:00", company: "Company 3" },
-        { rn: "RN-10", client: "Total d.o.o", name: "Column structure", completedOn: "01.05.2025.", progress: 100, color: "green", est: "01.05.2025. 10:00", company: "Company 4" },
-        { rn: "RN-11", client: "Metal Const d.o.o", name: "Walkway platform", completedOn: "18.04.2025.", progress: 100, color: "green", est: "18.04.2025. 14:30", company: "Company 4" },
-        { rn: "RN-12", client: "Evo d.o.o", name: "Guard rail", completedOn: "05.04.2025.", progress: 100, color: "green", est: "05.04.2025. 09:00", company: "Company 4" },
-      ],
+      completedProjects: [],
     };
   },
   computed: {
     companyFilteredProjects() {
-      if (this.selectedCompany) {
-        return this.completedProjects.filter(p => p.company === this.selectedCompany);
-      }
       return this.completedProjects;
     },
     uniqueClients() {
@@ -233,6 +220,14 @@ export default {
       return this.companyFilteredProjects.length * 14963;
     },
   },
+  watch: {
+    selectedCompany: {
+      immediate: true,
+      handler() {
+        this.fetchHistory();
+      },
+    },
+  },
   mounted() {
     this._onClickOutside = (e) => {
       const wraps = this.$el.querySelectorAll(".dropdown-wrap");
@@ -248,6 +243,25 @@ export default {
     document.removeEventListener("click", this._onClickOutside);
   },
   methods: {
+    async fetchHistory() {
+      try {
+        const params = { status: "completed" };
+        if (this.selectedCompany) params.company = this.selectedCompany;
+        const { data } = await api.get("/projects", { params });
+        this.completedProjects = data.map((p) => ({
+          rn: p.rn,
+          client: p.client,
+          name: p.name,
+          completedOn: new Date(p.createdAt).toLocaleDateString("hr-HR"),
+          progress: 100,
+          color: "green",
+          est: "-",
+          company: p.company,
+        }));
+      } catch {
+        this.completedProjects = [];
+      }
+    },
     setFilter(client) {
       this.activeFilter = this.activeFilter === client && client !== "" ? "" : client;
       this.showFilterDropdown = false;

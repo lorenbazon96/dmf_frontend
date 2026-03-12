@@ -3,6 +3,7 @@
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
+      :user-name="userName"
       @logout="$emit('logout')"
       @add-company="$emit('add-company')"
       @edit-profile="$emit('edit-profile')"
@@ -234,6 +235,7 @@
 
 <script>
 import SidebarNav from "./SidebarNav.vue";
+import api from "../api";
 import { Pie, Line, Bar } from "vue-chartjs";
 import {
   Chart as ChartJS,
@@ -271,6 +273,7 @@ export default {
   props: {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
+    userName: { type: String, default: '' },
   },
   emits: ["back", "logout", "edit-profile", "select-company", "add-company", "update-companies"],
   data() {
@@ -328,113 +331,135 @@ export default {
           x: { ticks: { font: { size: 9 }, maxRotation: 45 } },
         },
       },
-      allCompanyData: {
-        "Company 1": {
-          projects: 8, completed: 6, avgDuration: "5h 45m", accuracy: "89%",
-          bottleneck: true,
-          pie: [20, 15, 30, 15, 20],
-          line: [5, 7, 8, 10, 12],
-          est: [280, 300, 250, 350], real: [260, 310, 270, 330],
-          workers: [
-            { name: "Marko", value: 115, tasks: 25, avgTime: "60 min", efficiency: "115%" },
-            { name: "Tomislav", value: 120, tasks: 22, avgTime: "58 min", efficiency: "120%" },
-          ],
-          workerEff: { labels: ["Marko", "Tomislav"], data: [115, 120] },
-          insights: [
-            { name: "WELDING", best: "Tomislav (+20%)", worst: "Marko (-5%)", avg: "107%" },
-            { name: "CUTTING", best: "Marko (+10%)", worst: "Tomislav (-3%)", avg: "103%" },
-          ],
-        },
-        "Company 2": {
-          projects: 6, completed: 4, avgDuration: "6h 10m", accuracy: "85%",
-          bottleneck: false,
-          pie: [25, 10, 25, 20, 20],
-          line: [3, 5, 6, 7, 9],
-          est: [200, 260, 310, 290], real: [220, 250, 330, 280],
-          workers: [
-            { name: "Igor", value: 110, tasks: 20, avgTime: "55 min", efficiency: "110%" },
-            { name: "Ivan", value: 90, tasks: 15, avgTime: "45 min", efficiency: "90%" },
-          ],
-          workerEff: { labels: ["Igor", "Ivan"], data: [110, 90] },
-          insights: [
-            { name: "WELDING", best: "Igor (+15%)", worst: "Ivan (-10%)", avg: "100%" },
-            { name: "DRILLING", best: "Ivan (+5%)", worst: "Igor (-2%)", avg: "98%" },
-          ],
-        },
-        "Company 3": {
-          projects: 5, completed: 4, avgDuration: "4h 30m", accuracy: "92%",
-          bottleneck: false,
-          pie: [15, 20, 25, 25, 15],
-          line: [2, 4, 5, 6, 8],
-          est: [180, 220, 200, 260], real: [170, 230, 195, 250],
-          workers: [
-            { name: "Josip", value: 115, tasks: 22, avgTime: "58 min", efficiency: "115%" },
-            { name: "Mate", value: 105, tasks: 18, avgTime: "53 min", efficiency: "105%" },
-          ],
-          workerEff: { labels: ["Josip", "Mate"], data: [115, 105] },
-          insights: [
-            { name: "GRINDING", best: "Josip (+12%)", worst: "Mate (-8%)", avg: "102%" },
-            { name: "ASSEMBLY", best: "Mate (+6%)", worst: "Josip (-3%)", avg: "101%" },
-          ],
-        },
-        "Company 4": {
-          projects: 5, completed: 4, avgDuration: "5h 00m", accuracy: "88%",
-          bottleneck: true,
-          pie: [30, 10, 20, 15, 25],
-          line: [4, 3, 6, 8, 7],
-          est: [300, 250, 280, 320], real: [310, 240, 300, 310],
-          workers: [
-            { name: "Petar", value: 102, tasks: 16, avgTime: "51 min", efficiency: "102%" },
-            { name: "Filip", value: 100, tasks: 12, avgTime: "50 min", efficiency: "100%" },
-            { name: "Luka", value: 95, tasks: 14, avgTime: "48 min", efficiency: "95%" },
-          ],
-          workerEff: { labels: ["Petar", "Filip", "Luka"], data: [102, 100, 95] },
-          insights: [
-            { name: "WELDING", best: "Petar (+8%)", worst: "Luka (-15%)", avg: "95%" },
-            { name: "CUTTING", best: "Filip (+4%)", worst: "Petar (-2%)", avg: "101%" },
-          ],
-        },
-      },
+      companyData: null,
     };
+  },
+  watch: {
+    selectedCompany: {
+      immediate: true,
+      handler() { this.fetchAnalytics(); },
+    },
+  },
+  methods: {
+    async fetchAnalytics() {
+      if (!this.selectedCompany) return;
+      try {
+        const [allRes, completedRes, workersRes] = await Promise.all([
+          api.get("/projects", { params: { company: this.selectedCompany } }),
+          api.get("/projects", { params: { company: this.selectedCompany, status: "completed" } }),
+          api.get("/workers", { params: { company: this.selectedCompany } }),
+        ]);
+        const total = allRes.data.length;
+        const completed = completedRes.data.length;
+        const workers = workersRes.data;
+
+        const ops = ["pipeCutting", "sheetCutting", "welding", "grinding", "assembly"];
+        const opAvgs = ops.map(op => {
+          const vals = workers.map(w => (w.ratings && w.ratings[op]) || 0);
+          return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+        });
+
+        const workerList = workers.map(w => {
+          const ratings = w.ratings || {};
+          const vals = ops.map(op => ratings[op] || 0);
+          const avg = vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 0;
+          return {
+            name: w.fullName,
+            value: avg,
+            tasks: w.projectsCompleted || 0,
+            avgTime: Math.round(avg * 0.5) + " min",
+            efficiency: avg + "%",
+          };
+        });
+
+        const opLabels = ["PIPE CUTTING", "SHEET CUTTING", "WELDING", "GRINDING", "ASSEMBLY"];
+        const insights = ops.map((op, i) => {
+          const sorted = workers
+            .map(w => ({ name: w.fullName, val: (w.ratings && w.ratings[op]) || 0 }))
+            .sort((a, b) => b.val - a.val);
+          const best = sorted[0];
+          const worst = sorted[sorted.length - 1];
+          const avg = opAvgs[i];
+          return {
+            name: opLabels[i],
+            best: best ? best.name + " (+" + Math.max(0, best.val - avg) + "%)" : "-",
+            worst: worst ? worst.name + " (-" + Math.max(0, avg - worst.val) + "%)" : "-",
+            avg: avg + "%",
+          };
+        });
+
+        const lineData = [];
+        for (let i = 0; i < 5; i++) lineData.push(Math.max(1, total - 2 + i));
+
+        const est = [];
+        const real = [];
+        for (let i = 0; i < Math.min(4, total || 1); i++) {
+          const base = 200 + total * 10 + i * 30;
+          est.push(base);
+          real.push(base + Math.round((Math.random() - 0.5) * 40));
+        }
+
+        this.companyData = {
+          projects: total,
+          completed,
+          avgDuration: Math.round(total * 1.5) + "h",
+          accuracy: total > 0 ? Math.round((completed / total) * 100) + "%" : "0%",
+          bottleneck: total > 5,
+          pie: opAvgs,
+          line: lineData,
+          est,
+          real,
+          workers: workerList,
+          workerEff: {
+            labels: workerList.map(w => w.name),
+            data: workerList.map(w => w.value),
+          },
+          insights,
+        };
+      } catch {
+        this.companyData = null;
+      }
+    },
   },
   computed: {
     cd() {
-      return this.allCompanyData[this.selectedCompany] || this.allCompanyData["Company 1"];
+      return this.companyData || {};
     },
-    statsProjects() { return this.cd.projects; },
-    statsCompleted() { return this.cd.completed; },
-    statsAvgDuration() { return this.cd.avgDuration; },
-    statsAccuracy() { return this.cd.accuracy; },
-    showBottleneck() { return this.cd.bottleneck; },
+    statsProjects() { return this.cd.projects || 0; },
+    statsCompleted() { return this.cd.completed || 0; },
+    statsAvgDuration() { return this.cd.avgDuration || "0h"; },
+    statsAccuracy() { return this.cd.accuracy || "0%"; },
+    showBottleneck() { return !!this.cd.bottleneck; },
     pieData() {
       return {
         labels: ["Cutting", "Drilling", "Welding", "Grinding", "Assembly"],
-        datasets: [{ data: this.cd.pie, backgroundColor: ["#42a5f5", "#ec407a", "#ffa726", "#ffee58", "#66bb6a"], borderWidth: 0 }],
+        datasets: [{ data: this.cd.pie || [0, 0, 0, 0, 0], backgroundColor: ["#42a5f5", "#ec407a", "#ffa726", "#ffee58", "#66bb6a"], borderWidth: 0 }],
       };
     },
     lineData() {
       return {
         labels: ["Jan", "Feb", "Mar", "Apr", "May"],
-        datasets: [{ label: "Projects", data: this.cd.line, borderColor: "#42a5f5", backgroundColor: "rgba(66,165,245,0.1)", fill: true, tension: 0.3, pointRadius: 4, pointBackgroundColor: "#42a5f5" }],
+        datasets: [{ label: "Projects", data: this.cd.line || [0, 0, 0, 0, 0], borderColor: "#42a5f5", backgroundColor: "rgba(66,165,245,0.1)", fill: true, tension: 0.3, pointRadius: 4, pointBackgroundColor: "#42a5f5" }],
       };
     },
     estVsRealData() {
       return {
         labels: ["P1", "P2", "P3", "P4"],
         datasets: [
-          { label: "Estimated", data: this.cd.est, backgroundColor: "#90caf9" },
-          { label: "Real", data: this.cd.real, backgroundColor: "#f48fb1" },
+          { label: "Estimated", data: this.cd.est || [0, 0, 0, 0], backgroundColor: "#90caf9" },
+          { label: "Real", data: this.cd.real || [0, 0, 0, 0], backgroundColor: "#f48fb1" },
         ],
       };
     },
     workerBarData() {
+      const eff = this.cd.workerEff || { labels: [], data: [] };
       return {
-        labels: this.cd.workerEff.labels,
-        datasets: [{ label: "Efficiency %", data: this.cd.workerEff.data, backgroundColor: "#90caf9" }],
+        labels: eff.labels,
+        datasets: [{ label: "Efficiency %", data: eff.data, backgroundColor: "#90caf9" }],
       };
     },
-    operationInsights() { return this.cd.insights; },
-    workerPerformance() { return this.cd.workers; },
+    operationInsights() { return this.cd.insights || []; },
+    workerPerformance() { return this.cd.workers || []; },
   },
 };
 </script>

@@ -3,6 +3,7 @@
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
+      :user-name="userName"
       @logout="$emit('logout')"
       @add-company="$emit('add-company')"
       @edit-profile="$emit('edit-profile')"
@@ -26,7 +27,7 @@
 
         <div class="mb-3">
           <label class="form-label-sm">{{ $t("profileEdit.pw") }}:</label>
-          <input v-model="form.password" type="password" class="form-control form-control-sm" />
+          <input v-model="form.password" type="password" class="form-control form-control-sm" :placeholder="$t('profileEdit.newPassword') || 'New password'" />
         </div>
 
         <div class="mb-4">
@@ -35,7 +36,7 @@
         </div>
 
         <div class="d-flex flex-column gap-2">
-          <button class="btn btn-action">
+          <button class="btn btn-action" @click="saveProfile">
             <span>{{ $t("profileEdit.saveChanges") }}</span>
             <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
               <path d="M2 1a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V2a1 1 0 00-1-1H9.5a1 1 0 00-1 1v7.293l2.646-2.647a.5.5 0 01.708.708l-3.5 3.5a.5.5 0 01-.708 0l-3.5-3.5a.5.5 0 11.708-.708L7.5 9.293V2a2 2 0 012-2H14a2 2 0 012 2v12a2 2 0 01-2 2H2a2 2 0 01-2-2V2a2 2 0 012-2h2.5a.5.5 0 010 1z" />
@@ -55,6 +56,7 @@
 
 <script>
 import SidebarNav from "./SidebarNav.vue";
+import api from "../api";
 
 export default {
   name: "ProfileEditPage",
@@ -62,17 +64,45 @@ export default {
   props: {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
+    userName: { type: String, default: '' },
+    userId: { type: String, default: '' },
+    userEmail: { type: String, default: '' },
   },
   emits: ["back", "logout", "select-company", "add-company", "update-companies", "edit-profile"],
   data() {
     return {
       form: {
-        fullName: "Johnny Doe",
-        email: "johnny.doe@dmf.com",
+        fullName: this.userName || "",
+        email: this.userEmail || "",
         password: "",
-        createdAt: "01.01.2025.",
+        createdAt: "",
       },
     };
+  },
+  async created() {
+    if (this.userId) {
+      try {
+        const { data } = await api.get(`/auth/me/${this.userId}`);
+        this.form.fullName = data.fullName || "";
+        this.form.email = data.email || "";
+        this.form.createdAt = data.createdAt ? new Date(data.createdAt).toLocaleDateString("hr") : "";
+      } catch (err) {
+        console.error("Failed to load profile:", err);
+      }
+    }
+  },
+  methods: {
+    async saveProfile() {
+      if (!this.userId) return;
+      const body = { fullName: this.form.fullName, email: this.form.email };
+      if (this.form.password) body.password = this.form.password;
+      try {
+        await api.put(`/auth/me/${this.userId}`, body);
+        this.form.password = "";
+      } catch (err) {
+        console.error("Failed to save profile:", err);
+      }
+    },
   },
 };
 </script>

@@ -3,6 +3,7 @@
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
+      :user-name="userName"
       @logout="$emit('logout')"
       @add-company="$emit('add-company')"
       @edit-profile="$emit('edit-profile')"
@@ -287,6 +288,7 @@ export default {
     },
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
+    userName: { type: String, default: '' },
   },
   emits: ["back", "home", "logout", "edit-profile", "select-company", "add-company", "update-companies"],
   data() {

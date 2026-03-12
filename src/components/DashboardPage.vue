@@ -3,6 +3,7 @@
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
+      :user-name="userName"
       @logout="$emit('logout')"
       @add-company="$emit('add-company')"
       @edit-profile="$emit('edit-profile')"
@@ -195,6 +196,7 @@
 
 <script>
 import SidebarNav from "./SidebarNav.vue";
+import api from "../api";
 
 export default {
   name: "DashboardPage",
@@ -202,154 +204,52 @@ export default {
   props: {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
+    userName: { type: String, default: '' },
   },
   emits: ["logout", "view-project", "create-project", "analytics", "workers-clients", "warehouse", "production-history", "edit-profile", "select-company", "add-company", "update-companies"],
   data() {
     return {
-      projects: [
-        {
-          rn: "RN-12",
-          name: "Mini house for water",
-          client: "City Montana",
-          worksOn: "M. Marković and 2 more",
-          progress: 75,
-          color: "green",
-          est: "10.01.2026. 12:30",
-          company: "Company 1",
-        },
-        {
-          rn: "RN-15",
-          name: "Bridge River Sava",
-          client: "Bridge Mont II",
-          worksOn: "Ivo Ivić",
-          progress: 40,
-          color: "blue",
-          est: "11.01.2026. 09:00",
-          company: "Company 2",
-        },
-        {
-          rn: "RN-13",
-          name: "Anthen Mobile v2",
-          client: "Telekom Com",
-          worksOn: "I. Iggy and 2 more",
-          progress: 60,
-          color: "green",
-          est: "10.01.2026. 16:00",
-          company: "Company 1",
-        },
-        {
-          rn: "RN-16",
-          name: "Anthen Mobile v3",
-          client: "Telekom Com",
-          worksOn: "I. Iggy and 2 more",
-          progress: 25,
-          color: "yellow",
-          est: "-",
-          company: "Company 3",
-        },
-      ],
-      assemblies: [
-        {
-          rn: "RN-12",
-          operation: "Assembly",
-          worksOn: "Marko Marković",
-          est: "10.01.2026. 10:30",
-          progress: 100,
-          color: "green",
-          company: "Company 1",
-        },
-        {
-          rn: "RN-12",
-          operation: "Welding",
-          worksOn: "Tomislav Tomić",
-          est: "10.01.2026. 11:20",
-          progress: 90,
-          color: "green",
-          company: "Company 1",
-        },
-        {
-          rn: "RN-12",
-          operation: "Grinding",
-          worksOn: "Elvis Elvisić",
-          est: "10.01.2026. 12:30",
-          progress: 80,
-          color: "green",
-          company: "Company 1",
-        },
-        {
-          rn: "RN-15",
-          operation: "Grinding",
-          worksOn: "Ivo Ivić",
-          est: "11.01.2026. 09:00",
-          progress: 70,
-          color: "green",
-          company: "Company 2",
-        },
-        {
-          rn: "RN-13",
-          operation: "Assembly",
-          worksOn: "Igor Iggy",
-          est: "10.01.2026. 13:30",
-          progress: 50,
-          color: "yellow",
-          company: "Company 1",
-        },
-        {
-          rn: "RN-13",
-          operation: "Welding",
-          worksOn: "Jože Jožić",
-          est: "10.01.2026. 14:40",
-          progress: 45,
-          color: "yellow",
-          company: "Company 1",
-        },
-        {
-          rn: "RN-13",
-          operation: "Grinding",
-          worksOn: "Mate Matić",
-          est: "10.01.2026. 16:00",
-          progress: 30,
-          color: "blue",
-          company: "Company 1",
-        },
-        {
-          rn: "RN-16",
-          operation: "Assembly",
-          worksOn: "Igor Iggy",
-          est: "-",
-          progress: 20,
-          color: "yellow",
-          company: "Company 3",
-        },
-        {
-          rn: "RN-16",
-          operation: "Welding",
-          worksOn: "Jože Jožić",
-          est: "-",
-          progress: 10,
-          color: "red",
-          company: "Company 3",
-        },
-        {
-          rn: "RN-16",
-          operation: "Grinding",
-          worksOn: "Mate Matić",
-          est: "-",
-          progress: 5,
-          color: "red",
-          company: "Company 3",
-        },
-      ],
+      projects: [],
+      assemblies: [],
     };
   },
   computed: {
     filteredProjects() {
-      if (!this.selectedCompany) return this.projects;
-      return this.projects.filter(p => p.company === this.selectedCompany);
+      return this.projects;
     },
     filteredAssemblies() {
-      if (!this.selectedCompany) return this.assemblies;
-      return this.assemblies.filter(a => a.company === this.selectedCompany);
+      return this.assemblies;
+    },
+  },
+  watch: {
+    selectedCompany: {
+      immediate: true,
+      handler() {
+        this.fetchProjects();
+      },
+    },
+  },
+  methods: {
+    async fetchProjects() {
+      try {
+        const params = { status: "active" };
+        if (this.selectedCompany) {
+          params.company = this.selectedCompany;
+        }
+        const { data } = await api.get("/projects", { params });
+        this.projects = data.map((p) => ({
+          rn: p.rn,
+          name: p.name,
+          client: p.client,
+          worksOn: p.worksOn || "",
+          progress: p.progress || 0,
+          color: p.color || "blue",
+          est: p.est || "-",
+          company: p.company,
+        }));
+      } catch (e) {
+        console.error("Failed to fetch projects:", e);
+      }
     },
   },
 };

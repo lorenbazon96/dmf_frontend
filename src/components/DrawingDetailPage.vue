@@ -3,6 +3,7 @@
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
+      :user-name="userName"
       @logout="$emit('logout')"
       @add-company="$emit('add-company')"
       @edit-profile="$emit('edit-profile')"
@@ -20,9 +21,9 @@
                 <div class="project-subtitle">{{ project.name }}</div>
                 <hr class="my-2" />
                 <div class="project-meta">{{ project.client }}</div>
-                <div class="project-meta">David Mallys</div>
-                <div class="project-meta">+385911234567</div>
-                <div class="project-meta">david.montana@city.com</div>
+                <div class="project-meta">{{ project.responsible || '–' }}</div>
+                <div class="project-meta">{{ project.phone || '–' }}</div>
+                <div class="project-meta">{{ project.email || '–' }}</div>
                 <div class="d-flex align-items-center gap-2 mt-2 mb-1">
                   <div class="progress-bar-wrap">
                     <div
@@ -149,6 +150,7 @@ export default {
     drawing: { type: Object, required: true },
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
+    userName: { type: String, default: '' },
   },
   emits: ["back", "home", "logout", "edit-profile", "select-company", "add-company", "update-companies"],
 };

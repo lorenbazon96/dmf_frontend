@@ -3,6 +3,7 @@
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
+      :user-name="userName"
       @logout="$emit('logout')"
       @add-company="$emit('add-company')"
       @edit-profile="$emit('edit-profile')"
@@ -161,6 +162,7 @@
 
 <script>
 import SidebarNav from "./SidebarNav.vue";
+import api from "../api";
 
 export default {
   name: "WarehousePage",
@@ -168,6 +170,7 @@ export default {
   props: {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
+    userName: { type: String, default: '' },
   },
   emits: ["back", "logout", "add-item", "edit-profile", "select-company", "add-company", "update-companies"],
   data() {
@@ -178,31 +181,17 @@ export default {
       sortAsc: true,
       showFilterDropdown: false,
       showSortDropdown: false,
-      items: [
-        { id: 1, type: "Sheet", name: "3000 x 1500 x 10", specs: "AISI304", qty: 1250, company: "Company 1" },
-        { id: 2, type: "Sheet", name: "3000 x 1500 x 8", specs: "AISI304", qty: 870, company: "Company 1" },
-        { id: 3, type: "Sheet", name: "2500 x 1250 x 6", specs: "S275JR", qty: 1540, company: "Company 1" },
-        { id: 4, type: "Screw", name: "M16 x 150", specs: "Fischer anchor", qty: 3200, company: "Company 1" },
-        { id: 5, type: "Screw", name: "M12 x 80", specs: "Fischer anchor", qty: 4100, company: "Company 2" },
-        { id: 6, type: "Pipe", name: "114.3 x 3.6 x 6000", specs: "S275JR", qty: 620, company: "Company 2" },
-        { id: 7, type: "Pipe", name: "88.9 x 3.2 x 6000", specs: "AISI304", qty: 980, company: "Company 2" },
-        { id: 8, type: "Sheet", name: "2000 x 1000 x 12", specs: "S355JR", qty: 450, company: "Company 2" },
-        { id: 9, type: "Screw", name: "M20 x 200", specs: "Fischer anchor", qty: 1800, company: "Company 3" },
-        { id: 10, type: "Pipe", name: "60.3 x 2.9 x 6000", specs: "S275JR", qty: 740, company: "Company 3" },
-        { id: 11, type: "Sheet", name: "3000 x 1500 x 5", specs: "AISI316", qty: 560, company: "Company 3" },
-        { id: 12, type: "Screw", name: "M10 x 60", specs: "Fischer anchor", qty: 2800, company: "Company 3" },
-        { id: 13, type: "Pipe", name: "168.3 x 4.0 x 6000", specs: "S355JR", qty: 310, company: "Company 4" },
-        { id: 14, type: "Sheet", name: "2500 x 1250 x 3", specs: "S275JR", qty: 920, company: "Company 4" },
-        { id: 15, type: "Screw", name: "M8 x 40", specs: "Fischer anchor", qty: 5200, company: "Company 4" },
-        { id: 16, type: "Pipe", name: "48.3 x 2.6 x 6000", specs: "AISI304", qty: 1100, company: "Company 4" },
-      ],
+      items: [],
     };
+  },
+  watch: {
+    selectedCompany: {
+      immediate: true,
+      handler() { this.fetchItems(); },
+    },
   },
   computed: {
     companyFilteredItems() {
-      if (this.selectedCompany) {
-        return this.items.filter(i => i.company === this.selectedCompany);
-      }
       return this.items;
     },
     uniqueTypes() {
@@ -270,13 +259,23 @@ export default {
     document.removeEventListener("click", this._onClickOutside);
   },
   methods: {
-    incrementQty(item) {
+    async fetchItems() {
+      const params = this.selectedCompany ? { company: this.selectedCompany } : {};
+      const { data } = await api.get("/warehouse", { params });
+      this.items = data.map(i => ({ ...i, id: i._id }));
+    },
+    async incrementQty(item) {
       item.qty++;
+      await api.put(`/warehouse/${item.id}`, { qty: item.qty });
     },
-    decrementQty(item) {
-      if (item.qty > 0) item.qty--;
+    async decrementQty(item) {
+      if (item.qty > 0) {
+        item.qty--;
+        await api.put(`/warehouse/${item.id}`, { qty: item.qty });
+      }
     },
-    deleteItem(id) {
+    async deleteItem(id) {
+      await api.delete(`/warehouse/${id}`);
       this.items = this.items.filter((i) => i.id !== id);
     },
     setFilter(type) {

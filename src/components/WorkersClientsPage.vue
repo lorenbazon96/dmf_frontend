@@ -3,6 +3,7 @@
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
+      :user-name="userName"
       @logout="$emit('logout')"
       @add-company="$emit('add-company')"
       @edit-profile="$emit('edit-profile')"
@@ -85,6 +86,16 @@
 
         <div class="row g-3 g-lg-4 align-items-start">
           <div class="col-lg-3 col-md-4 col-12">
+            <div class="summary-box mb-3">
+              <div class="summary-row">
+                <span>{{ $t("workersClients.workers") }}:</span>
+                <span class="fw-bold">{{ filteredWorkers.length }}</span>
+              </div>
+              <div class="summary-row">
+                <span>{{ $t("workersClients.clients") }}:</span>
+                <span class="fw-bold">{{ filteredClients.length }}</span>
+              </div>
+            </div>
             <div class="d-flex flex-column gap-2">
               <button class="btn btn-action" @click="$emit('back')">
                 <span>{{ $t("workersClients.goBackToHome") }}</span>
@@ -185,6 +196,7 @@
 
 <script>
 import SidebarNav from "./SidebarNav.vue";
+import api from "../api";
 
 export default {
   name: "WorkersClientsPage",
@@ -192,42 +204,57 @@ export default {
   props: {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
+    userName: { type: String, default: '' },
   },
   emits: ["back", "logout", "add-client", "add-worker", "view-worker", "view-client", "edit-profile", "select-company", "add-company", "update-companies"],
   data() {
     return {
-      workers: [
-        { id: 1, fullName: 'Marko Marković', contact: '+385912345678', cp: 100, cs: 100, d: 100, g: 100, b: 100, w: 100, a: 100, rating: 100, company: 'Company 1' },
-        { id: 2, fullName: 'Elvis Elvisić', contact: '+385912345678', cp: 100, cs: 20, d: 95, g: 100, b: 20, w: 100, a: 10, rating: 68, company: 'Company 1' },
-        { id: 3, fullName: 'Tomislav Tomić', contact: '+385912345678', cp: 20, cs: 95, d: 100, g: 20, b: 100, w: 10, a: 0, rating: 68, company: 'Company 2' },
-        { id: 4, fullName: 'Igor Iggy', contact: '+385912345678', cp: 95, cs: 100, d: 20, g: 100, b: 10, w: 0, a: 100, rating: 68, company: 'Company 2' },
-        { id: 5, fullName: 'Curt Mall', contact: '+385912345678', cp: 100, cs: 20, d: 100, g: 10, b: 0, w: 100, a: 20, rating: 68, company: 'Company 3' },
-        { id: 6, fullName: 'Johnn Marić', contact: '+385912345678', cp: 20, cs: 100, d: 10, g: 0, b: 100, w: 20, a: 95, rating: 68, company: 'Company 3' },
-        { id: 7, fullName: 'Ivica Ivanković', contact: '+385912345678', cp: 10, cs: 10, d: 50, g: 10, b: 10, w: 10, a: 10, rating: 31, company: 'Company 4' },
-        { id: 8, fullName: 'Mirko Slavek', contact: '+385912345678', cp: 10, cs: 50, d: 50, g: 10, b: 10, w: 100, a: 31, rating: 31, company: 'Company 4' },
-      ],
-      clients: [
-        { id: 1, clientName: 'Metal Const d.o.o', country: 'Croatia', adressa: 'Industrijska BB, Rijeka', company: 'Company 1' },
-        { id: 2, clientName: 'Evo d.o.o', country: 'Croatia', adressa: 'Industrijska 11, Buje', company: 'Company 1' },
-        { id: 3, clientName: 'MartArt d.d.', country: 'Croatia', adressa: 'Ulica 2 perona 74, Pula', company: 'Company 1' },
-        { id: 4, clientName: 'Const d.o.o', country: 'Croatia', adressa: 'Industrijska BB, Pula', company: 'Company 2' },
-        { id: 5, clientName: 'Metal d.o.o', country: 'Croatia', adressa: 'Istarska ulica 11, Pazin', company: 'Company 2' },
-        { id: 6, clientName: 'MetalLab d.o.o', country: 'Croatia', adressa: 'Rudarska BB, Labin', company: 'Company 2' },
-        { id: 7, clientName: 'IndustryT d.o.o', country: 'Croatia', adressa: 'Stradunska 22, Dubrovnika', company: 'Company 3' },
-        { id: 8, clientName: 'Metallic d.o.o', country: 'Croatia', adressa: 'Neka ulica BB, Rovinj', company: 'Company 3' },
-        { id: 9, clientName: 'SStell d.o.o', country: 'Croatia', adressa: 'Stipanova 43, Poreč', company: 'Company 4' },
-        { id: 10, clientName: 'Total d.o.o', country: 'Croatia', adressa: 'Industrijska 37, Rijeka', company: 'Company 4' },
-      ],
+      workers: [],
+      clients: [],
     };
+  },
+  watch: {
+    selectedCompany: {
+      immediate: true,
+      handler() { this.fetchData(); },
+    },
+  },
+  methods: {
+    async fetchData() {
+      const params = this.selectedCompany ? { company: this.selectedCompany } : {};
+      const [workersRes, clientsRes] = await Promise.all([
+        api.get("/workers", { params }),
+        api.get("/clients", { params }),
+      ]);
+      this.workers = workersRes.data.map(w => ({
+        id: w._id,
+        fullName: w.fullName,
+        contact: w.contact,
+        cp: w.ratings.pipeCutting,
+        cs: w.ratings.sheetCutting,
+        d: w.ratings.drilling,
+        g: w.ratings.grinding,
+        b: w.ratings.bending,
+        w: w.ratings.welding,
+        a: w.ratings.assembly,
+        rating: Math.round(Object.values(w.ratings).reduce((s, v) => s + v, 0) / 7),
+        company: w.company,
+      }));
+      this.clients = clientsRes.data.map(c => ({
+        id: c._id,
+        clientName: c.clientName,
+        country: c.country,
+        adressa: c.adressa,
+        company: c.company,
+      }));
+    },
   },
   computed: {
     filteredWorkers() {
-      if (!this.selectedCompany) return this.workers;
-      return this.workers.filter(w => w.company === this.selectedCompany);
+      return this.workers;
     },
     filteredClients() {
-      if (!this.selectedCompany) return this.clients;
-      return this.clients.filter(c => c.company === this.selectedCompany);
+      return this.clients;
     },
   },
 };
@@ -329,6 +356,19 @@ export default {
   background: #1e3f73;
   color: #fff;
   transform: translateX(3px);
+}
+.summary-box {
+  background: #f5f5f5;
+  border: 1px solid #dcdcdc;
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+}
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #444;
+  padding: 0.15rem 0;
 }
 
 @media (max-width: 767.98px) {

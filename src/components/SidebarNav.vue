@@ -45,7 +45,7 @@
               d="M8 8a3 3 0 100-6 3 3 0 000 6m2-3a2 2 0 11-4 0 2 2 0 014 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"
             />
           </svg>
-          <span class="text-white small fw-medium">Johnny Doe</span>
+          <span class="text-white small fw-medium">{{ userName || 'Guest' }}</span>
         </div>
         <svg
           class="settings-icon"
@@ -73,7 +73,7 @@
             />
           </svg>
           <span class="stat-text">{{
-            $t("dashboard.projects", { n: 4 })
+            $t("dashboard.projects", { n: stats.totalProjects })
           }}</span>
         </div>
         <div class="stat-item d-flex align-items-center gap-2 py-1">
@@ -85,7 +85,7 @@
               d="M8 4a.5.5 0 01.5.5v3h3a.5.5 0 010 1h-3.5a.5.5 0 01-.5-.5v-3.5A.5.5 0 018 4"
             />
           </svg>
-          <span class="stat-text">66%</span>
+          <span class="stat-text">{{ stats.completedPercent }}%</span>
         </div>
         <div class="stat-item d-flex align-items-center gap-2 py-1">
           <svg width="15" height="15" viewBox="0 0 16 16" fill="#6b7d93">
@@ -94,7 +94,7 @@
             />
           </svg>
           <span class="stat-text">{{
-            $t("dashboard.forToday", { n: 3 })
+            $t("dashboard.forToday", { n: stats.todayProjects })
           }}</span>
         </div>
       </div>
@@ -233,6 +233,8 @@
 </template>
 
 <script>
+import api from "../api";
+
 export default {
   name: "SidebarNav",
   props: {
@@ -241,6 +243,10 @@ export default {
       default: () => [],
     },
     selectedCompany: {
+      type: String,
+      default: "",
+    },
+    userName: {
       type: String,
       default: "",
     },
@@ -259,9 +265,49 @@ export default {
       showEditModal: false,
       editingCompany: null,
       editCompanyName: "",
+      stats: { totalProjects: 0, completedPercent: 0, todayProjects: 0 },
+      companyObjects: [],
     };
   },
+  watch: {
+    selectedCompany: {
+      immediate: true,
+      handler() { this.fetchStats(); },
+    },
+    companies: {
+      immediate: true,
+      async handler() { await this.fetchCompanyObjects(); },
+    },
+  },
   methods: {
+    async fetchCompanyObjects() {
+      try {
+        const { data } = await api.get('/companies');
+        this.companyObjects = data;
+      } catch (e) {
+        this.companyObjects = [];
+      }
+    },
+    async fetchStats() {
+      const params = this.selectedCompany ? { company: this.selectedCompany } : {};
+      const [allRes, completedRes, todayRes] = await Promise.all([
+        api.get("/projects", { params }),
+        api.get("/projects", { params: { ...params, status: "completed" } }),
+        api.get("/projects", { params: { ...params, status: "active" } }),
+      ]);
+      const total = allRes.data.length;
+      const completed = completedRes.data.length;
+      const today = todayRes.data.filter(p => {
+        const d = new Date(p.createdAt);
+        const now = new Date();
+        return d.toDateString() === now.toDateString();
+      }).length;
+      this.stats = {
+        totalProjects: total,
+        completedPercent: total > 0 ? Math.round((completed / total) * 100) : 0,
+        todayProjects: today,
+      };
+    },
     openEditModal(index) {
       this.editingCompany = index;
       this.editCompanyName = this.companies[index];
@@ -276,18 +322,23 @@ export default {
         }),
       );
     },
-    saveCompany() {
+    async saveCompany() {
       if (!this.editCompanyName.trim()) return;
-      const updated = [...this.companies];
-      updated[this.editingCompany] = this.editCompanyName.trim();
-      this.$emit("update-companies", updated);
+      const oldName = this.companies[this.editingCompany];
+      const co = this.companyObjects.find(o => o.name === oldName);
+      if (co?._id) {
+        await api.put(`/companies/${co._id}`, { name: this.editCompanyName.trim() });
+      }
+      this.$emit("update-companies");
       this.closeEditModal();
     },
-    deleteCompany() {
-      const updated = this.companies.filter(
-        (_, i) => i !== this.editingCompany,
-      );
-      this.$emit("update-companies", updated);
+    async deleteCompany() {
+      const oldName = this.companies[this.editingCompany];
+      const co = this.companyObjects.find(o => o.name === oldName);
+      if (co?._id) {
+        await api.delete(`/companies/${co._id}`);
+      }
+      this.$emit("update-companies");
       this.closeEditModal();
     },
     closeEditModal() {

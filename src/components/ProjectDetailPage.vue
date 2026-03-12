@@ -3,6 +3,7 @@
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
+      :user-name="userName"
       @logout="$emit('logout')"
       @add-company="$emit('add-company')"
       @edit-profile="$emit('edit-profile')"
@@ -34,13 +35,13 @@
                   {{ project.client }}
                 </div>
                 <div class="project-meta">
-                  <strong>{{ $t("project.contact") }}:</strong> David Mallys
+                  <strong>{{ $t("project.contact") }}:</strong> {{ project.responsible || '–' }}
                 </div>
                 <div class="project-meta">
-                  <strong>Phone:</strong> +385911234567
+                  <strong>Phone:</strong> {{ project.phone || '–' }}
                 </div>
                 <div class="project-meta">
-                  <strong>Email:</strong> david.montana@city.com
+                  <strong>Email:</strong> {{ project.email || '–' }}
                 </div>
                 <div class="d-flex align-items-center gap-2 mt-2 mb-1">
                   <div class="progress-bar-wrap">
@@ -230,6 +231,7 @@ export default {
     },
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
+    userName: { type: String, default: '' },
   },
   emits: ["back", "logout", "view-drawing", "edit-profile", "select-company", "add-company", "update-companies"],
   data() {

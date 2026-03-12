@@ -1,11 +1,12 @@
 <template>
-  <LoginPage v-if="currentView === 'login'" @guest="currentView = 'dashboard'" @forgot-password="currentView = 'forgot-password'" />
+  <LoginPage v-if="currentView === 'login'" @login="handleLogin" @guest="loggedInUser = null; currentView = 'dashboard'" @forgot-password="currentView = 'forgot-password'" />
   <ForgotPasswordPage v-else-if="currentView === 'forgot-password'" @back="currentView = 'login'" />
   <DashboardPage
     v-else-if="currentView === 'dashboard'"
     :companies="companies"
     :selected-company="selectedCompany"
-    @logout="currentView = 'login'"
+    :user-name="loggedInUser?.fullName || ''"
+    @logout="loggedInUser = null; currentView = 'login'"
     @view-project="openProject"
     @create-project="currentView = 'create-project'"
     @analytics="currentView = 'analytics'"
@@ -22,8 +23,9 @@
     :project="selectedProject"
     :companies="companies"
     :selected-company="selectedCompany"
+    :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'dashboard'"
-    @logout="currentView = 'login'"
+    @logout="loggedInUser = null; currentView = 'login'"
     @view-drawing="openDrawing"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
@@ -36,9 +38,10 @@
     :drawing="selectedDrawing"
     :companies="companies"
     :selected-company="selectedCompany"
+    :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'project'"
     @home="currentView = 'dashboard'"
-    @logout="currentView = 'login'"
+    @logout="loggedInUser = null; currentView = 'login'"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
     @add-company="addCompany"
@@ -48,8 +51,9 @@
     v-else-if="currentView === 'create-project'"
     :companies="companies"
     :selected-company="selectedCompany"
+    :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'dashboard'"
-    @logout="currentView = 'login'"
+    @logout="loggedInUser = null; currentView = 'login'"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
     @add-company="addCompany"
@@ -59,8 +63,9 @@
     v-else-if="currentView === 'analytics'"
     :companies="companies"
     :selected-company="selectedCompany"
+    :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'dashboard'"
-    @logout="currentView = 'login'"
+    @logout="loggedInUser = null; currentView = 'login'"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
     @add-company="addCompany"
@@ -70,8 +75,9 @@
     v-else-if="currentView === 'workers-clients'"
     :companies="companies"
     :selected-company="selectedCompany"
+    :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'dashboard'"
-    @logout="currentView = 'login'"
+    @logout="loggedInUser = null; currentView = 'login'"
     @view-worker="openWorker"
     @view-client="openClient"
     @add-worker="openWorker({ fullName: '', contact: '', email: '', createdAt: '' })"
@@ -86,9 +92,10 @@
     :worker="selectedWorker"
     :companies="companies"
     :selected-company="selectedCompany"
+    :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'workers-clients'"
     @home="currentView = 'dashboard'"
-    @logout="currentView = 'login'"
+    @logout="loggedInUser = null; currentView = 'login'"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
     @add-company="addCompany"
@@ -98,8 +105,9 @@
     v-else-if="currentView === 'warehouse'"
     :companies="companies"
     :selected-company="selectedCompany"
+    :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'dashboard'"
-    @logout="currentView = 'login'"
+    @logout="loggedInUser = null; currentView = 'login'"
     @add-item="currentView = 'warehouse-add-item'"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
@@ -110,9 +118,10 @@
     v-else-if="currentView === 'warehouse-add-item'"
     :companies="companies"
     :selected-company="selectedCompany"
+    :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'warehouse'"
     @home="currentView = 'dashboard'"
-    @logout="currentView = 'login'"
+    @logout="loggedInUser = null; currentView = 'login'"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
     @add-company="addCompany"
@@ -122,8 +131,9 @@
     v-else-if="currentView === 'production-history'"
     :companies="companies"
     :selected-company="selectedCompany"
+    :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'dashboard'"
-    @logout="currentView = 'login'"
+    @logout="loggedInUser = null; currentView = 'login'"
     @view-project="openHistoryProject"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
@@ -135,8 +145,9 @@
     :project="selectedHistoryProject"
     :companies="companies"
     :selected-company="selectedCompany"
+    :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'production-history'"
-    @logout="currentView = 'login'"
+    @logout="loggedInUser = null; currentView = 'login'"
     @view-drawing="openDrawing"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
@@ -148,9 +159,10 @@
     :client="selectedClient"
     :companies="companies"
     :selected-company="selectedCompany"
+    :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'workers-clients'"
     @home="currentView = 'dashboard'"
-    @logout="currentView = 'login'"
+    @logout="loggedInUser = null; currentView = 'login'"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
     @add-company="addCompany"
@@ -160,8 +172,11 @@
     v-else-if="currentView === 'profile-edit'"
     :companies="companies"
     :selected-company="selectedCompany"
+    :user-name="loggedInUser?.fullName || ''"
+    :user-id="loggedInUser?._id || ''"
+    :user-email="loggedInUser?.email || ''"
     @back="currentView = 'dashboard'"
-    @logout="currentView = 'login'"
+    @logout="loggedInUser = null; currentView = 'login'"
     @select-company="selectCompany"
     @add-company="addCompany"
     @update-companies="updateCompanies"
@@ -183,6 +198,7 @@ import WarehousePage from './components/WarehousePage.vue'
 import WarehouseAddItemPage from './components/WarehouseAddItemPage.vue'
 import ProductionHistoryPage from './components/ProductionHistoryPage.vue'
 import ProfileEditPage from './components/ProfileEditPage.vue'
+import api from './api'
 
 export default {
   name: 'App',
@@ -195,11 +211,28 @@ export default {
       selectedWorker: null,
       selectedClient: null,
       selectedHistoryProject: null,
-      companies: ['Company 1', 'Company 2', 'Company 3', 'Company 4'],
-      selectedCompany: 'Company 1',
+      companies: [],
+      companyObjects: [],
+      selectedCompany: '',
+      loggedInUser: null,
     }
   },
+  async created() {
+    await this.fetchCompanies()
+  },
   methods: {
+    handleLogin(user) {
+      this.loggedInUser = user
+      this.currentView = 'dashboard'
+    },
+    async fetchCompanies() {
+      const { data } = await api.get('/companies')
+      this.companyObjects = data
+      this.companies = data.map(c => c.name)
+      if (this.companies.length && !this.companies.includes(this.selectedCompany)) {
+        this.selectedCompany = this.companies[0]
+      }
+    },
     openHistoryProject(project) {
       this.selectedHistoryProject = project
       this.currentView = 'history-project'
@@ -223,13 +256,17 @@ export default {
     selectCompany(company) {
       this.selectedCompany = company
     },
-    addCompany() {
+    async addCompany() {
       const n = this.companies.length + 1
-      this.companies.push('New Factory ' + n)
+      try {
+        await api.post('/companies', { name: 'New Factory ' + n })
+        await this.fetchCompanies()
+      } catch (err) {
+        console.error('Failed to add company:', err)
+      }
     },
-    updateCompanies(updated) {
-      this.companies = updated
-      if (!updated.includes(this.selectedCompany)) this.selectedCompany = updated[0] || ''
+    async updateCompanies() {
+      await this.fetchCompanies()
     },
   },
 }
