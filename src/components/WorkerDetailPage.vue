@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-layout d-flex min-vh-100">
+  <div class="dashboard-layout d-flex">
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
@@ -20,20 +20,20 @@
                 <h5 class="panel-heading">
                   {{ $t("workerDetail.worker") }}
                 </h5>
-                <div class="worker-name">{{ worker.fullName }}</div>
+                <div class="worker-name">{{ form.fullName }}</div>
                 <div class="worker-meta">
                   <strong>{{ $t("workerDetail.phone") }}:</strong>
-                  {{ worker.contact }}
+                  {{ form.contact }}
                 </div>
                 <div class="worker-meta">
                   <strong>{{ $t("workerDetail.email") }}:</strong>
-                  {{ worker.email }}
+                  {{ form.email }}
                 </div>
                 <div class="worker-meta mt-2">
                   <span class="text-muted"
                     >{{ $t("workerDetail.createdAt") }}:</span
                   >
-                  {{ worker.createdAt }}
+                  {{ formattedCreatedAt }}
                 </div>
               </div>
             </div>
@@ -54,7 +54,7 @@
                   />
                 </svg>
               </button>
-              <button class="btn btn-action">
+              <button class="btn btn-action" @click="saveWorker">
                 <span>{{ $t("workerDetail.saveChanges") }}</span>
                 <svg
                   width="18"
@@ -68,7 +68,7 @@
                   />
                 </svg>
               </button>
-              <button class="btn btn-action">
+              <button class="btn btn-action" @click="exportPdf">
                 <span>{{ $t("workerDetail.exportPdf") }}</span>
                 <svg
                   width="18"
@@ -85,7 +85,7 @@
                   />
                 </svg>
               </button>
-              <button class="btn btn-action">
+              <button class="btn btn-action" @click="printWorker">
                 <span>{{ $t("workerDetail.print") }}</span>
                 <svg
                   width="18"
@@ -100,7 +100,7 @@
                   />
                 </svg>
               </button>
-              <button class="btn btn-action-danger">
+              <button class="btn btn-action-danger" @click="showDeleteModal = true">
                 <span>{{ $t("workerDetail.deleteWorker") }}</span>
                 <svg
                   width="18"
@@ -198,107 +198,56 @@
                       class="form-control form-control-sm"
                     />
                   </div>
+                </div>
+
+                <div class="row g-2 mb-3">
                   <div class="col-md-6">
-                    <label class="form-label-sm"
-                      >{{ $t("workerDetail.totalRating") }}:</label
-                    >
-                    <input
-                      v-model="form.totalRating"
-                      type="text"
-                      class="form-control form-control-sm"
-                    />
+                    <label class="form-label-sm">{{ $t("workerDetail.totalRating") }}:</label>
+                    <div class="rating-display">{{ totalRating }}</div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label-sm">{{ $t("workerDetail.projectsCompleted") }}:</label>
+                    <div class="rating-display">{{ projectsCompleted }}</div>
                   </div>
                 </div>
 
                 <div class="row g-2 mb-3">
                   <div class="col-md-6">
-                    <label class="form-label-sm"
-                      >{{ $t("workerDetail.pipeCuttingRating") }}:</label
-                    >
-                    <input
-                      v-model="form.pipeCuttingRating"
-                      type="text"
-                      class="form-control form-control-sm"
-                    />
+                    <label class="form-label-sm">{{ $t("workerDetail.pipeCuttingRating") }}:</label>
+                    <div class="rating-display">{{ ratings.pipeCutting }}</div>
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label-sm"
-                      >{{ $t("workerDetail.assemblyRating") }}:</label
-                    >
-                    <input
-                      v-model="form.assemblyRating"
-                      type="text"
-                      class="form-control form-control-sm"
-                    />
+                    <label class="form-label-sm">{{ $t("workerDetail.assemblyRating") }}:</label>
+                    <div class="rating-display">{{ ratings.assembly }}</div>
                   </div>
                 </div>
 
                 <div class="row g-2 mb-3">
                   <div class="col-md-6">
-                    <label class="form-label-sm"
-                      >{{ $t("workerDetail.sheetCuttingRating") }}:</label
-                    >
-                    <input
-                      v-model="form.sheetCuttingRating"
-                      type="text"
-                      class="form-control form-control-sm"
-                    />
+                    <label class="form-label-sm">{{ $t("workerDetail.sheetCuttingRating") }}:</label>
+                    <div class="rating-display">{{ ratings.sheetCutting }}</div>
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label-sm"
-                      >{{ $t("workerDetail.weldingRating") }}:</label
-                    >
-                    <input
-                      v-model="form.weldingRating"
-                      type="text"
-                      class="form-control form-control-sm"
-                    />
+                    <label class="form-label-sm">{{ $t("workerDetail.weldingRating") }}:</label>
+                    <div class="rating-display">{{ ratings.welding }}</div>
                   </div>
                 </div>
 
                 <div class="row g-2 mb-3">
                   <div class="col-md-6">
-                    <label class="form-label-sm"
-                      >{{ $t("workerDetail.drillingRating") }}:</label
-                    >
-                    <input
-                      v-model="form.drillingRating"
-                      type="text"
-                      class="form-control form-control-sm"
-                    />
+                    <label class="form-label-sm">{{ $t("workerDetail.drillingRating") }}:</label>
+                    <div class="rating-display">{{ ratings.drilling }}</div>
                   </div>
                   <div class="col-md-6">
-                    <label class="form-label-sm"
-                      >{{ $t("workerDetail.grindingRating") }}:</label
-                    >
-                    <input
-                      v-model="form.grindingRating"
-                      type="text"
-                      class="form-control form-control-sm"
-                    />
+                    <label class="form-label-sm">{{ $t("workerDetail.grindingRating") }}:</label>
+                    <div class="rating-display">{{ ratings.grinding }}</div>
                   </div>
                 </div>
 
                 <div class="row g-2 mb-3">
                   <div class="col-md-6">
-                    <label class="form-label-sm"
-                      >{{ $t("workerDetail.bendingRating") }}:</label
-                    >
-                    <input
-                      v-model="form.bendingRating"
-                      type="text"
-                      class="form-control form-control-sm"
-                    />
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label-sm"
-                      >{{ $t("workerDetail.projectsCompleted") }}:</label
-                    >
-                    <input
-                      v-model="form.projectsCompleted"
-                      type="text"
-                      class="form-control form-control-sm"
-                    />
+                    <label class="form-label-sm">{{ $t("workerDetail.bendingRating") }}:</label>
+                    <div class="rating-display">{{ ratings.bending }}</div>
                   </div>
                 </div>
 
@@ -326,11 +275,38 @@
         </div>
       </div>
     </main>
+
+    <Transition name="modal-fade">
+      <div v-if="showSuccessModal" class="save-modal-overlay" @click.self="showSuccessModal = false">
+        <div class="save-modal-card">
+          <div class="save-modal-icon">✓</div>
+          <h6 class="save-modal-title">{{ isEditing ? $t("workerDetail.workerUpdated") : $t("workerDetail.workerCreated") }}</h6>
+          <p class="save-modal-text">{{ form.fullName }}</p>
+          <button class="btn btn-sm save-modal-btn" @click="showSuccessModal = false">OK</button>
+        </div>
+      </div>
+    </Transition>
+
+    <Transition name="modal-fade">
+      <div v-if="showDeleteModal" class="save-modal-overlay" @click.self="showDeleteModal = false">
+        <div class="save-modal-card">
+          <div class="save-modal-icon delete-icon">!</div>
+          <h6 class="save-modal-title">{{ $t("workerDetail.confirmDeleteTitle") }}</h6>
+          <p class="save-modal-text">{{ $t("workerDetail.confirmDeleteMsg") }} <strong>{{ form.fullName }}</strong>?</p>
+          <div class="d-flex gap-2 justify-content-center">
+            <button class="btn btn-sm save-modal-btn-cancel" @click="showDeleteModal = false">{{ $t("workerDetail.cancel") }}</button>
+            <button class="btn btn-sm save-modal-btn-delete" @click="deleteWorker">{{ $t("workerDetail.deleteWorker") }}</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script>
 import SidebarNav from "./SidebarNav.vue";
+import api from "../api";
+import { exportSingleWorkerPdf, printSingleWorker } from "../utils/pdf";
 
 export default {
   name: "WorkerDetailPage",
@@ -343,6 +319,8 @@ export default {
   },
   emits: ["back", "home", "logout", "edit-profile", "select-company", "add-company", "update-companies"],
   data() {
+    const ratings = this.worker.ratings || {};
+    const ops = this.worker.operations || {};
     return {
       form: {
         fullName: this.worker.fullName || "",
@@ -350,25 +328,28 @@ export default {
         address: this.worker.address || "",
         contact: this.worker.contact || "",
         jobPosition: this.worker.jobPosition || "",
-        totalRating: this.worker.totalRating || "",
-        pipeCuttingRating: this.worker.pipeCuttingRating || "",
-        assemblyRating: this.worker.assemblyRating || "",
-        sheetCuttingRating: this.worker.sheetCuttingRating || "",
-        weldingRating: this.worker.weldingRating || "",
-        drillingRating: this.worker.drillingRating || "",
-        grindingRating: this.worker.grindingRating || "",
-        bendingRating: this.worker.bendingRating || "",
-        projectsCompleted: this.worker.projectsCompleted || "",
         operations: {
-          pipeCutting: true,
-          sheetCutting: true,
-          welding: true,
-          bending: true,
-          grinding: true,
-          drilling: true,
-          assembly: true,
+          pipeCutting: ops.pipeCutting !== undefined ? ops.pipeCutting : true,
+          sheetCutting: ops.sheetCutting !== undefined ? ops.sheetCutting : true,
+          welding: ops.welding !== undefined ? ops.welding : true,
+          bending: ops.bending !== undefined ? ops.bending : true,
+          grinding: ops.grinding !== undefined ? ops.grinding : true,
+          drilling: ops.drilling !== undefined ? ops.drilling : true,
+          assembly: ops.assembly !== undefined ? ops.assembly : true,
         },
       },
+      ratings: {
+        pipeCutting: ratings.pipeCutting ?? 100,
+        sheetCutting: ratings.sheetCutting ?? 100,
+        welding: ratings.welding ?? 100,
+        bending: ratings.bending ?? 100,
+        grinding: ratings.grinding ?? 100,
+        drilling: ratings.drilling ?? 100,
+        assembly: ratings.assembly ?? 100,
+      },
+      projectsCompleted: this.worker.projectsCompleted || 0,
+      showSuccessModal: false,
+      showDeleteModal: false,
       operationsList: [
         { key: 'pipeCutting', label: 'Rezanje cijevi / Pipe cutting' },
         { key: 'sheetCutting', label: 'Rezanje lima / Sheet cutting' },
@@ -380,13 +361,70 @@ export default {
       ],
     };
   },
+  computed: {
+    isEditing() {
+      return !!(this.worker?._id || this.worker?.id);
+    },
+    totalRating() {
+      const ops = this.form.operations;
+      const activeRatings = Object.keys(ops).filter(k => ops[k]).map(k => this.ratings[k]);
+      if (activeRatings.length === 0) return 0;
+      return Math.round(activeRatings.reduce((s, v) => s + v, 0) / activeRatings.length);
+    },
+    formattedCreatedAt() {
+      const raw = this.worker?.createdAt;
+      if (!raw) return "";
+      const d = new Date(raw);
+      return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}.`;
+    },
+  },
+  methods: {
+    async saveWorker() {
+      const ops = this.form.operations;
+      const ratings = {};
+      for (const key of Object.keys(ops)) {
+        ratings[key] = ops[key] ? (this.ratings[key] || 100) : 0;
+      }
+      const payload = {
+        fullName: this.form.fullName,
+        email: this.form.email,
+        address: this.form.address,
+        contact: this.form.contact,
+        jobPosition: this.form.jobPosition,
+        company: this.selectedCompany,
+        operations: this.form.operations,
+        ratings,
+        projectsCompleted: this.projectsCompleted,
+      };
+      const workerId = this.worker?._id || this.worker?.id;
+      if (workerId) {
+        await api.put(`/workers/${workerId}`, payload);
+      } else {
+        await api.post("/workers", payload);
+      }
+      this.showSuccessModal = true;
+    },
+    async exportPdf() {
+      await exportSingleWorkerPdf(this.form, this.ratings, this.form.operations, this.totalRating, this.projectsCompleted, this.userName, this.selectedCompany);
+    },
+    printWorker() {
+      printSingleWorker(this.form, this.ratings, this.form.operations, this.totalRating, this.projectsCompleted, this.userName, this.selectedCompany);
+    },
+    async deleteWorker() {
+      const workerId = this.worker?._id || this.worker?.id;
+      if (workerId) {
+        await api.delete(`/workers/${workerId}`);
+      }
+      this.showDeleteModal = false;
+      this.$emit('back');
+    },
+  },
 };
 </script>
 
 <style scoped>
 .main-content {
   background: #e8eaed;
-  min-height: 100vh;
 }
 @media (max-width: 991.98px) {
   .main-content {
@@ -480,6 +518,109 @@ export default {
   background: #962d22;
   color: #fff;
   transform: translateX(3px);
+}
+
+.rating-display {
+  font-size: 0.82rem;
+  color: #1a1a1a;
+  font-weight: 600;
+  background: #e8eaed;
+  border: 1.5px solid #ddd;
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+}
+
+.save-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.save-modal-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 2rem 1.5rem;
+  width: 90%;
+  max-width: 350px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  text-align: center;
+}
+.save-modal-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 1rem;
+  background: #27ae60;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+.save-modal-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #1c2936;
+  margin-bottom: 0.3rem;
+}
+.save-modal-text {
+  font-size: 0.85rem;
+  color: #555;
+  margin-bottom: 1rem;
+}
+.save-modal-btn {
+  background: #2b579a;
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.45rem 2rem;
+  border-radius: 6px;
+}
+.save-modal-btn:hover {
+  background: #1e3f73;
+  color: #fff;
+}
+.delete-icon {
+  background: #e74c3c;
+}
+.save-modal-btn-cancel {
+  background: #e8eaed;
+  color: #333;
+  border: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.45rem 1.5rem;
+  border-radius: 6px;
+}
+.save-modal-btn-cancel:hover {
+  background: #ddd;
+}
+.save-modal-btn-delete {
+  background: #c0392b;
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.45rem 1.5rem;
+  border-radius: 6px;
+}
+.save-modal-btn-delete:hover {
+  background: #962d22;
+  color: #fff;
+}
+
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
 }
 
 @media (max-width: 767.98px) {

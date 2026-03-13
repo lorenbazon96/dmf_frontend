@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-layout d-flex min-vh-100">
+  <div class="dashboard-layout d-flex">
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
@@ -258,7 +258,6 @@ export default {
 <style scoped>
 .main-content {
   background: #e8eaed;
-  min-height: 100vh;
 }
 
 @media (max-width: 991.98px) {

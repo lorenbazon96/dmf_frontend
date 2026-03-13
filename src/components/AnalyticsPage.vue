@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-layout d-flex min-vh-100">
+  <div class="dashboard-layout d-flex">
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
@@ -57,7 +57,7 @@
             </div>
 
             <div class="d-flex flex-column gap-2">
-              <button class="btn btn-action">
+              <button class="btn btn-action" @click="exportPdf">
                 <span>{{ $t("drawing.exportPdf") }}</span>
                 <svg
                   width="18"
@@ -74,7 +74,7 @@
                   />
                 </svg>
               </button>
-              <button class="btn btn-action">
+              <button class="btn btn-action" @click="printPage">
                 <span>{{ $t("drawing.print") }}</span>
                 <svg
                   width="18"
@@ -236,6 +236,7 @@
 <script>
 import SidebarNav from "./SidebarNav.vue";
 import api from "../api";
+import { exportAnalyticsPdf, printAnalytics } from "../utils/pdf";
 import { Pie, Line, Bar } from "vue-chartjs";
 import {
   Chart as ChartJS,
@@ -420,6 +421,24 @@ export default {
         this.companyData = null;
       }
     },
+    async exportPdf() {
+      const stats = {
+        projects: this.statsProjects,
+        completed: this.statsCompleted,
+        avgDuration: this.statsAvgDuration,
+        accuracy: this.statsAccuracy,
+      };
+      await exportAnalyticsPdf(stats, this.workerPerformance, this.userName, this.selectedCompany);
+    },
+    printPage() {
+      const stats = {
+        projects: this.statsProjects,
+        completed: this.statsCompleted,
+        avgDuration: this.statsAvgDuration,
+        accuracy: this.statsAccuracy,
+      };
+      printAnalytics(stats, this.workerPerformance, this.userName, this.selectedCompany);
+    },
   },
   computed: {
     cd() {
@@ -467,7 +486,6 @@ export default {
 <style scoped>
 .main-content {
   background: #e8eaed;
-  min-height: 100vh;
 }
 @media (max-width: 991.98px) {
   .main-content {

@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-layout d-flex min-vh-100">
+  <div class="dashboard-layout d-flex">
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
@@ -20,17 +20,17 @@
                 <h5 class="panel-heading">{{ $t("warehouseAdd.title") }}</h5>
                 <div class="info-row">
                   <span>{{ $t("warehouseAdd.items") }}:</span>
-                  <span class="fw-bold">421</span>
+                  <span class="fw-bold">{{ totalItems }}</span>
                 </div>
                 <div class="info-row">
                   <span>{{ $t("warehouseAdd.totalPcs") }}:</span>
-                  <span class="fw-bold">17589</span>
+                  <span class="fw-bold">{{ totalPcs }}</span>
                 </div>
               </div>
             </div>
 
             <div class="d-flex flex-column gap-2">
-              <button class="btn btn-action">
+              <button class="btn btn-action" @click="saveItem">
                 <span>{{ $t("warehouseAdd.saveChanges") }}</span>
                 <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
                   <path d="M2 1a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V2a1 1 0 00-1-1H9.5a1 1 0 00-1 1v7.293l2.646-2.647a.5.5 0 01.708.708l-3.5 3.5a.5.5 0 01-.708 0l-3.5-3.5a.5.5 0 11.708-.708L7.5 9.293V2a2 2 0 012-2H14a2 2 0 012 2v12a2 2 0 01-2 2H2a2 2 0 01-2-2V2a2 2 0 012-2h2.5a.5.5 0 010 1z" />
@@ -67,7 +67,14 @@
                 <div class="row g-2 mb-3">
                   <div class="col-md-6">
                     <label class="form-label-sm">{{ $t("warehouseAdd.type") }}:</label>
-                    <input v-model="form.type" type="text" class="form-control form-control-sm" />
+                    <select v-model="form.type" class="form-select form-select-sm">
+                      <option value="" disabled>{{ $t("warehouseAdd.selectType") }}</option>
+                      <option value="Lim">Lim</option>
+                      <option value="Cijev">Cijev</option>
+                      <option value="Profil">Profil</option>
+                      <option value="Vijčani materijal">Vijčani materijal</option>
+                      <option value="Ostalo">Ostalo</option>
+                    </select>
                   </div>
                 </div>
 
@@ -97,11 +104,23 @@
         </div>
       </div>
     </main>
+
+    <Transition name="modal-fade">
+      <div v-if="showSuccessModal" class="save-modal-overlay" @click.self="showSuccessModal = false">
+        <div class="save-modal-card">
+          <div class="save-modal-icon">✓</div>
+          <h6 class="save-modal-title">{{ $t("warehouseAdd.itemSaved") }}</h6>
+          <p class="save-modal-text">{{ form.name }}</p>
+          <button class="btn btn-sm save-modal-btn" @click="showSuccessModal = false">OK</button>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script>
 import SidebarNav from "./SidebarNav.vue";
+import api from "../api";
 
 export default {
   name: "WarehouseAddItemPage",
@@ -120,7 +139,42 @@ export default {
         quantity: "",
         specs: "",
       },
+      showSuccessModal: false,
+      totalItems: 0,
+      totalPcs: 0,
     };
+  },
+  watch: {
+    selectedCompany: {
+      immediate: true,
+      handler() { this.fetchStats(); },
+    },
+  },
+  methods: {
+    async fetchStats() {
+      try {
+        const params = this.selectedCompany ? { company: this.selectedCompany } : {};
+        const { data } = await api.get("/warehouse", { params });
+        this.totalItems = data.length;
+        this.totalPcs = data.reduce((sum, i) => sum + (i.qty || 0), 0);
+      } catch {
+        this.totalItems = 0;
+        this.totalPcs = 0;
+      }
+    },
+    async saveItem() {
+      const payload = {
+        type: this.form.type,
+        name: this.form.name,
+        specs: this.form.specs,
+        qty: Number(this.form.quantity) || 0,
+        company: this.selectedCompany,
+      };
+      await api.post("/warehouse", payload);
+      this.showSuccessModal = true;
+      this.form = { type: "", name: "", quantity: "", specs: "" };
+      this.fetchStats();
+    },
   },
 };
 </script>
@@ -128,7 +182,6 @@ export default {
 <style scoped>
 .main-content {
   background: #e8eaed;
-  min-height: 100vh;
 }
 @media (max-width: 991.98px) {
   .main-content {
@@ -171,13 +224,15 @@ export default {
   display: block;
 }
 
-.form-control-sm {
+.form-control-sm,
+.form-select-sm {
   font-size: 0.82rem;
   border: 1.5px solid #bbb;
   border-radius: 4px;
   padding: 0.35rem 0.5rem;
 }
-.form-control-sm:focus {
+.form-control-sm:focus,
+.form-select-sm:focus {
   border-color: #2b579a;
   box-shadow: 0 0 0 2px rgba(43, 87, 154, 0.12);
 }
@@ -211,5 +266,70 @@ export default {
   .content-wrap {
     padding: 0.75rem !important;
   }
+}
+
+.save-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.save-modal-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 2rem 1.5rem;
+  width: 90%;
+  max-width: 350px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  text-align: center;
+}
+.save-modal-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 1rem;
+  background: #27ae60;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+.save-modal-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #1c2936;
+  margin-bottom: 0.3rem;
+}
+.save-modal-text {
+  font-size: 0.85rem;
+  color: #555;
+  margin-bottom: 1rem;
+}
+.save-modal-btn {
+  background: #2b579a;
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.45rem 2rem;
+  border-radius: 6px;
+}
+.save-modal-btn:hover {
+  background: #1e3f73;
+  color: #fff;
+}
+
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
 }
 </style>

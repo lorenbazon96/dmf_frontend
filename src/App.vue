@@ -274,9 +274,36 @@ export default {
 
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body {
+html, body, #app {
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
   font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+.dashboard-layout {
+  height: 100vh !important;
+  max-height: 100vh !important;
+  overflow: hidden !important;
+}
+.dashboard-layout > *:first-child {
+  height: 100vh;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.dashboard-layout > .main-content {
+  height: 100vh;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.dashboard-layout > .main-content > .content-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-layout d-flex min-vh-100">
+  <div class="dashboard-layout d-flex">
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
@@ -60,6 +60,19 @@
             </div>
 
             <div class="d-flex flex-column gap-2">
+              <button class="btn btn-action" @click="exportPdf">
+                <span>{{ $t("drawing.exportPdf") }}</span>
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
+                  <path d="M14 14V4.5L9.5 0H4a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2M9.5 3A1.5 1.5 0 0011 4.5h2V14a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1h5.5z" />
+                </svg>
+              </button>
+              <button class="btn btn-action" @click="printPage">
+                <span>{{ $t("drawing.print") }}</span>
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
+                  <path d="M2.5 8a.5.5 0 100-1 .5.5 0 000 1" />
+                  <path d="M5 1a2 2 0 00-2 2v2H2a2 2 0 00-2 2v3a2 2 0 002 2h1v1a2 2 0 002 2h6a2 2 0 002-2v-1h1a2 2 0 002-2V7a2 2 0 00-2-2h-1V3a2 2 0 00-2-2zM4 3a1 1 0 011-1h6a1 1 0 011 1v2H4zm1 10a1 1 0 01-1-1V9h8v3a1 1 0 01-1 1z" />
+                </svg>
+              </button>
               <button class="btn btn-action-danger">
                 <span>{{ $t("project.deleteProject") }}</span>
                 <svg
@@ -220,6 +233,7 @@
 
 <script>
 import SidebarNav from "./SidebarNav.vue";
+import { exportProjectDetailPdf, printProjectDetail } from "../utils/pdf";
 
 export default {
   name: "ProjectDetailPage",
@@ -378,13 +392,20 @@ export default {
       ],
     };
   },
+  methods: {
+    async exportPdf() {
+      await exportProjectDetailPdf(this.project, this.drawings, this.productionPlan, this.userName, this.selectedCompany);
+    },
+    printPage() {
+      printProjectDetail(this.project, this.drawings, this.productionPlan, this.userName, this.selectedCompany);
+    },
+  },
 };
 </script>
 
 <style scoped>
 .main-content {
   background: #e8eaed;
-  min-height: 100vh;
 }
 
 @media (max-width: 991.98px) {

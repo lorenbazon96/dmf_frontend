@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-layout d-flex min-vh-100">
+  <div class="dashboard-layout d-flex">
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
@@ -35,13 +35,13 @@
                     <path d="M8.354 1.146a.5.5 0 00-.708 0l-6 6A.5.5 0 001.5 7.5v7a.5.5 0 00.5.5h4.5a.5.5 0 00.5-.5v-4h2v4a.5.5 0 00.5.5H14a.5.5 0 00.5-.5v-7a.5.5 0 00-.146-.354L13 5.793V2.5a.5.5 0 00-.5-.5h-1a.5.5 0 00-.5.5v1.293zM2.5 14V7.707l5.5-5.5 5.5 5.5V14H10v-4a.5.5 0 00-.5-.5h-3a.5.5 0 00-.5.5v4z" />
                   </svg>
                 </button>
-                <button class="btn btn-action">
+                <button class="btn btn-action" @click="exportPdf">
                   <span>{{ $t("history.exportPdf") }}</span>
                   <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
                     <path d="M14 14V4.5L9.5 0H4a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2M9.5 3A1.5 1.5 0 0011 4.5h2V14a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1h5.5z" />
                   </svg>
                 </button>
-                <button class="btn btn-action">
+                <button class="btn btn-action" @click="printList">
                   <span>{{ $t("history.print") }}</span>
                   <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
                     <path d="M2.5 8a.5.5 0 100-1 .5.5 0 000 1" />
@@ -152,6 +152,7 @@
 <script>
 import SidebarNav from "./SidebarNav.vue";
 import api from "../api";
+import { exportHistoryPdf, printHistoryList } from "../utils/pdf";
 
 export default {
   name: "ProductionHistoryPage",
@@ -275,6 +276,12 @@ export default {
       }
       this.showSortDropdown = false;
     },
+    async exportPdf() {
+      await exportHistoryPdf(this.filteredProjects, this.userName, this.selectedCompany);
+    },
+    printList() {
+      printHistoryList(this.filteredProjects, this.userName, this.selectedCompany);
+    },
   },
 };
 </script>
@@ -282,7 +289,6 @@ export default {
 <style scoped>
 .main-content {
   background: #e8eaed;
-  min-height: 100vh;
 }
 @media (max-width: 991.98px) {
   .main-content {

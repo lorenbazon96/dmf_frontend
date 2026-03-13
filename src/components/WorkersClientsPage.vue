@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-layout d-flex min-vh-100">
+  <div class="dashboard-layout d-flex">
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
@@ -13,23 +13,31 @@
 
     <main class="main-content flex-grow-1">
       <div class="content-wrap p-3 p-lg-4">
-        <section class="panel mb-4">
+        <section class="panel mb-3 d-flex flex-column" style="flex:1;min-height:0;overflow:hidden;">
           <div class="panel-header d-flex align-items-center justify-content-between">
             <h5 class="panel-title">{{ $t("workersClients.workers") }}</h5>
-            <button class="btn btn-link p-0 me-3" aria-label="PDF">
-              <svg width="20" height="20" viewBox="0 0 16 16" fill="#c62828">
-                <path
-                  d="M14 14V4.5L9.5 0H4a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2M9.5 3A1.5 1.5 0 0011 4.5h2V14a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1h5.5z"
-                />
-                <path
-                  d="M4.603 14.087a.8.8 0 01-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.7 7.7 0 011.482-.645 20 20 0 001.062-2.227 7.3 7.3 0 01-.43-1.295c-.086-.4-.119-.796-.046-1.136.075-.354.274-.672.65-.823.192-.077.4-.12.602-.077a.7.7 0 01.477.365c.088.164.12.356.127.538.007.188-.012.396-.047.614-.084.51-.27 1.134-.52 1.794a11 11 0 00.98 1.686 5.8 5.8 0 011.334.05c.364.066.734.195.96.465.12.144.193.32.2.518.007.192-.047.382-.138.563a1.04 1.04 0 01-.354.416.86.86 0 01-.51.138c-.331-.014-.654-.196-.933-.417a6.1 6.1 0 01-.911-.95 11.7 11.7 0 00-1.997.406 11.3 11.3 0 01-1.02 1.51c-.292.35-.609.656-.927.787a.8.8 0 01-.58.029z"
-                />
-              </svg>
-            </button>
+            <div class="d-flex gap-1 me-3">
+              <button class="btn btn-link p-0" @click="exportWorkersPdf" aria-label="PDF">
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="#c62828">
+                  <path
+                    d="M14 14V4.5L9.5 0H4a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2M9.5 3A1.5 1.5 0 0011 4.5h2V14a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1h5.5z"
+                  />
+                  <path
+                    d="M4.603 14.087a.8.8 0 01-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.7 7.7 0 011.482-.645 20 20 0 001.062-2.227 7.3 7.3 0 01-.43-1.295c-.086-.4-.119-.796-.046-1.136.075-.354.274-.672.65-.823.192-.077.4-.12.602-.077a.7.7 0 01.477.365c.088.164.12.356.127.538.007.188-.012.396-.047.614-.084.51-.27 1.134-.52 1.794a11 11 0 00.98 1.686 5.8 5.8 0 011.334.05c.364.066.734.195.96.465.12.144.193.32.2.518.007.192-.047.382-.138.563a1.04 1.04 0 01-.354.416.86.86 0 01-.51.138c-.331-.014-.654-.196-.933-.417a6.1 6.1 0 01-.911-.95 11.7 11.7 0 00-1.997.406 11.3 11.3 0 01-1.02 1.51c-.292.35-.609.656-.927.787a.8.8 0 01-.58.029z"
+                  />
+                </svg>
+              </button>
+              <button class="btn btn-link p-0" @click="printWorkers" aria-label="Print">
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="#444">
+                  <path d="M2.5 8a.5.5 0 100-1 .5.5 0 000 1" />
+                  <path d="M5 1a2 2 0 00-2 2v2H2a2 2 0 00-2 2v3a2 2 0 002 2h1v1a2 2 0 002 2h6a2 2 0 002-2v-1h1a2 2 0 002-2V7a2 2 0 00-2-2h-1V3a2 2 0 00-2-2zM4 3a1 1 0 011-1h6a1 1 0 011 1v2H4zm1 10a1 1 0 01-1-1V9h8v3a1 1 0 01-1 1z" />
+                </svg>
+              </button>
+            </div>
           </div>
-          <div class="table-responsive">
+          <div class="table-responsive" style="flex:1;min-height:0;overflow-y:auto;">
             <table class="table align-middle mb-0">
-              <thead class="dark-header">
+              <thead class="dark-header sticky-top">
                 <tr>
                   <th>ID</th>
                   <th>{{ $t("workersClients.fullName") }}</th>
@@ -84,8 +92,8 @@
           </div>
         </section>
 
-        <div class="row g-3 g-lg-4 align-items-start">
-          <div class="col-lg-3 col-md-4 col-12">
+        <div class="row g-3 g-lg-4" style="flex:1;min-height:0;overflow:hidden;">
+          <div class="col-lg-3 col-md-4 col-12" style="overflow-y:auto;">
             <div class="summary-box mb-3">
               <div class="summary-row">
                 <span>{{ $t("workersClients.workers") }}:</span>
@@ -142,14 +150,31 @@
             </div>
           </div>
 
-          <div class="col-lg-9 col-md-8 col-12">
-            <section class="panel">
-              <h5 class="panel-title">{{ $t("workersClients.clients") }}</h5>
-              <div class="table-responsive">
+          <div class="col-lg-9 col-md-8 col-12 d-flex flex-column" style="min-height:0;overflow:hidden;">
+            <section class="panel d-flex flex-column" style="flex:1;min-height:0;overflow:hidden;">
+              <div class="d-flex align-items-center justify-content-between">
+                <h5 class="panel-title">{{ $t("workersClients.clients") }}</h5>
+                <div class="d-flex gap-1 me-3">
+                  <button class="btn btn-link p-0" @click="exportClientsPdf" aria-label="PDF">
+                    <svg width="20" height="20" viewBox="0 0 16 16" fill="#c62828">
+                      <path d="M14 14V4.5L9.5 0H4a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2M9.5 3A1.5 1.5 0 0011 4.5h2V14a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1h5.5z" />
+                      <path d="M4.603 14.087a.8.8 0 01-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.7 7.7 0 011.482-.645 20 20 0 001.062-2.227 7.3 7.3 0 01-.43-1.295c-.086-.4-.119-.796-.046-1.136.075-.354.274-.672.65-.823.192-.077.4-.12.602-.077a.7.7 0 01.477.365c.088.164.12.356.127.538.007.188-.012.396-.047.614-.084.51-.27 1.134-.52 1.794a11 11 0 00.98 1.686 5.8 5.8 0 011.334.05c.364.066.734.195.96.465.12.144.193.32.2.518.007.192-.047.382-.138.563a1.04 1.04 0 01-.354.416.86.86 0 01-.51.138c-.331-.014-.654-.196-.933-.417a6.1 6.1 0 01-.911-.95 11.7 11.7 0 00-1.997.406 11.3 11.3 0 01-1.02 1.51c-.292.35-.609.656-.927.787a.8.8 0 01-.58.029z" />
+                    </svg>
+                  </button>
+                  <button class="btn btn-link p-0" @click="printClients" aria-label="Print">
+                    <svg width="20" height="20" viewBox="0 0 16 16" fill="#444">
+                      <path d="M2.5 8a.5.5 0 100-1 .5.5 0 000 1" />
+                      <path d="M5 1a2 2 0 00-2 2v2H2a2 2 0 00-2 2v3a2 2 0 002 2h1v1a2 2 0 002 2h6a2 2 0 002-2v-1h1a2 2 0 002-2V7a2 2 0 00-2-2h-1V3a2 2 0 00-2-2zM4 3a1 1 0 011-1h6a1 1 0 011 1v2H4zm1 10a1 1 0 01-1-1V9h8v3a1 1 0 01-1 1z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div class="table-responsive" style="flex:1;min-height:0;overflow-y:auto;">
                 <table class="table align-middle mb-0">
-                  <thead class="dark-header">
+                  <thead class="dark-header sticky-top">
                     <tr>
                       <th>ID</th>
+                      <th>{{ $t("clientDetail.clientType") }}</th>
                       <th>{{ $t("workersClients.clientName") }}</th>
                       <th>{{ $t("workersClients.country") }}</th>
                       <th>{{ $t("workersClients.adressa") }}</th>
@@ -159,6 +184,11 @@
                   <tbody>
                     <tr v-for="c in filteredClients" :key="c.id">
                       <td class="fw-semibold text-dark">{{ c.id }}</td>
+                      <td>
+                        <span :class="c.clientType === 'person' ? 'badge-person' : 'badge-company'">
+                          {{ c.clientType === 'person' ? $t("clientDetail.personType") : $t("clientDetail.companyType") }}
+                        </span>
+                      </td>
                       <td>{{ c.clientName }}</td>
                       <td class="text-muted">{{ c.country }}</td>
                       <td class="text-muted">{{ c.adressa }}</td>
@@ -191,12 +221,14 @@
         </div>
       </div>
     </main>
+
   </div>
 </template>
 
 <script>
 import SidebarNav from "./SidebarNav.vue";
 import api from "../api";
+import { exportWorkersPdf as generateWorkersPdf, exportClientsPdf as generateClientsPdf, printWorkersList, printClientsList } from "../utils/pdf";
 
 export default {
   name: "WorkersClientsPage",
@@ -227,26 +259,34 @@ export default {
         api.get("/clients", { params }),
       ]);
       this.workers = workersRes.data.map(w => ({
+        ...w,
         id: w._id,
-        fullName: w.fullName,
-        contact: w.contact,
-        cp: w.ratings.pipeCutting,
-        cs: w.ratings.sheetCutting,
-        d: w.ratings.drilling,
-        g: w.ratings.grinding,
-        b: w.ratings.bending,
-        w: w.ratings.welding,
-        a: w.ratings.assembly,
-        rating: Math.round(Object.values(w.ratings).reduce((s, v) => s + v, 0) / 7),
-        company: w.company,
+        cp: w.ratings?.pipeCutting ?? 0,
+        cs: w.ratings?.sheetCutting ?? 0,
+        d: w.ratings?.drilling ?? 0,
+        g: w.ratings?.grinding ?? 0,
+        b: w.ratings?.bending ?? 0,
+        w: w.ratings?.welding ?? 0,
+        a: w.ratings?.assembly ?? 0,
+        rating: w.ratings ? Math.round(Object.values(w.ratings).reduce((s, v) => s + v, 0) / 7) : 0,
       }));
       this.clients = clientsRes.data.map(c => ({
+        ...c,
         id: c._id,
-        clientName: c.clientName,
-        country: c.country,
-        adressa: c.adressa,
-        company: c.company,
+        clientType: c.clientType || "company",
       }));
+    },
+    async exportWorkersPdf() {
+      await generateWorkersPdf(this.filteredWorkers, this.userName, this.selectedCompany);
+    },
+    async exportClientsPdf() {
+      await generateClientsPdf(this.filteredClients, this.userName, this.selectedCompany);
+    },
+    printWorkers() {
+      printWorkersList(this.filteredWorkers, this.userName, this.selectedCompany);
+    },
+    printClients() {
+      printClientsList(this.filteredClients, this.userName, this.selectedCompany);
     },
   },
   computed: {
@@ -263,7 +303,6 @@ export default {
 <style scoped>
 .main-content {
   background: #e8eaed;
-  min-height: 100vh;
 }
 
 @media (max-width: 991.98px) {
@@ -385,9 +424,29 @@ export default {
     font-size: 0.88rem;
   }
 }
+.badge-company {
+  display: inline-block;
+  background: #2b579a;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+.badge-person {
+  display: inline-block;
+  background: #27ae60;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+}
+
 @media (max-width: 575.98px) {
   .content-wrap {
     padding: 0.75rem !important;
   }
 }
+
 </style>

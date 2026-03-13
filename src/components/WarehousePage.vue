@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-layout d-flex min-vh-100">
+  <div class="dashboard-layout d-flex">
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
@@ -39,13 +39,13 @@
                   <span>{{ $t("warehouse.addNewItem") }}</span>
                   <span class="action-icon">+</span>
                 </button>
-                <button class="btn btn-action">
+                <button class="btn btn-action" @click="exportPdf">
                   <span>{{ $t("warehouse.exportPdf") }}</span>
                   <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
                     <path d="M14 14V4.5L9.5 0H4a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2M9.5 3A1.5 1.5 0 0011 4.5h2V14a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1h5.5z" />
                   </svg>
                 </button>
-                <button class="btn btn-action">
+                <button class="btn btn-action" @click="printList">
                   <span>{{ $t("warehouse.print") }}</span>
                   <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
                     <path d="M2.5 8a.5.5 0 100-1 .5.5 0 000 1" />
@@ -163,6 +163,7 @@
 <script>
 import SidebarNav from "./SidebarNav.vue";
 import api from "../api";
+import { exportWarehousePdf, printWarehouseList } from "../utils/pdf";
 
 export default {
   name: "WarehousePage",
@@ -291,6 +292,12 @@ export default {
       }
       this.showSortDropdown = false;
     },
+    async exportPdf() {
+      await exportWarehousePdf(this.filteredItems, this.userName, this.selectedCompany);
+    },
+    printList() {
+      printWarehouseList(this.filteredItems, this.userName, this.selectedCompany);
+    },
   },
 };
 </script>
@@ -298,7 +305,6 @@ export default {
 <style scoped>
 .main-content {
   background: #e8eaed;
-  min-height: 100vh;
 }
 
 @media (max-width: 991.98px) {

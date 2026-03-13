@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-layout d-flex min-vh-100">
+  <div class="dashboard-layout d-flex">
     <SidebarNav
       :companies="companies"
       :selected-company="selectedCompany"
@@ -21,17 +21,17 @@
                 <div class="client-name">{{ form.clientName }}</div>
                 <div class="client-meta">
                   <strong>{{ $t("clientDetail.phone") }}:</strong>
-                  +385911234567
+                  {{ form.contact }}
                 </div>
                 <div class="client-meta">
                   <strong>{{ $t("clientDetail.email") }}:</strong>
-                  info@metalconstruct.com
+                  {{ form.email }}
                 </div>
                 <div class="client-meta mt-2">
                   <span class="text-muted"
                     >{{ $t("clientDetail.createdAt") }}:</span
                   >
-                  20.03.2025.
+                  {{ formattedCreatedAt }}
                 </div>
               </div>
             </div>
@@ -52,7 +52,7 @@
                   />
                 </svg>
               </button>
-              <button class="btn btn-action">
+              <button class="btn btn-action" @click="saveClient">
                 <span>{{ $t("clientDetail.saveChanges") }}</span>
                 <svg
                   width="18"
@@ -66,7 +66,7 @@
                   />
                 </svg>
               </button>
-              <button class="btn btn-action">
+              <button class="btn btn-action" @click="exportPdf">
                 <span>{{ $t("clientDetail.exportPdf") }}</span>
                 <svg
                   width="18"
@@ -80,7 +80,7 @@
                   />
                 </svg>
               </button>
-              <button class="btn btn-action">
+              <button class="btn btn-action" @click="printClient">
                 <span>{{ $t("clientDetail.print") }}</span>
                 <svg
                   width="18"
@@ -97,7 +97,7 @@
                   />
                 </svg>
               </button>
-              <button class="btn btn-action-danger">
+              <button class="btn btn-action-danger" @click="showDeleteModal = true">
                 <span>{{ $t("clientDetail.deleteClient") }}</span>
                 <svg
                   width="18"
@@ -132,151 +132,190 @@
           </div>
 
           <div class="col-lg-9 col-md-8 col-12">
-            <section class="panel mb-3">
-              <div class="panel-body">
-                <h5 class="panel-heading">
-                  {{ $t("clientDetail.clientData") }}
-                </h5>
+           <section class="panel mb-3">
+             <div class="panel-body">
+               <h5 class="panel-heading">
+                 {{ $t("clientDetail.clientData") }}
+               </h5>
 
-                <div class="row g-2 mb-3">
-                  <div class="col-md-6">
-                    <label class="form-label-sm"
-                      >{{ $t("clientDetail.clientName") }}:</label
-                    >
-                    <input
-                      v-model="form.clientName"
-                      type="text"
-                      class="form-control form-control-sm"
-                    />
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label-sm"
-                      >{{ $t("clientDetail.country") }}:</label
-                    >
-                    <input
-                      v-model="form.country"
-                      type="text"
-                      class="form-control form-control-sm"
-                    />
-                  </div>
-                </div>
+               <div class="row g-2 mb-3">
+                 <div class="col-md-6">
+                   <label class="form-label-sm">{{ $t("clientDetail.clientType") }}:</label>
+                   <div class="d-flex gap-2">
+                     <button
+                       class="btn btn-sm flex-fill"
+                       :class="form.clientType === 'company' ? 'btn-type-active' : 'btn-type'"
+                       @click="form.clientType = 'company'"
+                     >
+                       {{ $t("clientDetail.companyType") }}
+                     </button>
+                     <button
+                       class="btn btn-sm flex-fill"
+                       :class="form.clientType === 'person' ? 'btn-type-active' : 'btn-type'"
+                       @click="form.clientType = 'person'"
+                     >
+                       {{ $t("clientDetail.personType") }}
+                     </button>
+                   </div>
+                 </div>
+                 <div class="col-md-6">
+                   <label class="form-label-sm">
+                     {{ form.clientType === 'company' ? $t("clientDetail.companyName") : $t("clientDetail.personName") }}:
+                   </label>
+                   <input
+                     v-model="form.clientName"
+                     type="text"
+                     class="form-control form-control-sm"
+                   />
+                 </div>
+               </div>
 
-                <div class="row g-2 mb-3">
-                  <div class="col-md-6">
-                    <label class="form-label-sm"
-                      >{{ $t("clientDetail.adressa") }}:</label
-                    >
-                    <input
-                      v-model="form.adressa"
-                      type="text"
-                      class="form-control form-control-sm"
-                    />
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label-sm"
-                      >{{ $t("clientDetail.owner") }}:</label
-                    >
-                    <input
-                      v-model="form.owner"
-                      type="text"
-                      class="form-control form-control-sm"
-                    />
-                  </div>
-                </div>
+               <div class="row g-2 mb-3">
+                 <div class="col-md-6">
+                   <label class="form-label-sm">{{ $t("clientDetail.oib") }}:</label>
+                   <input
+                     v-model="form.oib"
+                     type="text"
+                     class="form-control form-control-sm"
+                   />
+                 </div>
+                 <div class="col-md-6">
+                   <label class="form-label-sm">{{ $t("clientDetail.country") }}:</label>
+                   <input
+                     v-model="form.country"
+                     type="text"
+                     class="form-control form-control-sm"
+                   />
+                 </div>
+               </div>
 
-                <div class="row g-2">
-                  <div class="col-md-6">
-                    <label class="form-label-sm"
-                      >{{ $t("clientDetail.contact") }}:</label
-                    >
-                    <input
-                      v-model="form.contact"
-                      type="text"
-                      class="form-control form-control-sm"
-                    />
-                  </div>
-                  <div class="col-md-6">
-                    <label class="form-label-sm"
-                      >{{ $t("clientDetail.email") }}:</label
-                    >
-                    <input
-                      v-model="form.email"
-                      type="text"
-                      class="form-control form-control-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-            </section>
+               <div class="row g-2 mb-3">
+                 <div class="col-md-6">
+                   <label class="form-label-sm">{{ $t("clientDetail.adressa") }}:</label>
+                   <input
+                     v-model="form.adressa"
+                     type="text"
+                     class="form-control form-control-sm"
+                   />
+                 </div>
+                 <div v-if="form.clientType === 'company'" class="col-md-6">
+                   <label class="form-label-sm">{{ $t("clientDetail.owner") }}:</label>
+                   <input
+                     v-model="form.owner"
+                     type="text"
+                     class="form-control form-control-sm"
+                   />
+                 </div>
+               </div>
 
-            <section class="panel">
-              <div class="panel-body">
-                <h5 class="panel-heading">
-                  {{ $t("clientDetail.responsiblePersons") }}
-                </h5>
+               <div class="row g-2">
+                 <div class="col-md-6">
+                   <label class="form-label-sm">{{ $t("clientDetail.contact") }}:</label>
+                   <input
+                     v-model="form.contact"
+                     type="text"
+                     class="form-control form-control-sm"
+                   />
+                 </div>
+                 <div class="col-md-6">
+                   <label class="form-label-sm">{{ $t("clientDetail.email") }}:</label>
+                   <input
+                     v-model="form.email"
+                     type="text"
+                     class="form-control form-control-sm"
+                   />
+                 </div>
+               </div>
+             </div>
+           </section>
 
-                <div
-                  v-for="(person, index) in responsiblePersons"
-                  :key="index"
-                  class="responsible-block"
-                  :class="{ 'mb-3': index < responsiblePersons.length - 1 }"
-                >
-                  <div class="row g-2 mb-2">
-                    <div class="col-md-6">
-                      <label class="form-label-sm"
-                        >{{ $t("clientDetail.fullName") }}:</label
-                      >
-                      <input
-                        v-model="person.fullName"
-                        type="text"
-                        class="form-control form-control-sm"
-                      />
-                    </div>
-                    <div class="col-md-6">
-                      <label class="form-label-sm"
-                        >{{ $t("clientDetail.email") }}:</label
-                      >
-                      <input
-                        v-model="person.email"
-                        type="text"
-                        class="form-control form-control-sm"
-                      />
-                    </div>
-                  </div>
-                  <div class="row g-2">
-                    <div class="col-md-6">
-                      <label class="form-label-sm"
-                        >{{ $t("clientDetail.contact") }}:</label
-                      >
-                      <input
-                        v-model="person.contact"
-                        type="text"
-                        class="form-control form-control-sm"
-                      />
-                    </div>
-                    <div class="col-md-6">
-                      <label class="form-label-sm"
-                        >{{ $t("clientDetail.note") }}:</label
-                      >
-                      <input
-                        v-model="person.note"
-                        type="text"
-                        class="form-control form-control-sm"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
+           <section v-if="form.clientType === 'company'" class="panel">
+             <div class="panel-body">
+               <h5 class="panel-heading">
+                 {{ $t("clientDetail.responsiblePersons") }}
+               </h5>
+
+               <div
+                 v-for="(person, index) in responsiblePersons"
+                 :key="index"
+                 class="responsible-block"
+                 :class="{ 'mb-3': index < responsiblePersons.length - 1 }"
+               >
+                 <div class="row g-2 mb-2">
+                   <div class="col-md-6">
+                     <label class="form-label-sm">{{ $t("clientDetail.fullName") }}:</label>
+                     <input
+                       v-model="person.fullName"
+                       type="text"
+                       class="form-control form-control-sm"
+                     />
+                   </div>
+                   <div class="col-md-6">
+                     <label class="form-label-sm">{{ $t("clientDetail.email") }}:</label>
+                     <input
+                       v-model="person.email"
+                       type="text"
+                       class="form-control form-control-sm"
+                     />
+                   </div>
+                 </div>
+                 <div class="row g-2">
+                   <div class="col-md-6">
+                     <label class="form-label-sm">{{ $t("clientDetail.contact") }}:</label>
+                     <input
+                       v-model="person.contact"
+                       type="text"
+                       class="form-control form-control-sm"
+                     />
+                   </div>
+                   <div class="col-md-6">
+                     <label class="form-label-sm">{{ $t("clientDetail.note") }}:</label>
+                     <input
+                       v-model="person.note"
+                       type="text"
+                       class="form-control form-control-sm"
+                     />
+                   </div>
+                 </div>
+               </div>
+             </div>
+           </section>
           </div>
         </div>
       </div>
     </main>
+
+    <Transition name="modal-fade">
+      <div v-if="showSuccessModal" class="save-modal-overlay" @click.self="showSuccessModal = false">
+        <div class="save-modal-card">
+          <div class="save-modal-icon">✓</div>
+          <h6 class="save-modal-title">{{ isEditing ? $t("clientDetail.clientUpdated") : $t("clientDetail.clientCreated") }}</h6>
+          <p class="save-modal-text">{{ form.clientName }}</p>
+          <button class="btn btn-sm save-modal-btn" @click="showSuccessModal = false">OK</button>
+        </div>
+      </div>
+    </Transition>
+
+    <Transition name="modal-fade">
+      <div v-if="showDeleteModal" class="save-modal-overlay" @click.self="showDeleteModal = false">
+        <div class="save-modal-card">
+          <div class="save-modal-icon delete-icon">!</div>
+          <h6 class="save-modal-title">{{ $t("clientDetail.confirmDeleteTitle") }}</h6>
+          <p class="save-modal-text">{{ $t("clientDetail.confirmDeleteMsg") }} <strong>{{ form.clientName }}</strong>?</p>
+          <div class="d-flex gap-2 justify-content-center">
+            <button class="btn btn-sm save-modal-btn-cancel" @click="showDeleteModal = false">{{ $t("clientDetail.cancel") }}</button>
+            <button class="btn btn-sm save-modal-btn-delete" @click="deleteClient">{{ $t("clientDetail.deleteClient") }}</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script>
 import SidebarNav from "./SidebarNav.vue";
+import api from "../api";
+import { exportSingleClientPdf, printSingleClient } from "../utils/pdf";
 
 export default {
   name: "ClientDetailPage",
@@ -294,18 +333,62 @@ export default {
   data() {
     return {
       form: {
+        clientType: this.client?.clientType || "company",
         clientName: this.client?.clientName || "",
         country: this.client?.country || "",
         adressa: this.client?.adressa || "",
         owner: this.client?.owner || "",
         contact: this.client?.contact || "",
         email: this.client?.email || "",
+        oib: this.client?.oib || "",
       },
-      responsiblePersons: [
-        { fullName: "", email: "", contact: "", note: "" },
-        { fullName: "", email: "", contact: "", note: "" },
-      ],
+      responsiblePersons: this.client?.responsiblePersons?.length
+        ? this.client.responsiblePersons.map(p => ({ ...p }))
+        : [{ fullName: "", email: "", contact: "", note: "" }],
+      showSuccessModal: false,
+      showDeleteModal: false,
     };
+  },
+  computed: {
+    isEditing() {
+      return !!(this.client?._id || this.client?.id);
+    },
+    formattedCreatedAt() {
+      const raw = this.client?.createdAt || this.client?.created_at;
+      if (!raw) return "";
+      const d = new Date(raw);
+      return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}.`;
+    },
+  },
+  methods: {
+    async saveClient() {
+      const payload = {
+        ...this.form,
+        company: this.selectedCompany,
+        responsiblePersons: this.form.clientType === "company" ? this.responsiblePersons : [],
+      };
+      const clientId = this.client?._id || this.client?.id;
+      if (clientId) {
+        await api.put(`/clients/${clientId}`, payload);
+      } else {
+        await api.post("/clients", payload);
+      }
+      this.showSuccessModal = true;
+    },
+    async exportPdf() {
+      await exportSingleClientPdf(this.form, this.responsiblePersons, this.userName, this.selectedCompany);
+    },
+    printClient() {
+      printSingleClient(this.form, this.responsiblePersons, this.userName, this.selectedCompany);
+    },
+    async deleteClient() {
+      const clientId = this.client?._id || this.client?.id;
+      if (clientId) {
+        await api.delete(`/clients/${clientId}`);
+      }
+      this.showDeleteModal = false;
+      this.$emit('back');
+    },
   },
 };
 </script>
@@ -313,7 +396,6 @@ export default {
 <style scoped>
 .main-content {
   background: #e8eaed;
-  min-height: 100vh;
 }
 @media (max-width: 991.98px) {
   .main-content {
@@ -422,6 +504,122 @@ export default {
   font-size: 1.2rem;
   font-weight: 700;
   opacity: 0.85;
+}
+
+.btn-type {
+  background: #e8eaed;
+  color: #444;
+  border: 1.5px solid #bbb;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+.btn-type:hover {
+  background: #d5d8dc;
+  color: #333;
+}
+.btn-type-active {
+  background: #2b579a;
+  color: #fff;
+  border: 1.5px solid #2b579a;
+  font-weight: 600;
+  font-size: 0.82rem;
+}
+.btn-type-active:hover {
+  background: #1e3f73;
+  color: #fff;
+}
+
+.save-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.save-modal-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 2rem 1.5rem;
+  width: 90%;
+  max-width: 350px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  text-align: center;
+}
+.save-modal-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 1rem;
+  background: #27ae60;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+.save-modal-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #1c2936;
+  margin-bottom: 0.3rem;
+}
+.save-modal-text {
+  font-size: 0.85rem;
+  color: #555;
+  margin-bottom: 1rem;
+}
+.save-modal-btn {
+  background: #2b579a;
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.45rem 2rem;
+  border-radius: 6px;
+}
+.save-modal-btn:hover {
+  background: #1e3f73;
+  color: #fff;
+}
+.delete-icon {
+  background: #e74c3c;
+}
+.save-modal-btn-cancel {
+  background: #e8eaed;
+  color: #333;
+  border: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.45rem 1.5rem;
+  border-radius: 6px;
+}
+.save-modal-btn-cancel:hover {
+  background: #ddd;
+}
+.save-modal-btn-delete {
+  background: #c0392b;
+  color: #fff;
+  border: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.45rem 1.5rem;
+  border-radius: 6px;
+}
+.save-modal-btn-delete:hover {
+  background: #962d22;
+  color: #fff;
+}
+
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
 }
 
 @media (max-width: 767.98px) {
