@@ -250,9 +250,12 @@ export default {
         if (this.selectedCompany) params.company = this.selectedCompany;
         const { data } = await api.get("/projects", { params });
         this.completedProjects = data.map((p) => ({
+          _id: p._id,
           rn: p.rn,
           client: p.client,
+          responsible: p.responsible,
           name: p.name,
+          drawings: p.drawings || [],
           completedOn: new Date(p.createdAt).toLocaleDateString("hr-HR"),
           progress: 100,
           color: "green",

@@ -27,6 +27,7 @@
     @back="currentView = 'dashboard'"
     @logout="loggedInUser = null; currentView = 'login'"
     @view-drawing="openDrawing"
+    @edit-project="editProject"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
     @add-company="addCompany"
@@ -52,7 +53,8 @@
     :companies="companies"
     :selected-company="selectedCompany"
     :user-name="loggedInUser?.fullName || ''"
-    @back="currentView = 'dashboard'"
+    :edit-project="editingProject"
+    @back="editingProject = null; currentView = 'dashboard'"
     @logout="loggedInUser = null; currentView = 'login'"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
@@ -149,6 +151,7 @@
     @back="currentView = 'production-history'"
     @logout="loggedInUser = null; currentView = 'login'"
     @view-drawing="openDrawing"
+    @edit-project="editProject"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
     @add-company="addCompany"
@@ -211,6 +214,7 @@ export default {
       selectedWorker: null,
       selectedClient: null,
       selectedHistoryProject: null,
+      editingProject: null,
       companies: [],
       companyObjects: [],
       selectedCompany: '',
@@ -240,6 +244,10 @@ export default {
     openProject(project) {
       this.selectedProject = project
       this.currentView = 'project'
+    },
+    editProject(project) {
+      this.editingProject = project
+      this.currentView = 'create-project'
     },
     openDrawing(drawing) {
       this.selectedDrawing = drawing

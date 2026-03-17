@@ -25,10 +25,10 @@
                     {{ $t("dashboard.client") }}
                   </th>
                   <th class="d-none d-sm-table-cell">
-                    {{ $t("dashboard.worksOn") }}
+                    {{ $t("project.status") }}
                   </th>
                   <th>{{ $t("dashboard.process") }}</th>
-                  <th class="d-none d-lg-table-cell">EST</th>
+                  <th class="d-none d-lg-table-cell">%</th>
                   <th class="text-end">{{ $t("dashboard.action") }}</th>
                 </tr>
               </thead>
@@ -40,18 +40,22 @@
                     {{ p.client }}
                   </td>
                   <td class="d-none d-sm-table-cell text-muted">
-                    {{ p.worksOn }}
+                    <span :class="'badge-' + (p.status || 'active')">{{
+                      p.status || "active"
+                    }}</span>
                   </td>
                   <td>
                     <div class="progress-bar-wrap">
                       <div
                         class="progress-fill"
-                        :class="'fill-' + p.color"
-                        :style="{ width: p.progress + '%' }"
+                        :class="'fill-' + getProjectColor(p)"
+                        :style="{ width: getProjectProgress(p) + '%' }"
                       ></div>
                     </div>
                   </td>
-                  <td class="d-none d-lg-table-cell text-muted">{{ p.est }}</td>
+                  <td class="d-none d-lg-table-cell text-muted">
+                    {{ getProjectProgress(p) }}%
+                  </td>
                   <td class="text-end">
                     <button
                       class="btn btn-sm btn-view"
@@ -127,7 +131,10 @@
                   />
                 </svg>
               </button>
-              <button class="btn btn-action" @click="$emit('production-history')">
+              <button
+                class="btn btn-action"
+                @click="$emit('production-history')"
+              >
                 <span>{{ $t("dashboard.productionHistory") }}</span>
                 <svg
                   width="18"
@@ -196,6 +203,7 @@
 
 <script>
 import SidebarNav from "./SidebarNav.vue";
+import { calcTimePerOperation } from "../utils/calculations";
 import api from "../api";
 
 export default {
@@ -203,15 +211,37 @@ export default {
   components: { SidebarNav },
   props: {
     companies: { type: Array, default: () => [] },
-    selectedCompany: { type: String, default: '' },
-    userName: { type: String, default: '' },
+    selectedCompany: { type: String, default: "" },
+    userName: { type: String, default: "" },
   },
-  emits: ["logout", "view-project", "create-project", "analytics", "workers-clients", "warehouse", "production-history", "edit-profile", "select-company", "add-company", "update-companies"],
+  emits: [
+    "logout",
+    "view-project",
+    "create-project",
+    "analytics",
+    "workers-clients",
+    "warehouse",
+    "production-history",
+    "edit-profile",
+    "select-company",
+    "add-company",
+    "update-companies",
+  ],
   data() {
     return {
       projects: [],
       assemblies: [],
+      now: Date.now(),
+      timer: null,
     };
+  },
+  created() {
+    this.timer = setInterval(() => {
+      this.now = Date.now();
+    }, 30000);
+  },
+  beforeUnmount() {
+    if (this.timer) clearInterval(this.timer);
   },
   computed: {
     filteredProjects() {
@@ -232,24 +262,102 @@ export default {
   methods: {
     async fetchProjects() {
       try {
-        const params = { status: "active" };
+        const params = {};
         if (this.selectedCompany) {
           params.company = this.selectedCompany;
         }
         const { data } = await api.get("/projects", { params });
-        this.projects = data.map((p) => ({
-          rn: p.rn,
-          name: p.name,
-          client: p.client,
-          worksOn: p.worksOn || "",
-          progress: p.progress || 0,
-          color: p.color || "blue",
-          est: p.est || "-",
-          company: p.company,
-        }));
+        this.projects = data
+          .filter((p) => p.status !== "completed")
+          .map((p) => {
+            const proj = {
+              _id: p._id,
+              rn: p.rn,
+              name: p.name,
+              client: p.client,
+              responsible: p.responsible,
+              drawings: p.drawings || [],
+              status: p.status,
+              startedAt: p.startedAt,
+              company: p.company,
+            };
+            this.recalcMissingEstimates(proj);
+            return proj;
+          });
       } catch (e) {
         console.error("Failed to fetch projects:", e);
       }
+    },
+    recalcMissingEstimates(proj) {
+      const drawings = proj.drawings;
+      if (!drawings) return;
+      for (const dr of drawings) {
+        if (dr.isAssemblyDrawing || !dr.assignedWorkers || !dr.treatments)
+          continue;
+        const hasZeroEst = dr.assignedWorkers.some(
+          (aw) => !aw.estimatedMinutes,
+        );
+        if (!hasZeroEst) continue;
+        const opTimes = calcTimePerOperation(dr.treatments);
+        const opLabelToKey = {
+          "Rezanje cijevi": "pipeCutting",
+          "Rezanje lima": "sheetCutting",
+          Bušenje: "drilling",
+          Zavarivanje: "welding",
+          Brušenje: "grinding",
+          Savijanje: "bending",
+          Montaža: "assembly",
+        };
+        const workerCountPerOp = {};
+        for (const aw of dr.assignedWorkers) {
+          workerCountPerOp[aw.operation || ""] =
+            (workerCountPerOp[aw.operation || ""] || 0) + 1;
+        }
+        for (const aw of dr.assignedWorkers) {
+          if (aw.estimatedMinutes) continue;
+          const opKey = opLabelToKey[aw.operation];
+          if (opKey && opTimes[opKey]) {
+            const count = workerCountPerOp[aw.operation] || 1;
+            aw.estimatedMinutes = Math.round(opTimes[opKey] / count);
+          }
+        }
+      }
+    },
+    getProjectProgress(p) {
+      if (!p.drawings || !p.drawings.length) return 0;
+      const opTotals = {};
+      let taskCount = 0,
+        completedCount = 0;
+      for (const d of p.drawings) {
+        if (d.isAssemblyDrawing || !d.assignedWorkers) continue;
+        const opMaxInDrawing = {};
+        for (const aw of d.assignedWorkers) {
+          taskCount++;
+          if (aw.status === "completed") completedCount++;
+          const op = aw.operation || "";
+          const est = aw.estimatedMinutes || 0;
+          if (!opMaxInDrawing[op] || est > opMaxInDrawing[op])
+            opMaxInDrawing[op] = est;
+        }
+        for (const [op, maxEst] of Object.entries(opMaxInDrawing)) {
+          opTotals[op] = (opTotals[op] || 0) + maxEst;
+        }
+      }
+      if (!taskCount) return 0;
+      if (completedCount === taskCount) return 100;
+      const totalEst = Math.max(0, ...Object.values(opTotals));
+      if (!p.startedAt || !totalEst) {
+        return Math.round((completedCount / taskCount) * 100);
+      }
+      const elapsed = (this.now - new Date(p.startedAt).getTime()) / 60000;
+      return Math.min(100, Math.round((elapsed / totalEst) * 100));
+    },
+    getProjectColor(p) {
+      const progress = this.getProjectProgress(p);
+      if (progress >= 100) return "green";
+      if (progress >= 50) return "yellow";
+      if (progress > 0) return "blue";
+      return "blue";
     },
   },
 };
@@ -402,5 +510,24 @@ export default {
   .progress-bar-wrap {
     width: 50px;
   }
+}
+
+.badge-active {
+  display: inline-block;
+  background: #2b579a;
+  color: #fff;
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.badge-in-progress {
+  display: inline-block;
+  background: #e67e22;
+  color: #fff;
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 </style>
