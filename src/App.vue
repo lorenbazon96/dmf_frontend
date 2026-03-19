@@ -24,6 +24,7 @@
     :companies="companies"
     :selected-company="selectedCompany"
     :user-name="loggedInUser?.fullName || ''"
+    :company-schedule="selectedCompanyObject"
     @back="currentView = 'dashboard'"
     @logout="loggedInUser = null; currentView = 'login'"
     @view-drawing="openDrawing"
@@ -137,6 +138,7 @@
     @back="currentView = 'dashboard'"
     @logout="loggedInUser = null; currentView = 'login'"
     @view-project="openHistoryProject"
+    @duplicate-project="currentView = 'dashboard'"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
     @add-company="addCompany"
@@ -148,6 +150,7 @@
     :companies="companies"
     :selected-company="selectedCompany"
     :user-name="loggedInUser?.fullName || ''"
+    :company-schedule="selectedCompanyObject"
     @back="currentView = 'production-history'"
     @logout="loggedInUser = null; currentView = 'login'"
     @view-drawing="openDrawing"
@@ -220,6 +223,11 @@ export default {
       selectedCompany: '',
       loggedInUser: null,
     }
+  },
+  computed: {
+    selectedCompanyObject() {
+      return this.companyObjects.find(c => c.name === this.selectedCompany) || null;
+    },
   },
   async created() {
     await this.fetchCompanies()

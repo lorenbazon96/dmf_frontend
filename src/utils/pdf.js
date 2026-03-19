@@ -44,14 +44,14 @@ function addPdfHeader(doc, title, userName, companyName) {
   doc.setTextColor(43, 87, 154);
   try {
     doc.setFont("Roboto", "bold");
-  } catch {}
+  } catch (e) { console.warn("Roboto bold font not available, using default", e); }
   doc.text(title, logoBase64 ? 48 : 14, 16);
 
   doc.setFontSize(8);
   doc.setTextColor(100);
   try {
     doc.setFont("Roboto", "normal");
-  } catch {}
+  } catch (e) { console.warn("Roboto normal font not available, using default", e); }
   const pageW = doc.internal.pageSize.getWidth();
   if (companyName) doc.text(companyName, pageW - 14, 12, { align: "right" });
   if (userName) doc.text(userName, pageW - 14, 17, { align: "right" });
@@ -61,7 +61,7 @@ function addPdfHeader(doc, title, userName, companyName) {
   doc.setTextColor(0);
   try {
     doc.setFont("Roboto", "normal");
-  } catch {}
+  } catch (e) { console.warn("Roboto normal font not available, using default", e); }
   return 29;
 }
 
@@ -618,6 +618,8 @@ export async function exportProjectDetailPdf(
   companyName,
   overallProgress,
   estimatedEnd,
+  clientPhone,
+  clientEmail,
 ) {
   await initPdf();
   const doc = createDoc("l");
@@ -630,12 +632,13 @@ export async function exportProjectDetailPdf(
       ["RN", project.rn || ""],
       ["Naziv", project.name || ""],
       ["Klijent", project.client || ""],
-      ["Kontakt", project.responsible || ""],
+      ["Telefon", clientPhone || "–"],
+      ["Email", clientEmail || "–"],
       ["Status", project.status || "active"],
       [
         "Započeto",
-        project.startedAt
-          ? new Date(project.startedAt).toLocaleString("hr-HR")
+        (project.startedAt || project.createdAt)
+          ? new Date(project.startedAt || project.createdAt).toLocaleString("hr-HR")
           : "–",
       ],
       ["Napredak", (overallProgress ?? 0) + "%"],
@@ -693,16 +696,19 @@ export function printProjectDetail(
   companyName,
   overallProgress,
   estimatedEnd,
+  clientPhone,
+  clientEmail,
 ) {
-  const startedAt = project.startedAt
-    ? new Date(project.startedAt).toLocaleString("hr-HR")
+  const startedAt = (project.startedAt || project.createdAt)
+    ? new Date(project.startedAt || project.createdAt).toLocaleString("hr-HR")
     : "–";
   let info = `<table>
     <tr><th>Polje</th><th>Vrijednost</th></tr>
     <tr><td><b>RN</b></td><td>${project.rn || ""}</td></tr>
     <tr><td><b>Naziv</b></td><td>${project.name || ""}</td></tr>
     <tr><td><b>Klijent</b></td><td>${project.client || ""}</td></tr>
-    <tr><td><b>Kontakt</b></td><td>${project.responsible || ""}</td></tr>
+    <tr><td><b>Telefon</b></td><td>${clientPhone || "–"}</td></tr>
+    <tr><td><b>Email</b></td><td>${clientEmail || "–"}</td></tr>
     <tr><td><b>Status</b></td><td>${project.status || "active"}</td></tr>
     <tr><td><b>Započeto</b></td><td>${startedAt}</td></tr>
     <tr><td><b>Napredak</b></td><td>${overallProgress ?? 0}%</td></tr>

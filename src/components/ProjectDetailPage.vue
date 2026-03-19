@@ -35,10 +35,6 @@
                   {{ project.client }}
                 </div>
                 <div class="project-meta">
-                  <strong>{{ $t("project.contact") }}:</strong>
-                  {{ project.responsible || "–" }}
-                </div>
-                <div class="project-meta">
                   <strong>{{ $t("project.phone") }}:</strong> {{ clientPhone }}
                 </div>
                 <div class="project-meta">
@@ -60,16 +56,16 @@
                     projectData.status || "active"
                   }}</span>
                 </div>
-                <div v-if="projectData.startedAt" class="project-meta">
+                <div class="project-meta">
                   <strong>{{ $t("project.startedAt") }}:</strong>
-                  {{ formatDate(projectData.startedAt) }}
+                  {{ formatDate(projectData.startedAt || projectData.createdAt) }}
                 </div>
                 <div v-if="totalEstimatedMinutes > 0" class="project-meta">
                   <strong>{{ $t("project.estimatedTime") }}:</strong>
                   {{ formatMinutes(totalEstimatedMinutes) }}
                 </div>
                 <div
-                  v-if="projectData.startedAt && totalEstimatedMinutes > 0"
+                  v-if="totalEstimatedMinutes > 0"
                   class="project-meta"
                 >
                   <strong>{{ $t("project.estimatedEnd") }}:</strong>
@@ -114,6 +110,42 @@
                 @click="startProject"
               >
                 <span>{{ $t("project.startProject") }}</span>
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  opacity="0.8"
+                >
+                  <path
+                    d="M11.596 8.697l-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 010 1.393z"
+                  />
+                </svg>
+              </button>
+              <button
+                v-if="projectData.status === 'in-progress'"
+                class="btn btn-action btn-action-pause"
+                @click="pauseProject"
+              >
+                <span>{{ $t("project.pauseProject") }}</span>
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  opacity="0.8"
+                >
+                  <path
+                    d="M5.5 3.5A1.5 1.5 0 017 5v6a1.5 1.5 0 01-3 0V5a1.5 1.5 0 011.5-1.5m5 0A1.5 1.5 0 0112 5v6a1.5 1.5 0 01-3 0V5a1.5 1.5 0 011.5-1.5"
+                  />
+                </svg>
+              </button>
+              <button
+                v-if="projectData.status === 'paused'"
+                class="btn btn-action btn-action-start"
+                @click="resumeProject"
+              >
+                <span>{{ $t("project.resumeProject") }}</span>
                 <svg
                   width="18"
                   height="18"
@@ -439,6 +471,7 @@
 import SidebarNav from "./SidebarNav.vue";
 import { exportProjectDetailPdf, printProjectDetail } from "../utils/pdf";
 import { calcTimePerOperation } from "../utils/calculations";
+import { addWorkingMinutes } from "../utils/workingTime";
 import api from "../api";
 
 export default {
@@ -452,6 +485,7 @@ export default {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: "" },
     userName: { type: String, default: "" },
+    companySchedule: { type: Object, default: null },
   },
   emits: [
     "back",
@@ -506,6 +540,45 @@ export default {
         qty: dr.quantity || 1,
       }));
     },
+    operationPhases() {
+      return [
+        ["Rezanje cijevi", "Rezanje lima"],
+        ["Savijanje", "Bušenje"],
+        ["Montaža"],
+        ["Zavarivanje"],
+        ["Brušenje"],
+      ];
+    },
+    opPhaseTotals() {
+      const d = this.projectData.drawings;
+      if (!d) return {};
+      const opTotals = {};
+      for (const dr of d) {
+        if (dr.isAssemblyDrawing || !dr.assignedWorkers) continue;
+        const opMaxInDrawing = {};
+        for (const aw of dr.assignedWorkers) {
+          const op = aw.operation || "";
+          const est = aw.estimatedMinutes || 0;
+          if (!opMaxInDrawing[op] || est > opMaxInDrawing[op])
+            opMaxInDrawing[op] = est;
+        }
+        for (const [op, maxEst] of Object.entries(opMaxInDrawing)) {
+          opTotals[op] = (opTotals[op] || 0) + maxEst;
+        }
+      }
+      const phaseStarts = {};
+      let prevPhaseEnd = 0;
+      for (let pi = 0; pi < this.operationPhases.length; pi++) {
+        const phaseOps = this.operationPhases[pi];
+        const phaseStart = pi === 0 ? 0 : prevPhaseEnd;
+        const phaseMaxDuration = Math.max(0, ...phaseOps.map(op => opTotals[op] || 0));
+        for (const op of phaseOps) {
+          phaseStarts[op] = phaseStart;
+        }
+        prevPhaseEnd = phaseStart + Math.round(phaseMaxDuration * 0.15);
+      }
+      return phaseStarts;
+    },
     productionPlan() {
       const d = this.projectData.drawings;
       if (!d) return [];
@@ -516,7 +589,8 @@ export default {
         const opMaxInDrawing = {};
         dr.assignedWorkers.forEach((aw, wIdx) => {
           const op = aw.operation || "";
-          const offset = opCumulativeOffset[op] || 0;
+          const phaseStart = this.opPhaseTotals[op] || 0;
+          const withinOpOffset = opCumulativeOffset[op] || 0;
           plan.push({
             drawingNo: dr.drawingNo,
             operation: aw.operation,
@@ -527,7 +601,7 @@ export default {
             completedAt: aw.completedAt,
             drawingIdx: dIdx,
             workerIdx: wIdx,
-            startOffset: offset,
+            startOffset: phaseStart + withinOpOffset,
           });
           const est = aw.estimatedMinutes || 0;
           if (!opMaxInDrawing[op] || est > opMaxInDrawing[op]) {
@@ -557,7 +631,25 @@ export default {
           opTotals[op] = (opTotals[op] || 0) + maxEst;
         }
       }
-      return Math.max(0, ...Object.values(opTotals));
+      let maxEnd = 0;
+      for (const [op, total] of Object.entries(opTotals)) {
+        const phaseStart = this.opPhaseTotals[op] || 0;
+        const end = phaseStart + total;
+        if (end > maxEnd) maxEnd = end;
+      }
+      return maxEnd;
+    },
+    totalPausedMinutes() {
+      let ms = this.projectData.totalPausedMs || 0;
+      if (this.projectData.pausedAt) {
+        ms += this.now - new Date(this.projectData.pausedAt).getTime();
+      }
+      return ms / 60000;
+    },
+    effectiveElapsedMinutes() {
+      if (!this.projectData.startedAt) return 0;
+      const total = (this.now - new Date(this.projectData.startedAt).getTime()) / 60000;
+      return Math.max(0, total - this.totalPausedMinutes);
     },
     overallProgress() {
       const plan = this.productionPlan;
@@ -567,11 +659,9 @@ export default {
         const completed = plan.filter((p) => p.status === "completed").length;
         return Math.round((completed / plan.length) * 100);
       }
-      const elapsed =
-        (this.now - new Date(this.projectData.startedAt).getTime()) / 60000;
       return Math.min(
         100,
-        Math.round((elapsed / this.totalEstimatedMinutes) * 100),
+        Math.round((this.effectiveElapsedMinutes / this.totalEstimatedMinutes) * 100),
       );
     },
     progressColor() {
@@ -582,12 +672,10 @@ export default {
       return "blue";
     },
     estimatedEndDate() {
-      if (!this.projectData.startedAt || !this.totalEstimatedMinutes)
-        return "–";
-      const end = new Date(
-        new Date(this.projectData.startedAt).getTime() +
-          this.totalEstimatedMinutes * 60000,
-      );
+      const start = this.projectData.startedAt || this.projectData.createdAt;
+      if (!start || !this.totalEstimatedMinutes) return "–";
+      const adjustedStart = new Date(new Date(start).getTime() + this.totalPausedMinutes * 60000);
+      const end = addWorkingMinutes(adjustedStart, this.totalEstimatedMinutes, this.companySchedule);
       return end.toLocaleString("hr-HR");
     },
     clientPhone() {
@@ -654,14 +742,14 @@ export default {
         const { data } = await api.get("/clients", { params });
         this.clientData =
           data.find((c) => c.clientName === this.projectData.client) || null;
-      } catch {}
+      } catch (e) { console.error("Failed to load client data", e); }
     },
     async refreshProject() {
       try {
         const { data } = await api.get("/projects/" + this.projectData._id);
         this.projectData = data;
         this.recalcMissingEstimates();
-      } catch {}
+      } catch (e) { console.error("Failed to refresh project", e); }
     },
     formatDate(d) {
       if (!d) return "–";
@@ -677,9 +765,7 @@ export default {
     getTaskProgress(task) {
       if (task.status === "completed") return 100;
       if (!this.projectData.startedAt || !task.estimatedMinutes) return 0;
-      const elapsedTotal =
-        (this.now - new Date(this.projectData.startedAt).getTime()) / 60000;
-      const taskElapsed = elapsedTotal - (task.startOffset || 0);
+      const taskElapsed = this.effectiveElapsedMinutes - (task.startOffset || 0);
       if (taskElapsed <= 0) return 0;
       return Math.min(
         100,
@@ -687,11 +773,12 @@ export default {
       );
     },
     getTaskEstimatedEndDate(task) {
-      if (!this.projectData.startedAt || !task.estimatedMinutes) return "–";
-      const startMs = new Date(this.projectData.startedAt).getTime();
-      const endMs =
-        startMs + ((task.startOffset || 0) + task.estimatedMinutes) * 60000;
-      return new Date(endMs).toLocaleString("hr-HR", {
+      const start = this.projectData.startedAt || this.projectData.createdAt;
+      if (!start || !task.estimatedMinutes) return "–";
+      const adjustedStart = new Date(new Date(start).getTime() + this.totalPausedMinutes * 60000);
+      const totalMinutes = (task.startOffset || 0) + task.estimatedMinutes;
+      const end = addWorkingMinutes(adjustedStart, totalMinutes, this.companySchedule);
+      return end.toLocaleString("hr-HR", {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
@@ -724,6 +811,8 @@ export default {
         this.selectedCompany,
         this.overallProgress,
         this.estimatedEndDate,
+        this.clientPhone,
+        this.clientEmail,
       );
     },
     printPage() {
@@ -744,6 +833,8 @@ export default {
         this.selectedCompany,
         this.overallProgress,
         this.estimatedEndDate,
+        this.clientPhone,
+        this.clientEmail,
       );
     },
     async startProject() {
@@ -756,16 +847,40 @@ export default {
         console.error("Failed to start project:", err);
       }
     },
+    async pauseProject() {
+      try {
+        const { data } = await api.put(
+          "/projects/" + this.projectData._id + "/pause",
+        );
+        this.projectData = data;
+      } catch (err) {
+        console.error("Failed to pause project:", err);
+      }
+    },
+    async resumeProject() {
+      try {
+        const { data } = await api.put(
+          "/projects/" + this.projectData._id + "/resume",
+        );
+        this.projectData = data;
+      } catch (err) {
+        console.error("Failed to resume project:", err);
+      }
+    },
+    toLocalDateTimeString(date) {
+      const d = new Date(date);
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    },
     openCompleteModal(task) {
       this.completeTarget = task;
       if (this.projectData.startedAt && task.estimatedMinutes) {
-        const startMs = new Date(this.projectData.startedAt).getTime();
-        const endMs =
-          startMs + ((task.startOffset || 0) + task.estimatedMinutes) * 60000;
-        const suggested = new Date(Math.min(endMs, Date.now()));
-        this.completeDateTime = suggested.toISOString().slice(0, 16);
+        const adjustedStart = new Date(new Date(this.projectData.startedAt).getTime() + this.totalPausedMinutes * 60000);
+        const suggested = addWorkingMinutes(adjustedStart, (task.startOffset || 0) + task.estimatedMinutes, this.companySchedule);
+        const capped = new Date(Math.min(suggested.getTime(), Date.now()));
+        this.completeDateTime = this.toLocalDateTimeString(capped);
       } else {
-        this.completeDateTime = new Date().toISOString().slice(0, 16);
+        this.completeDateTime = this.toLocalDateTimeString(new Date());
       }
       this.showCompleteModal = true;
     },
@@ -1219,6 +1334,22 @@ export default {
   padding: 0.15rem 0.5rem;
   font-size: 0.72rem;
   font-weight: 600;
+}
+.badge-paused {
+  background: #95a5a6;
+  color: #fff;
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.btn-action-pause {
+  border-color: #e67e22;
+  color: #e67e22;
+}
+.btn-action-pause:hover {
+  background: #e67e22;
+  color: #fff;
 }
 
 .modal-overlay {

@@ -129,11 +129,18 @@
                       <td>{{ p.name }}</td>
                       <td class="d-none d-sm-table-cell text-muted">{{ p.completedOn }}</td>
                       <td class="text-end">
-                        <button class="btn btn-sm btn-view" @click="$emit('view-project', p)">
+                        <button class="btn btn-sm btn-view me-1" @click="$emit('view-project', p)">
                           {{ $t("history.view") }}
                           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" class="ms-1">
                             <path d="M10.5 8a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0" />
                             <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8m8 3.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7" />
+                          </svg>
+                        </button>
+                        <button class="btn btn-sm btn-view" @click="duplicateProject(p)">
+                          {{ $t("history.duplicate") }}
+                          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" class="ms-1">
+                            <path d="M4 1.5H3a2 2 0 00-2 2V14a2 2 0 002 2h10a2 2 0 002-2V3.5a2 2 0 00-2-2h-1v1h1a1 1 0 011 1V14a1 1 0 01-1 1H3a1 1 0 01-1-1V3.5a1 1 0 011-1h1z" />
+                            <path d="M9.5 1a.5.5 0 01.5.5v1a.5.5 0 01-.5.5h-3a.5.5 0 01-.5-.5v-1a.5.5 0 01.5-.5zm-3-1A1.5 1.5 0 005 1.5v1A1.5 1.5 0 006.5 4h3A1.5 1.5 0 0011 2.5v-1A1.5 1.5 0 009.5 0z" />
                           </svg>
                         </button>
                       </td>
@@ -162,7 +169,7 @@ export default {
     selectedCompany: { type: String, default: '' },
     userName: { type: String, default: '' },
   },
-  emits: ["back", "logout", "view-project", "edit-profile", "select-company", "add-company", "update-companies"],
+  emits: ["back", "logout", "view-project", "duplicate-project", "edit-profile", "select-company", "add-company", "update-companies"],
   data() {
     return {
       searchQuery: "",
@@ -284,6 +291,60 @@ export default {
     },
     printList() {
       printHistoryList(this.filteredProjects, this.userName, this.selectedCompany);
+    },
+    incrementRn(rn) {
+      const match = rn.match(/^(.*?)(\d+)$/);
+      if (match) {
+        const num = parseInt(match[2]) + 1;
+        return match[1] + String(num).padStart(match[2].length, "0");
+      }
+      return rn + "-1";
+    },
+    async duplicateProject(project) {
+      try {
+        const { data: original } = await api.get(`/projects/${project._id}`);
+        const cleanDrawings = (original.drawings || []).map((d) => {
+          const copy = { ...d };
+          delete copy._id;
+          if (copy.assignedWorkers) {
+            copy.assignedWorkers = copy.assignedWorkers.map((w) => {
+              const wc = { ...w };
+              delete wc._id;
+              wc.status = "pending";
+              wc.progress = 0;
+              delete wc.completedAt;
+              return wc;
+            });
+          }
+          if (copy.assignedMaterials) {
+            copy.assignedMaterials = copy.assignedMaterials.map((m) => {
+              const mc = { ...m };
+              delete mc._id;
+              return mc;
+            });
+          }
+          if (copy.treatments) {
+            copy.treatments = copy.treatments.map((t) => {
+              const tc = { ...t };
+              delete tc._id;
+              return tc;
+            });
+          }
+          return copy;
+        });
+        const payload = {
+          rn: this.incrementRn(original.rn),
+          name: original.name,
+          client: original.client,
+          responsible: original.responsible,
+          company: original.company,
+          drawings: cleanDrawings,
+        };
+        await api.post("/projects", payload);
+        this.$emit("duplicate-project");
+      } catch (err) {
+        console.error("Failed to duplicate project", err);
+      }
     },
   },
 };

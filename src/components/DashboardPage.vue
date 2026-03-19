@@ -157,38 +157,41 @@
           <div class="col-lg-9 col-md-8 col-12">
             <section class="panel">
               <h5 class="panel-title">{{ $t("dashboard.assemblies") }}</h5>
-              <div class="table-responsive">
+              <div v-if="!workerRows.length" class="text-muted px-3 py-2" style="font-size:0.82rem">
+                {{ $t("dashboard.noActiveWorkers") }}
+              </div>
+              <div v-else class="table-responsive">
                 <table class="table align-middle mb-0">
                   <thead>
                     <tr>
+                      <th>{{ $t("dashboard.workerName") }}</th>
                       <th>RN</th>
+                      <th class="d-none d-sm-table-cell">{{ $t("dashboard.name") }}</th>
                       <th>{{ $t("dashboard.operation") }}</th>
-                      <th class="d-none d-sm-table-cell">
-                        {{ $t("dashboard.worksOn") }}
-                      </th>
-                      <th class="d-none d-md-table-cell">EST</th>
+                      <th class="d-none d-md-table-cell">{{ $t("project.status") }}</th>
                       <th>{{ $t("dashboard.process") }}</th>
+                      <th class="d-none d-lg-table-cell">%</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="(a, i) in filteredAssemblies" :key="i">
-                      <td class="fw-semibold text-dark">{{ a.rn }}</td>
-                      <td>{{ a.operation }}</td>
-                      <td class="d-none d-sm-table-cell text-muted">
-                        {{ a.worksOn }}
-                      </td>
-                      <td class="d-none d-md-table-cell text-muted">
-                        {{ a.est }}
+                    <tr v-for="(w, i) in workerRows" :key="i">
+                      <td class="fw-semibold text-dark">{{ w.workerName }}</td>
+                      <td>{{ w.rn }}</td>
+                      <td class="d-none d-sm-table-cell text-muted">{{ w.projectName }}</td>
+                      <td>{{ w.operation }}</td>
+                      <td class="d-none d-md-table-cell">
+                        <span :class="'badge-worker-' + w.status">{{ workerStatusLabel(w.status) }}</span>
                       </td>
                       <td>
                         <div class="progress-bar-wrap">
                           <div
                             class="progress-fill"
-                            :class="'fill-' + a.color"
-                            :style="{ width: a.progress + '%' }"
+                            :class="'fill-' + w.color"
+                            :style="{ width: w.progress + '%' }"
                           ></div>
                         </div>
                       </td>
+                      <td class="d-none d-lg-table-cell text-muted">{{ w.progress }}%</td>
                     </tr>
                   </tbody>
                 </table>
@@ -250,6 +253,48 @@ export default {
     filteredAssemblies() {
       return this.assemblies;
     },
+    workerRows() {
+      const rows = [];
+      for (const p of this.projects) {
+        if (!p.drawings) continue;
+        const workerTasks = {};
+        for (const d of p.drawings) {
+          if (d.isAssemblyDrawing || !d.assignedWorkers) continue;
+          for (const aw of d.assignedWorkers) {
+            const key = (aw.workerId || aw.workerName) + '||' + aw.operation;
+            if (!workerTasks[key]) {
+              workerTasks[key] = { total: 0, completed: 0, workerName: aw.workerName, operation: aw.operation, hasInProgress: false };
+            }
+            workerTasks[key].total++;
+            if (aw.status === 'completed') workerTasks[key].completed++;
+            if (aw.status === 'in-progress') workerTasks[key].hasInProgress = true;
+          }
+        }
+        for (const wt of Object.values(workerTasks)) {
+          const progress = wt.total ? Math.round((wt.completed / wt.total) * 100) : 0;
+          let status = 'pending';
+          if (wt.completed === wt.total) status = 'completed';
+          else if (wt.hasInProgress || wt.completed > 0) status = 'in-progress';
+          let color = 'blue';
+          if (progress >= 100) color = 'green';
+          else if (progress >= 50) color = 'yellow';
+          rows.push({
+            workerName: wt.workerName,
+            rn: p.rn,
+            projectName: p.name,
+            operation: wt.operation,
+            status,
+            progress,
+            color,
+          });
+        }
+      }
+      rows.sort((a, b) => {
+        const order = { 'in-progress': 0, pending: 1, completed: 2 };
+        return (order[a.status] ?? 1) - (order[b.status] ?? 1);
+      });
+      return rows;
+    },
   },
   watch: {
     selectedCompany: {
@@ -279,6 +324,8 @@ export default {
               drawings: p.drawings || [],
               status: p.status,
               startedAt: p.startedAt,
+              pausedAt: p.pausedAt,
+              totalPausedMs: p.totalPausedMs || 0,
               company: p.company,
             };
             this.recalcMissingEstimates(proj);
@@ -323,8 +370,19 @@ export default {
         }
       }
     },
+    workerStatusLabel(status) {
+      const labels = { pending: 'Na čekanju', 'in-progress': 'U tijeku', completed: 'Završeno' };
+      return labels[status] || status;
+    },
     getProjectProgress(p) {
       if (!p.drawings || !p.drawings.length) return 0;
+      const operationPhases = [
+        ["Rezanje cijevi", "Rezanje lima"],
+        ["Savijanje", "Bušenje"],
+        ["Montaža"],
+        ["Zavarivanje"],
+        ["Brušenje"],
+      ];
       const opTotals = {};
       let taskCount = 0,
         completedCount = 0;
@@ -345,12 +403,24 @@ export default {
       }
       if (!taskCount) return 0;
       if (completedCount === taskCount) return 100;
-      const totalEst = Math.max(0, ...Object.values(opTotals));
+      let prevPhaseEnd = 0;
+      let maxEnd = 0;
+      for (let pi = 0; pi < operationPhases.length; pi++) {
+        const phaseOps = operationPhases[pi];
+        const phaseStart = pi === 0 ? 0 : prevPhaseEnd;
+        const phaseMaxDuration = Math.max(0, ...phaseOps.map(op => opTotals[op] || 0));
+        const end = phaseStart + phaseMaxDuration;
+        if (end > maxEnd) maxEnd = end;
+        prevPhaseEnd = phaseStart + Math.round(phaseMaxDuration * 0.15);
+      }
+      const totalEst = maxEnd;
       if (!p.startedAt || !totalEst) {
         return Math.round((completedCount / taskCount) * 100);
       }
-      const elapsed = (this.now - new Date(p.startedAt).getTime()) / 60000;
-      return Math.min(100, Math.round((elapsed / totalEst) * 100));
+      let pausedMs = p.totalPausedMs || 0;
+      if (p.pausedAt) pausedMs += this.now - new Date(p.pausedAt).getTime();
+      const elapsed = (this.now - new Date(p.startedAt).getTime()) / 60000 - pausedMs / 60000;
+      return Math.min(100, Math.round((Math.max(0, elapsed) / totalEst) * 100));
     },
     getProjectColor(p) {
       const progress = this.getProjectProgress(p);
@@ -524,6 +594,34 @@ export default {
 .badge-in-progress {
   display: inline-block;
   background: #e67e22;
+  color: #fff;
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.badge-worker-pending {
+  display: inline-block;
+  background: #6c757d;
+  color: #fff;
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.badge-worker-in-progress {
+  display: inline-block;
+  background: #e67e22;
+  color: #fff;
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.badge-worker-completed {
+  display: inline-block;
+  background: #4caf50;
   color: #fff;
   border-radius: 4px;
   padding: 0.15rem 0.5rem;

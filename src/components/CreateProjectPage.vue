@@ -33,7 +33,12 @@
                     v-model="form.rn"
                     type="text"
                     class="form-control form-control-sm"
+                    :class="{ 'is-invalid': formErrors.rn }"
+                    @input="formErrors.rn = ''"
                   />
+                  <div v-if="formErrors.rn" class="invalid-feedback">
+                    {{ formErrors.rn }}
+                  </div>
                 </div>
 
                 <div class="mb-3">
@@ -44,7 +49,12 @@
                     v-model="form.name"
                     type="text"
                     class="form-control form-control-sm"
+                    :class="{ 'is-invalid': formErrors.name }"
+                    @input="formErrors.name = ''"
                   />
+                  <div v-if="formErrors.name" class="invalid-feedback">
+                    {{ formErrors.name }}
+                  </div>
                 </div>
 
                 <div class="mb-3">
@@ -54,6 +64,8 @@
                   <select
                     v-model="form.client"
                     class="form-select form-select-sm"
+                    :class="{ 'is-invalid': formErrors.client }"
+                    @change="formErrors.client = ''"
                   >
                     <option value=""></option>
                     <option
@@ -64,6 +76,9 @@
                       {{ c.clientName }}
                     </option>
                   </select>
+                  <div v-if="formErrors.client" class="invalid-feedback">
+                    {{ formErrors.client }}
+                  </div>
                 </div>
 
                 <div class="mb-3">
@@ -230,7 +245,12 @@
                       v-model="part.weight"
                       type="text"
                       class="form-control form-control-sm"
+                      :class="{ 'is-invalid': formErrors.weight }"
+                      @input="formErrors.weight = ''"
                     />
+                    <div v-if="formErrors.weight" class="invalid-feedback">
+                      {{ formErrors.weight }}
+                    </div>
                   </div>
                   <div class="col-md-2 col-sm-6">
                     <label class="form-label-sm"
@@ -238,9 +258,14 @@
                     >
                     <input
                       v-model="part.quantity"
-                      type="number"
+                      type="text"
                       class="form-control form-control-sm"
+                      :class="{ 'is-invalid': formErrors.quantity }"
+                      @input="formErrors.quantity = ''"
                     />
+                    <div v-if="formErrors.quantity" class="invalid-feedback">
+                      {{ formErrors.quantity }}
+                    </div>
                   </div>
                 </div>
 
@@ -408,7 +433,7 @@
                         ✕
                       </button>
                     </div>
-                    <!-- Rezanje cijevi -->
+
                     <div class="treatment-op-block mb-3">
                       <div class="treatment-op-title">
                         {{ $t("createProject.pipeCutting") }}
@@ -419,7 +444,17 @@
                             v-model="section.pipeCutting.qty"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'pipeCutting',
+                                'qty',
+                              ),
+                            }"
                             :placeholder="$t('createProject.quantity')"
+                            @input="
+                              clearTreatmentError(sIdx, 'pipeCutting', 'qty')
+                            "
                           />
                         </div>
                         <div class="col">
@@ -427,7 +462,17 @@
                             v-model="section.pipeCutting.m"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'pipeCutting',
+                                'm',
+                              ),
+                            }"
                             placeholder="m"
+                            @input="
+                              clearTreatmentError(sIdx, 'pipeCutting', 'm')
+                            "
                           />
                         </div>
                         <div class="col">
@@ -435,7 +480,21 @@
                             v-model="section.pipeCutting.thickness"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'pipeCutting',
+                                'thickness',
+                              ),
+                            }"
                             placeholder="mm"
+                            @input="
+                              clearTreatmentError(
+                                sIdx,
+                                'pipeCutting',
+                                'thickness',
+                              )
+                            "
                           />
                         </div>
                         <div class="col">
@@ -443,7 +502,17 @@
                             v-model="section.pipeCutting.cuts"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'pipeCutting',
+                                'cuts',
+                              ),
+                            }"
                             :placeholder="$t('createProject.cutsPerPiece')"
+                            @input="
+                              clearTreatmentError(sIdx, 'pipeCutting', 'cuts')
+                            "
                           />
                         </div>
                         <div class="col">
@@ -484,7 +553,6 @@
                       </div>
                     </div>
 
-                    <!-- Rezanje lima -->
                     <div class="treatment-op-block mb-3">
                       <div class="treatment-op-title">
                         {{ $t("createProject.sheetCutting") }}
@@ -495,7 +563,17 @@
                             v-model="section.sheetCutting.m"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'sheetCutting',
+                                'm',
+                              ),
+                            }"
                             placeholder="m"
+                            @input="
+                              clearTreatmentError(sIdx, 'sheetCutting', 'm')
+                            "
                           />
                         </div>
                         <div class="col">
@@ -503,7 +581,21 @@
                             v-model="section.sheetCutting.thickness"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'sheetCutting',
+                                'thickness',
+                              ),
+                            }"
                             placeholder="mm"
+                            @input="
+                              clearTreatmentError(
+                                sIdx,
+                                'sheetCutting',
+                                'thickness',
+                              )
+                            "
                           />
                         </div>
                         <div class="col">
@@ -547,7 +639,6 @@
                       </div>
                     </div>
 
-                    <!-- Bušenje -->
                     <div class="treatment-op-block mb-3">
                       <div class="treatment-op-title">
                         {{ $t("createProject.drilling") }}
@@ -558,7 +649,17 @@
                             v-model="section.drilling.qty"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'drilling',
+                                'qty',
+                              ),
+                            }"
                             :placeholder="$t('createProject.quantity')"
+                            @input="
+                              clearTreatmentError(sIdx, 'drilling', 'qty')
+                            "
                           />
                         </div>
                         <div class="col">
@@ -566,7 +667,17 @@
                             v-model="section.drilling.dia"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'drilling',
+                                'dia',
+                              ),
+                            }"
                             placeholder="Ø mm"
+                            @input="
+                              clearTreatmentError(sIdx, 'drilling', 'dia')
+                            "
                           />
                         </div>
                         <div class="col">
@@ -574,7 +685,17 @@
                             v-model="section.drilling.thickness"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'drilling',
+                                'thickness',
+                              ),
+                            }"
                             placeholder="mm"
+                            @input="
+                              clearTreatmentError(sIdx, 'drilling', 'thickness')
+                            "
                           />
                         </div>
                         <div class="col">
@@ -599,7 +720,6 @@
                       </div>
                     </div>
 
-                    <!-- Zavarivanje -->
                     <div class="treatment-op-block mb-3">
                       <div class="treatment-op-title">
                         {{ $t("createProject.welding") }}
@@ -610,7 +730,15 @@
                             v-model="section.welding.m"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'welding',
+                                'm',
+                              ),
+                            }"
                             placeholder="m"
+                            @input="clearTreatmentError(sIdx, 'welding', 'm')"
                           />
                         </div>
                         <div class="col">
@@ -618,7 +746,17 @@
                             v-model="section.welding.size"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'welding',
+                                'size',
+                              ),
+                            }"
                             placeholder="mm"
+                            @input="
+                              clearTreatmentError(sIdx, 'welding', 'size')
+                            "
                           />
                         </div>
                         <div class="col">
@@ -672,7 +810,6 @@
                       </div>
                     </div>
 
-                    <!-- Brušenje -->
                     <div class="treatment-op-block mb-3">
                       <div class="treatment-op-title">
                         {{ $t("createProject.grinding") }}
@@ -683,7 +820,15 @@
                             v-model="section.grinding.m"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'grinding',
+                                'm',
+                              ),
+                            }"
                             placeholder="m"
+                            @input="clearTreatmentError(sIdx, 'grinding', 'm')"
                           />
                         </div>
                         <div class="col">
@@ -708,7 +853,6 @@
                       </div>
                     </div>
 
-                    <!-- Savijanje -->
                     <div class="treatment-op-block mb-3">
                       <div class="treatment-op-title">
                         {{ $t("createProject.bending") }}
@@ -719,7 +863,15 @@
                             v-model="section.bending.qty"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'bending',
+                                'qty',
+                              ),
+                            }"
                             :placeholder="$t('createProject.quantity')"
+                            @input="clearTreatmentError(sIdx, 'bending', 'qty')"
                           />
                         </div>
                         <div class="col">
@@ -727,7 +879,17 @@
                             v-model="section.bending.bends"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'bending',
+                                'bends',
+                              ),
+                            }"
                             :placeholder="$t('createProject.bendsPerPiece')"
+                            @input="
+                              clearTreatmentError(sIdx, 'bending', 'bends')
+                            "
                           />
                         </div>
                         <div class="col">
@@ -735,7 +897,17 @@
                             v-model="section.bending.length"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'bending',
+                                'length',
+                              ),
+                            }"
                             placeholder="mm"
+                            @input="
+                              clearTreatmentError(sIdx, 'bending', 'length')
+                            "
                           />
                         </div>
                         <div class="col">
@@ -743,13 +915,22 @@
                             v-model="section.bending.thickness"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'bending',
+                                'thickness',
+                              ),
+                            }"
                             placeholder="mm"
+                            @input="
+                              clearTreatmentError(sIdx, 'bending', 'thickness')
+                            "
                           />
                         </div>
                       </div>
                     </div>
 
-                    <!-- Montaža -->
                     <div class="treatment-op-block mb-3">
                       <div class="treatment-op-title">
                         {{ $t("createProject.assembly") }}
@@ -760,7 +941,17 @@
                             v-model="section.assembly.qty"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'assembly',
+                                'qty',
+                              ),
+                            }"
                             :placeholder="$t('createProject.quantity')"
+                            @input="
+                              clearTreatmentError(sIdx, 'assembly', 'qty')
+                            "
                           />
                         </div>
                         <div class="col">
@@ -768,7 +959,15 @@
                             v-model="section.assembly.kg"
                             type="text"
                             class="form-control form-control-sm"
+                            :class="{
+                              'is-invalid': treatmentError(
+                                sIdx,
+                                'assembly',
+                                'kg',
+                              ),
+                            }"
                             placeholder="kg"
+                            @input="clearTreatmentError(sIdx, 'assembly', 'kg')"
                           />
                         </div>
                         <div class="col">
@@ -826,7 +1025,6 @@
       </div>
     </main>
 
-    <!-- Manual Worker Modal -->
     <div
       v-if="showManualModal"
       class="modal-overlay"
@@ -946,7 +1144,6 @@
       </div>
     </div>
 
-    <!-- Auto Worker Modal -->
     <div
       v-if="showAutoModal"
       class="modal-overlay"
@@ -1042,7 +1239,6 @@
       </div>
     </div>
 
-    <!-- Material Modal -->
     <div
       v-if="showMaterialModal"
       class="modal-overlay"
@@ -1368,6 +1564,7 @@ export default {
       showSuccessModal: false,
       showErrorModal: false,
       errorMessage: "",
+      formErrors: {},
 
       currentProjectId: null,
       editingDrawingIndex: -1,
@@ -1950,8 +2147,88 @@ export default {
       }
     },
 
+    treatmentError(sIdx, op, field) {
+      return this.formErrors.treatments?.[sIdx]?.[op]?.[field] || "";
+    },
+    clearTreatmentError(sIdx, op, field) {
+      if (this.formErrors.treatments?.[sIdx]?.[op]?.[field]) {
+        delete this.formErrors.treatments[sIdx][op][field];
+      }
+    },
+    isNumeric(val) {
+      if (val === "" || val == null) return true;
+      return !isNaN(val) && val.toString().trim() !== "";
+    },
+
+    async validateForm() {
+      const errors = {};
+      const req = this.$t("createProject.validationRequired");
+      const num = this.$t("createProject.validationNumeric");
+      const dup = this.$t("createProject.validationRnDuplicate");
+
+      if (!this.form.rn.trim()) {
+        errors.rn = req;
+      } else if (
+        !this.currentProjectId ||
+        (this.editProject && this.editProject.rn !== this.form.rn)
+      ) {
+        try {
+          const params = {};
+          if (this.selectedCompany) params.company = this.selectedCompany;
+          const { data } = await api.get("/projects", { params });
+          if (
+            data.some(
+              (p) =>
+                p.rn === this.form.rn.trim() && p._id !== this.currentProjectId,
+            )
+          ) {
+            errors.rn = dup;
+          }
+        } catch (e) {
+          console.error("Failed to check RN duplicates", e);
+        }
+      }
+      if (!this.form.name.trim()) errors.name = req;
+      if (!this.form.client) errors.client = req;
+
+      if (this.part.weight !== "" && !this.isNumeric(this.part.weight))
+        errors.weight = num;
+      if (this.part.quantity !== "" && !this.isNumeric(this.part.quantity))
+        errors.quantity = num;
+
+      const numericFields = {
+        pipeCutting: ["qty", "m", "thickness", "cuts"],
+        sheetCutting: ["m", "thickness"],
+        drilling: ["qty", "dia", "thickness"],
+        welding: ["m", "size"],
+        grinding: ["m"],
+        bending: ["qty", "thickness", "bends", "length"],
+        assembly: ["qty", "kg"],
+      };
+      const treatmentErrors = [];
+      for (const section of this.treatmentSections) {
+        const sErr = {};
+        for (const [op, fields] of Object.entries(numericFields)) {
+          for (const f of fields) {
+            if (!this.isNumeric(section[op][f])) {
+              if (!sErr[op]) sErr[op] = {};
+              sErr[op][f] = num;
+            }
+          }
+        }
+        treatmentErrors.push(sErr);
+      }
+      if (treatmentErrors.some((s) => Object.keys(s).length > 0)) {
+        errors.treatments = treatmentErrors;
+      }
+
+      this.formErrors = errors;
+      return Object.keys(errors).length === 0;
+    },
+
     async saveAndInsertNew() {
       if (this.saving) return;
+      if (!(await this.validateForm())) return;
       this.saving = true;
       try {
         const drawing = await this.buildDrawingPayload();
@@ -1971,6 +2248,7 @@ export default {
 
     async saveAndFinish() {
       if (this.saving) return;
+      if (!(await this.validateForm())) return;
       this.saving = true;
       try {
         const drawing = await this.buildDrawingPayload();

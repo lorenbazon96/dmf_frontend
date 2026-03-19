@@ -205,9 +205,35 @@
             type="text"
             class="form-control form-control-sm edit-modal-input"
             ref="editInput"
-            @keydown.enter="saveCompany"
             @keydown.esc="closeEditModal"
           />
+
+          <label class="edit-modal-label mt-2">{{ $t("dashboard.workingHours") }}</label>
+          <div class="d-flex gap-2 align-items-center mb-2">
+            <input v-model="editWorkStart" type="time" class="form-control form-control-sm" style="width:auto" />
+            <span>–</span>
+            <input v-model="editWorkEnd" type="time" class="form-control form-control-sm" style="width:auto" />
+          </div>
+
+          <label class="edit-modal-label">{{ $t("dashboard.workDays") }}</label>
+          <div class="d-flex gap-1 flex-wrap mb-2">
+            <label v-for="(dayLabel, dayIdx) in dayLabels" :key="dayIdx" class="form-check-inline d-flex align-items-center gap-1" style="font-size:0.8rem;cursor:pointer">
+              <input type="checkbox" class="form-check-input" :value="dayIdx" v-model="editWorkDays" style="margin:0" />
+              {{ dayLabel }}
+            </label>
+          </div>
+
+          <label class="edit-modal-label">{{ $t("dashboard.breaks") }}</label>
+          <div v-for="(b, i) in editBreaks" :key="i" class="d-flex gap-2 align-items-center mb-1">
+            <input v-model="b.from" type="time" class="form-control form-control-sm" style="width:auto" />
+            <span>–</span>
+            <input v-model="b.to" type="time" class="form-control form-control-sm" style="width:auto" />
+            <button class="btn btn-sm p-0 text-danger" @click="editBreaks.splice(i, 1)">✕</button>
+          </div>
+          <button class="btn btn-sm btn-outline-secondary mb-2" @click="editBreaks.push({ from: '', to: '' })" style="font-size:0.75rem">
+            + {{ $t("dashboard.addBreak") }}
+          </button>
+
           <button
             class="btn btn-sm edit-modal-btn edit-modal-btn-save"
             @click="saveCompany"
@@ -265,8 +291,21 @@ export default {
       showEditModal: false,
       editingCompany: null,
       editCompanyName: "",
+      editWorkStart: "07:00",
+      editWorkEnd: "15:00",
+      editWorkDays: [1, 2, 3, 4, 5],
+      editBreaks: [],
       stats: { totalProjects: 0, completedPercent: 0, todayProjects: 0 },
       companyObjects: [],
+      dayLabels: [
+        this.$t("dashboard.daySun"),
+        this.$t("dashboard.dayMon"),
+        this.$t("dashboard.dayTue"),
+        this.$t("dashboard.dayWed"),
+        this.$t("dashboard.dayThu"),
+        this.$t("dashboard.dayFri"),
+        this.$t("dashboard.daySat"),
+      ],
     };
   },
   watch: {
@@ -310,7 +349,13 @@ export default {
     },
     openEditModal(index) {
       this.editingCompany = index;
-      this.editCompanyName = this.companies[index];
+      const name = this.companies[index];
+      this.editCompanyName = name;
+      const co = this.companyObjects.find(o => o.name === name) || {};
+      this.editWorkStart = co.workStart || "07:00";
+      this.editWorkEnd = co.workEnd || "15:00";
+      this.editWorkDays = co.workDays ? [...co.workDays] : [1, 2, 3, 4, 5];
+      this.editBreaks = (co.breaks || []).map(b => ({ from: b.from, to: b.to }));
       this.showEditModal = true;
       this.$nextTick(() => {
         this.$refs.editInput?.focus();
@@ -327,7 +372,13 @@ export default {
       const oldName = this.companies[this.editingCompany];
       const co = this.companyObjects.find(o => o.name === oldName);
       if (co?._id) {
-        await api.put(`/companies/${co._id}`, { name: this.editCompanyName.trim() });
+        await api.put(`/companies/${co._id}`, {
+          name: this.editCompanyName.trim(),
+          workStart: this.editWorkStart,
+          workEnd: this.editWorkEnd,
+          workDays: this.editWorkDays,
+          breaks: this.editBreaks.filter(b => b.from && b.to),
+        });
       }
       this.$emit("update-companies");
       this.closeEditModal();
