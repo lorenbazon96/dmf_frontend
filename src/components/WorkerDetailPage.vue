@@ -347,7 +347,7 @@ export default {
         drilling: ratings.drilling ?? 100,
         assembly: ratings.assembly ?? 100,
       },
-      projectsCompleted: this.worker.projectsCompleted || 0,
+      projectsCompleted: 0,
       showSuccessModal: false,
       showDeleteModal: false,
       operationsList: [
@@ -360,6 +360,9 @@ export default {
         { key: 'assembly', label: 'Montaža / Assembly' },
       ],
     };
+  },
+  created() {
+    this.fetchProjectsCount();
   },
   computed: {
     isEditing() {
@@ -409,6 +412,32 @@ export default {
     },
     printWorker() {
       printSingleWorker(this.form, this.ratings, this.form.operations, this.totalRating, this.projectsCompleted, this.userName, this.selectedCompany);
+    },
+    async fetchProjectsCount() {
+      try {
+        const params = {};
+        if (this.selectedCompany) params.company = this.selectedCompany;
+        const { data } = await api.get("/projects", { params });
+        const workerId = this.worker?._id || this.worker?.id;
+        const workerName = this.worker?.fullName || "";
+        let count = 0;
+        for (const p of data) {
+          let found = false;
+          for (const d of p.drawings || []) {
+            for (const aw of d.assignedWorkers || []) {
+              if ((workerId && aw.workerId === workerId) || aw.workerName === workerName) {
+                found = true;
+                break;
+              }
+            }
+            if (found) break;
+          }
+          if (found) count++;
+        }
+        this.projectsCompleted = count;
+      } catch (e) {
+        console.error("Failed to fetch projects count", e);
+      }
     },
     async deleteWorker() {
       const workerId = this.worker?._id || this.worker?.id;

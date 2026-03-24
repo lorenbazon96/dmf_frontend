@@ -329,18 +329,15 @@ export default {
     },
     async fetchStats() {
       const params = this.selectedCompany ? { company: this.selectedCompany } : {};
-      const [allRes, completedRes, todayRes] = await Promise.all([
+      const [allRes, completedRes] = await Promise.all([
         api.get("/projects", { params }),
         api.get("/projects", { params: { ...params, status: "completed" } }),
-        api.get("/projects", { params: { ...params, status: "active" } }),
       ]);
       const total = allRes.data.length;
       const completed = completedRes.data.length;
-      const today = todayRes.data.filter(p => {
-        const d = new Date(p.createdAt);
-        const now = new Date();
-        return d.toDateString() === now.toDateString();
-      }).length;
+      const today = allRes.data.filter(p =>
+        p.status === "active" || p.status === "in-progress"
+      ).length;
       this.stats = {
         totalProjects: total,
         completedPercent: total > 0 ? Math.round((completed / total) * 100) : 0,

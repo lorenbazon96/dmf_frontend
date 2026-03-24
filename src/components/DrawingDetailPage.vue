@@ -17,103 +17,92 @@
           <div class="col-lg-3 col-md-4 col-12">
             <div class="panel mb-3">
               <div class="project-info">
-                <div class="project-title">{{ project.rn }}</div>
-                <div class="project-subtitle">{{ project.name }}</div>
-                <hr class="my-2" />
-                <div class="project-meta">{{ project.client }}</div>
-                <div class="project-meta">{{ project.responsible || '–' }}</div>
-                <div class="project-meta">{{ project.phone || '–' }}</div>
-                <div class="project-meta">{{ project.email || '–' }}</div>
+                <div class="project-title">RN {{ projectData.rn }} – {{ projectData.name }}</div>
+                <div class="project-meta">
+                  <strong>{{ $t("project.client") }}:</strong>
+                  {{ projectData.client }}
+                </div>
+                <div class="project-meta">
+                  <strong>{{ $t("project.phone") }}:</strong> {{ clientPhone }}
+                </div>
+                <div class="project-meta">
+                  <strong>{{ $t("project.email") }}:</strong> {{ clientEmail }}
+                </div>
                 <div class="d-flex align-items-center gap-2 mt-2 mb-1">
-                  <div class="progress-bar-wrap">
+                  <div class="progress-bar-wrap" style="width:120px">
                     <div
                       class="progress-fill"
-                      :class="'fill-' + project.color"
-                      :style="{ width: project.progress + '%' }"
+                      :class="'fill-' + progressColor"
+                      :style="{ width: overallProgress + '%' }"
                     ></div>
                   </div>
+                  <span class="project-meta mb-0">{{ overallProgress }}%</span>
                 </div>
-                <div class="project-meta text-muted">{{ project.est }}</div>
+                <div class="project-meta">
+                  <strong>{{ $t("project.status") }}:</strong>
+                  <span :class="'badge-' + (projectData.status || 'active')">{{ projectData.status || 'active' }}</span>
+                </div>
+                <div class="project-meta">
+                  <strong>{{ $t("project.startedAt") }}:</strong>
+                  {{ formatDate(projectData.startedAt || projectData.createdAt) }}
+                </div>
+                <div v-if="totalEstimatedMinutes > 0" class="project-meta">
+                  <strong>{{ $t("project.estimatedTime") }}:</strong>
+                  {{ formatMinutes(totalEstimatedMinutes) }}
+                </div>
+                <div v-if="totalEstimatedMinutes > 0" class="project-meta">
+                  <strong>{{ $t("project.estimatedEnd") }}:</strong>
+                  {{ estimatedEndDate }}
+                </div>
+                <hr class="my-2" />
+                <div class="project-meta">
+                  <strong>{{ $t("project.drawingNo") }}:</strong> {{ drawing.no }}
+                </div>
+                <div class="project-meta">
+                  <strong>{{ $t("project.partName") }}:</strong> {{ drawing.partName }}
+                </div>
+                <div v-if="drawing.assembly && drawing.assembly !== '–'" class="project-meta">
+                  <strong>{{ $t("project.assembly") }}:</strong> {{ drawing.assembly }}
+                </div>
+                <div v-if="drawing.weight && drawing.weight !== '–'" class="project-meta">
+                  <strong>{{ $t("project.weight") }}:</strong> {{ drawing.weight }}
+                </div>
+                <div class="project-meta">
+                  <strong>{{ $t("project.qty") }}:</strong> {{ drawing.qty }}
+                </div>
               </div>
             </div>
 
             <div class="d-flex flex-column gap-2">
               <button class="btn btn-action" @click="$emit('back')">
                 <span>{{ $t("drawing.goBackProject") }}</span>
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  opacity="0.8"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M15 8a.5.5 0 00-.5-.5H2.707l3.147-3.146a.5.5 0 10-.708-.708l-4 4a.5.5 0 000 .708l4 4a.5.5 0 00.708-.708L2.707 8.5H14.5A.5.5 0 0015 8"
-                  />
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
+                  <path fill-rule="evenodd" d="M15 8a.5.5 0 00-.5-.5H2.707l3.147-3.146a.5.5 0 10-.708-.708l-4 4a.5.5 0 000 .708l4 4a.5.5 0 00.708-.708L2.707 8.5H14.5A.5.5 0 0015 8" />
                 </svg>
               </button>
-              <button class="btn btn-action">
+              <a v-if="drawing.pdfFile" class="btn btn-action" :href="backendBase + drawing.pdfFile" target="_blank">
                 <span>{{ $t("drawing.exportPdf") }}</span>
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  opacity="0.8"
-                >
-                  <path
-                    d="M14 14V4.5L9.5 0H4a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2M9.5 3A1.5 1.5 0 0011 4.5h2V14a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1h5.5z"
-                  />
-                  <path
-                    d="M4.603 14.087a.8.8 0 01-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.7 7.7 0 011.482-.645 20 20 0 001.062-2.227 7.3 7.3 0 01-.43-1.295c-.086-.4-.119-.796-.046-1.136.075-.354.274-.672.65-.823.192-.077.4-.12.602-.077a.7.7 0 01.477.365c.088.164.12.356.127.538.007.188-.012.396-.047.614-.084.51-.27 1.134-.52 1.794a11 11 0 00.98 1.686 5.8 5.8 0 011.334.05c.364.066.734.195.96.465.12.144.193.32.2.518.007.192-.047.382-.138.563a1.04 1.04 0 01-.354.416.86.86 0 01-.51.138c-.331-.014-.654-.196-.933-.417a6.1 6.1 0 01-.911-.95 11.7 11.7 0 00-1.997.406 11.3 11.3 0 01-1.02 1.51c-.292.35-.609.656-.927.787a.8.8 0 01-.58.029z"
-                  />
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
+                  <path d="M14 14V4.5L9.5 0H4a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2M9.5 3A1.5 1.5 0 0011 4.5h2V14a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1h5.5z" />
                 </svg>
-              </button>
-              <button class="btn btn-action">
+              </a>
+              <a
+                class="btn btn-action"
+                :href="drawing.dwgFile ? backendBase + drawing.dwgFile : undefined"
+                :download="drawing.dwgFile ? '' : undefined"
+                :class="{ 'btn-action-disabled': !drawing.dwgFile }"
+                @click="!drawing.dwgFile && $event.preventDefault()"
+              >
                 <span>{{ $t("drawing.exportDwg") }}</span>
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  opacity="0.8"
-                >
-                  <path
-                    d="M14 4.5V14a2 2 0 01-2 2H4a2 2 0 01-2-2V2a2 2 0 012-2h5.5zm-3 0A1.5 1.5 0 019.5 3V1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V4.5z"
-                  />
-                  <path
-                    d="M4.5 12.5A.5.5 0 015 12h3a.5.5 0 010 1H5a.5.5 0 01-.5-.5m0-2A.5.5 0 015 10h6a.5.5 0 010 1H5a.5.5 0 01-.5-.5m0-2A.5.5 0 015 8h6a.5.5 0 010 1H5a.5.5 0 01-.5-.5"
-                  />
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
+                  <path d="M14 4.5V14a2 2 0 01-2 2H4a2 2 0 01-2-2V2a2 2 0 012-2h5.5zm-3 0A1.5 1.5 0 019.5 3V1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V4.5z" />
+                  <path d="M4.5 12.5A.5.5 0 015 12h3a.5.5 0 010 1H5a.5.5 0 01-.5-.5m0-2A.5.5 0 015 10h6a.5.5 0 010 1H5a.5.5 0 01-.5-.5m0-2A.5.5 0 015 8h6a.5.5 0 010 1H5a.5.5 0 01-.5-.5" />
                 </svg>
-              </button>
-              <button class="btn btn-action">
-                <span>{{ $t("drawing.print") }}</span>
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  opacity="0.8"
-                >
-                  <path d="M2.5 8a.5.5 0 100-1 .5.5 0 000 1" />
-                  <path
-                    d="M5 1a2 2 0 00-2 2v2H2a2 2 0 00-2 2v3a2 2 0 002 2h1v1a2 2 0 002 2h6a2 2 0 002-2v-1h1a2 2 0 002-2V7a2 2 0 00-2-2h-1V3a2 2 0 00-2-2zM4 3a1 1 0 011-1h6a1 1 0 011 1v2H4zm1 10a1 1 0 01-1-1V9h8v3a1 1 0 01-1 1z"
-                  />
-                </svg>
-              </button>
+              </a>
               <button class="btn btn-action" @click="$emit('home')">
                 <span>{{ $t("drawing.goBackHome") }}</span>
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 16 16"
-                  fill="currentColor"
-                  opacity="0.8"
-                >
-                  <path
-                    d="M8.354 1.146a.5.5 0 00-.708 0l-6 6A.5.5 0 001.5 7.5v7a.5.5 0 00.5.5h4.5a.5.5 0 00.5-.5v-4h2v4a.5.5 0 00.5.5H14a.5.5 0 00.5-.5v-7a.5.5 0 00-.146-.354z"
-                  />
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
+                  <path d="M8.354 1.146a.5.5 0 00-.708 0l-6 6A.5.5 0 001.5 7.5v7a.5.5 0 00.5.5h4.5a.5.5 0 00.5-.5v-4h2v4a.5.5 0 00.5.5H14a.5.5 0 00.5-.5v-7a.5.5 0 00-.146-.354z" />
                 </svg>
               </button>
             </div>
@@ -125,11 +114,14 @@
                 {{ $t("drawing.drawingNo") }} {{ drawing.no }}
               </h5>
               <div class="drawing-viewer">
-                <img
-                  src="@/assets/nacrt.png"
-                  :alt="'Drawing ' + drawing.no"
-                  class="drawing-img"
-                />
+                <iframe
+                  v-if="pdfUrl"
+                  :src="pdfUrl"
+                  class="drawing-pdf"
+                ></iframe>
+                <div v-else class="no-pdf text-muted">
+                  PDF nije dostupan
+                </div>
               </div>
             </section>
           </div>
@@ -141,6 +133,9 @@
 
 <script>
 import SidebarNav from "./SidebarNav.vue";
+import { addWorkingMinutes, getWorkingMinutesBetween } from "../utils/workingTime";
+import { calcTimePerOperation } from "../utils/calculations";
+import api from "../api";
 
 export default {
   name: "DrawingDetailPage",
@@ -149,10 +144,218 @@ export default {
     project: { type: Object, required: true },
     drawing: { type: Object, required: true },
     companies: { type: Array, default: () => [] },
-    selectedCompany: { type: String, default: '' },
-    userName: { type: String, default: '' },
+    selectedCompany: { type: String, default: "" },
+    userName: { type: String, default: "" },
+    companySchedule: { type: Object, default: null },
   },
   emits: ["back", "home", "logout", "edit-profile", "select-company", "add-company", "update-companies"],
+  data() {
+    return {
+      projectData: {},
+      clientData: null,
+      now: Date.now(),
+      timer: null,
+      backendBase: "http://localhost:3000",
+    };
+  },
+  created() {
+    this.fetchProject();
+    this.timer = setInterval(() => { this.now = Date.now(); }, 30000);
+  },
+  beforeUnmount() {
+    if (this.timer) clearInterval(this.timer);
+  },
+  computed: {
+    pdfUrl() {
+      if (!this.drawing.pdfFile) return "";
+      return this.backendBase + this.drawing.pdfFile;
+    },
+    operationPhases() {
+      return [
+        ["Rezanje cijevi", "Rezanje lima"],
+        ["Savijanje", "Bušenje"],
+        ["Montaža"],
+        ["Zavarivanje"],
+        ["Brušenje"],
+      ];
+    },
+    opPhaseTotals() {
+      const d = this.projectData.drawings;
+      if (!d) return {};
+      const opTotals = {};
+      for (const dr of d) {
+        if (dr.isAssemblyDrawing || !dr.assignedWorkers) continue;
+        const opMaxInDrawing = {};
+        for (const aw of dr.assignedWorkers) {
+          const op = aw.operation || "";
+          const est = aw.estimatedMinutes || 0;
+          if (!opMaxInDrawing[op] || est > opMaxInDrawing[op])
+            opMaxInDrawing[op] = est;
+        }
+        for (const [op, maxEst] of Object.entries(opMaxInDrawing)) {
+          opTotals[op] = (opTotals[op] || 0) + maxEst;
+        }
+      }
+      const phaseStarts = {};
+      let prevPhaseEnd = 0;
+      for (let pi = 0; pi < this.operationPhases.length; pi++) {
+        const phaseOps = this.operationPhases[pi];
+        const phaseStart = pi === 0 ? 0 : prevPhaseEnd;
+        const phaseMaxDuration = Math.max(0, ...phaseOps.map(op => opTotals[op] || 0));
+        for (const op of phaseOps) {
+          phaseStarts[op] = phaseStart;
+        }
+        prevPhaseEnd = phaseStart + Math.round(phaseMaxDuration * 0.15);
+      }
+      return phaseStarts;
+    },
+    totalEstimatedMinutes() {
+      const d = this.projectData.drawings;
+      if (!d) return 0;
+      const opTotals = {};
+      for (const dr of d) {
+        if (dr.isAssemblyDrawing || !dr.assignedWorkers) continue;
+        const opMaxInDrawing = {};
+        for (const aw of dr.assignedWorkers) {
+          const op = aw.operation || "";
+          const est = aw.estimatedMinutes || 0;
+          if (!opMaxInDrawing[op] || est > opMaxInDrawing[op])
+            opMaxInDrawing[op] = est;
+        }
+        for (const [op, maxEst] of Object.entries(opMaxInDrawing)) {
+          opTotals[op] = (opTotals[op] || 0) + maxEst;
+        }
+      }
+      let maxEnd = 0;
+      for (const [op, total] of Object.entries(opTotals)) {
+        const phaseStart = this.opPhaseTotals[op] || 0;
+        const end = phaseStart + total;
+        if (end > maxEnd) maxEnd = end;
+      }
+      return maxEnd;
+    },
+    totalPausedMinutes() {
+      let ms = this.projectData.totalPausedMs || 0;
+      if (this.projectData.pausedAt) {
+        ms += this.now - new Date(this.projectData.pausedAt).getTime();
+      }
+      return ms / 60000;
+    },
+    effectiveElapsedMinutes() {
+      if (!this.projectData.startedAt) return 0;
+      const workingMins = getWorkingMinutesBetween(
+        this.projectData.startedAt,
+        new Date(this.now),
+        this.companySchedule,
+      );
+      return Math.max(0, workingMins - this.totalPausedMinutes);
+    },
+    overallProgress() {
+      const d = this.projectData.drawings;
+      if (!d || !d.length) return 0;
+      let taskCount = 0, completedCount = 0;
+      for (const dr of d) {
+        if (dr.isAssemblyDrawing || !dr.assignedWorkers) continue;
+        for (const aw of dr.assignedWorkers) {
+          taskCount++;
+          if (aw.status === "completed") completedCount++;
+        }
+      }
+      if (!taskCount) return 0;
+      if (completedCount === taskCount) return 100;
+      if (!this.totalEstimatedMinutes || !this.projectData.startedAt) {
+        return Math.round((completedCount / taskCount) * 100);
+      }
+      return Math.min(100, Math.round((this.effectiveElapsedMinutes / this.totalEstimatedMinutes) * 100));
+    },
+    progressColor() {
+      const p = this.overallProgress;
+      if (p >= 100) return "green";
+      if (p >= 50) return "yellow";
+      return "blue";
+    },
+    estimatedEndDate() {
+      const start = this.projectData.startedAt || this.projectData.createdAt;
+      if (!start || !this.totalEstimatedMinutes) return "–";
+      const adjustedStart = new Date(new Date(start).getTime() + this.totalPausedMinutes * 60000);
+      const end = addWorkingMinutes(adjustedStart, this.totalEstimatedMinutes, this.companySchedule);
+      return end.toLocaleString("hr-HR");
+    },
+    clientPhone() {
+      if (!this.clientData) return "–";
+      const rp = this.clientData.responsiblePersons?.find(
+        (r) => r.fullName === this.projectData.responsible,
+      );
+      return rp?.contact || this.clientData.contact || "–";
+    },
+    clientEmail() {
+      if (!this.clientData) return "–";
+      const rp = this.clientData.responsiblePersons?.find(
+        (r) => r.fullName === this.projectData.responsible,
+      );
+      return rp?.email || this.clientData.email || "–";
+    },
+  },
+  methods: {
+    async fetchProject() {
+      try {
+        const { data } = await api.get("/projects/" + this.project._id);
+        this.projectData = data;
+        this.recalcMissingEstimates();
+        if (data.client) {
+          try {
+            const params = {};
+            if (this.selectedCompany) params.company = this.selectedCompany;
+            const { data: clients } = await api.get("/clients", { params });
+            this.clientData = clients.find((c) => c.clientName === data.client) || null;
+          } catch (e) { /* ignore */ }
+        }
+      } catch (e) {
+        this.projectData = this.project;
+      }
+    },
+    recalcMissingEstimates() {
+      const drawings = this.projectData.drawings;
+      if (!drawings) return;
+      for (const dr of drawings) {
+        if (dr.isAssemblyDrawing || !dr.assignedWorkers || !dr.treatments) continue;
+        const hasZeroEst = dr.assignedWorkers.some((aw) => !aw.estimatedMinutes);
+        if (!hasZeroEst) continue;
+        const opTimes = calcTimePerOperation(dr.treatments);
+        const opLabelToKey = {
+          "Rezanje cijevi": "pipeCutting",
+          "Rezanje lima": "sheetCutting",
+          Bušenje: "drilling",
+          Zavarivanje: "welding",
+          Brušenje: "grinding",
+          Savijanje: "bending",
+          Montaža: "assembly",
+        };
+        const workerCountPerOp = {};
+        for (const aw of dr.assignedWorkers) {
+          workerCountPerOp[aw.operation || ""] = (workerCountPerOp[aw.operation || ""] || 0) + 1;
+        }
+        for (const aw of dr.assignedWorkers) {
+          if (aw.estimatedMinutes) continue;
+          const opKey = opLabelToKey[aw.operation];
+          if (opKey && opTimes[opKey]) {
+            const count = workerCountPerOp[aw.operation] || 1;
+            aw.estimatedMinutes = Math.round(opTimes[opKey] / count);
+          }
+        }
+      }
+    },
+    formatDate(d) {
+      if (!d) return "–";
+      return new Date(d).toLocaleString("hr-HR");
+    },
+    formatMinutes(m) {
+      if (!m) return "–";
+      const h = Math.floor(m / 60);
+      const min = Math.round(m % 60);
+      return h > 0 ? `${h}h ${min}min` : `${min}min`;
+    },
+  },
 };
 </script>
 
@@ -191,11 +394,6 @@ export default {
   font-size: 1rem;
   font-weight: 700;
   color: #1a1a1a;
-}
-.project-subtitle {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #1a1a1a;
   margin-bottom: 0.3rem;
 }
 .project-meta {
@@ -205,7 +403,6 @@ export default {
 }
 
 .progress-bar-wrap {
-  width: 90px;
   height: 14px;
   background: #ddd;
   border-radius: 2px;
@@ -228,6 +425,34 @@ export default {
   background: linear-gradient(90deg, #e53935, #ef5350);
 }
 
+.badge-active {
+  display: inline-block;
+  background: #2b579a;
+  color: #fff;
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.badge-in-progress {
+  display: inline-block;
+  background: #e67e22;
+  color: #fff;
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.badge-paused {
+  display: inline-block;
+  background: #6c757d;
+  color: #fff;
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
 .btn-action {
   display: flex;
   align-items: center;
@@ -240,26 +465,35 @@ export default {
   font-size: 0.9rem;
   font-weight: 600;
   transition: background 0.15s, transform 0.15s;
+  text-decoration: none;
 }
-.btn-action:hover {
+.btn-action:hover:not(.btn-action-disabled) {
   background: #1e3f73;
   color: #fff;
   transform: translateX(3px);
 }
+.btn-action-disabled {
+  background: #8a9bb5;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
 
 .drawing-viewer {
-  padding: 0.5rem;
+  padding: 0;
   background: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 400px;
+  min-height: 500px;
 }
-
-.drawing-img {
-  max-width: 100%;
-  max-height: 75vh;
-  object-fit: contain;
+.drawing-pdf {
+  width: 100%;
+  height: 80vh;
+  border: none;
+}
+.no-pdf {
+  padding: 3rem;
+  font-size: 0.9rem;
 }
 
 @media (max-width: 767.98px) {
@@ -268,7 +502,10 @@ export default {
     font-size: 0.85rem;
   }
   .drawing-viewer {
-    min-height: 250px;
+    min-height: 300px;
+  }
+  .drawing-pdf {
+    height: 60vh;
   }
 }
 @media (max-width: 575.98px) {

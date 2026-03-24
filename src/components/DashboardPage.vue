@@ -207,6 +207,7 @@
 <script>
 import SidebarNav from "./SidebarNav.vue";
 import { calcTimePerOperation } from "../utils/calculations";
+import { getWorkingMinutesBetween } from "../utils/workingTime";
 import api from "../api";
 
 export default {
@@ -216,6 +217,7 @@ export default {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: "" },
     userName: { type: String, default: "" },
+    companySchedule: { type: Object, default: null },
   },
   emits: [
     "logout",
@@ -419,7 +421,8 @@ export default {
       }
       let pausedMs = p.totalPausedMs || 0;
       if (p.pausedAt) pausedMs += this.now - new Date(p.pausedAt).getTime();
-      const elapsed = (this.now - new Date(p.startedAt).getTime()) / 60000 - pausedMs / 60000;
+      const workingMins = getWorkingMinutesBetween(p.startedAt, new Date(this.now), this.companySchedule);
+      const elapsed = workingMins - pausedMs / 60000;
       return Math.min(100, Math.round((Math.max(0, elapsed) / totalEst) * 100));
     },
     getProjectColor(p) {

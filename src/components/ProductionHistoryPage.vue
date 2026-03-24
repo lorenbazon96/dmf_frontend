@@ -225,7 +225,18 @@ export default {
       return result;
     },
     totalWorkHours() {
-      return this.companyFilteredProjects.length * 14963;
+      let totalMinutes = 0;
+      for (const p of this.companyFilteredProjects) {
+        for (const d of p.drawings || []) {
+          if (d.isAssemblyDrawing || !d.assignedWorkers) continue;
+          for (const aw of d.assignedWorkers) {
+            totalMinutes += aw.estimatedMinutes || 0;
+          }
+        }
+      }
+      const h = Math.floor(totalMinutes / 60);
+      const m = Math.round(totalMinutes % 60);
+      return m > 0 ? `${h}h ${m}min` : `${h}h`;
     },
   },
   watch: {

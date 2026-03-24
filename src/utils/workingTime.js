@@ -55,6 +55,51 @@ function buildSegments(schedule) {
   return segments;
 }
 
+export function getWorkingMinutesBetween(startDate, endDate, schedule) {
+  if (!startDate || !endDate) return 0;
+  const s = schedule || DEFAULT_SCHEDULE;
+  const workDays =
+    s.workDays && s.workDays.length > 0
+      ? s.workDays
+      : DEFAULT_SCHEDULE.workDays;
+  const segments = buildSegments({
+    workStart: s.workStart || DEFAULT_SCHEDULE.workStart,
+    workEnd: s.workEnd || DEFAULT_SCHEDULE.workEnd,
+    breaks: s.breaks || DEFAULT_SCHEDULE.breaks,
+  });
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  if (end <= start) return 0;
+
+  let total = 0;
+  let current = new Date(start);
+  current.setHours(0, 0, 0, 0);
+  const endDay = new Date(end);
+  endDay.setHours(0, 0, 0, 0);
+
+  while (current <= endDay) {
+    if (workDays.includes(current.getDay())) {
+      for (const [segStart, segEnd] of segments) {
+        const daySegStart = new Date(current);
+        daySegStart.setHours(Math.floor(segStart / 60), segStart % 60, 0, 0);
+        const daySegEnd = new Date(current);
+        daySegEnd.setHours(Math.floor(segEnd / 60), segEnd % 60, 0, 0);
+
+        const effectiveStart = start > daySegStart ? start : daySegStart;
+        const effectiveEnd = end < daySegEnd ? end : daySegEnd;
+
+        if (effectiveStart < effectiveEnd) {
+          total += (effectiveEnd - effectiveStart) / 60000;
+        }
+      }
+    }
+    current.setDate(current.getDate() + 1);
+  }
+
+  return total;
+}
+
 export function addWorkingMinutes(startDate, minutes, schedule) {
   if (minutes <= 0) return new Date(startDate);
 

@@ -365,7 +365,9 @@
                               p.status !== 'completed' && projectData.startedAt
                             "
                             class="btn btn-sm btn-complete"
-                            @click="openCompleteModal(p)"
+                            :disabled="!canCompleteTask(p)"
+                            :title="!canCompleteTask(p) ? $t('project.prerequisiteNotDone') : ''"
+                            @click="canCompleteTask(p) && openCompleteModal(p)"
                           >
                             ✓
                           </button>
@@ -471,7 +473,7 @@
 import SidebarNav from "./SidebarNav.vue";
 import { exportProjectDetailPdf, printProjectDetail } from "../utils/pdf";
 import { calcTimePerOperation } from "../utils/calculations";
-import { addWorkingMinutes } from "../utils/workingTime";
+import { addWorkingMinutes, getWorkingMinutesBetween } from "../utils/workingTime";
 import api from "../api";
 
 export default {
@@ -538,6 +540,8 @@ export default {
         assembly: dr.assemblyName || "–",
         weight: dr.weight ? dr.weight + " kg" : "–",
         qty: dr.quantity || 1,
+        pdfFile: dr.pdfFile || "",
+        dwgFile: dr.dwgFile || "",
       }));
     },
     operationPhases() {
@@ -648,8 +652,12 @@ export default {
     },
     effectiveElapsedMinutes() {
       if (!this.projectData.startedAt) return 0;
-      const total = (this.now - new Date(this.projectData.startedAt).getTime()) / 60000;
-      return Math.max(0, total - this.totalPausedMinutes);
+      const workingMins = getWorkingMinutesBetween(
+        this.projectData.startedAt,
+        new Date(this.now),
+        this.companySchedule,
+      );
+      return Math.max(0, workingMins - this.totalPausedMinutes);
     },
     overallProgress() {
       const plan = this.productionPlan;
@@ -871,6 +879,25 @@ export default {
       const d = new Date(date);
       const pad = (n) => String(n).padStart(2, "0");
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    },
+    canCompleteTask(task) {
+      const phases = this.operationPhases;
+      const taskOp = task.operation || "";
+      let taskPhaseIdx = -1;
+      for (let i = 0; i < phases.length; i++) {
+        if (phases[i].includes(taskOp)) { taskPhaseIdx = i; break; }
+      }
+      if (taskPhaseIdx <= 0) return true;
+      const drawing = this.projectData.drawings[task.drawingIdx];
+      if (!drawing || !drawing.assignedWorkers) return true;
+      for (let pi = 0; pi < taskPhaseIdx; pi++) {
+        const phaseOps = phases[pi];
+        const tasksInPhase = drawing.assignedWorkers.filter(aw => phaseOps.includes(aw.operation));
+        if (tasksInPhase.length > 0 && !tasksInPhase.every(aw => aw.status === "completed")) {
+          return false;
+        }
+      }
+      return true;
     },
     openCompleteModal(task) {
       this.completeTarget = task;
@@ -1278,9 +1305,14 @@ export default {
   font-size: 0.75rem;
   padding: 0.2rem 0.5rem;
 }
-.btn-complete:hover {
+.btn-complete:hover:not(:disabled) {
   background: #1e8449;
   color: #fff;
+}
+.btn-complete:disabled {
+  background: #a0a0a0;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 .btn-remove-worker {
   background: #e74c3c;
