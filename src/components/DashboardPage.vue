@@ -213,6 +213,7 @@ import api from "../api";
 export default {
   name: "DashboardPage",
   components: { SidebarNav },
+  inject: ['isGuest'],
   props: {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: "" },
@@ -308,6 +309,7 @@ export default {
   },
   methods: {
     async fetchProjects() {
+      if (this.isGuest()) { this.projects = []; return; }
       try {
         const params = {};
         if (this.selectedCompany) {

@@ -1,13 +1,14 @@
 <template>
-  <LoginPage v-if="currentView === 'login'" @login="handleLogin" @guest="loggedInUser = null; currentView = 'dashboard'" @forgot-password="currentView = 'forgot-password'" />
+  <LoginPage v-if="currentView === 'login'" @login="handleLogin" @guest="handleGuest" @forgot-password="currentView = 'forgot-password'" />
   <ForgotPasswordPage v-else-if="currentView === 'forgot-password'" @back="currentView = 'login'" />
+  <ResetPasswordPage v-else-if="currentView === 'reset-password'" @back="currentView = 'login'" />
   <DashboardPage
     v-else-if="currentView === 'dashboard'"
     :companies="companies"
     :selected-company="selectedCompany"
     :user-name="loggedInUser?.fullName || ''"
     :company-schedule="selectedCompanyObject"
-    @logout="loggedInUser = null; currentView = 'login'"
+    @logout="handleLogout"
     @view-project="openProject"
     @create-project="currentView = 'create-project'"
     @analytics="currentView = 'analytics'"
@@ -27,7 +28,7 @@
     :user-name="loggedInUser?.fullName || ''"
     :company-schedule="selectedCompanyObject"
     @back="currentView = 'dashboard'"
-    @logout="loggedInUser = null; currentView = 'login'"
+    @logout="handleLogout"
     @view-drawing="openDrawing"
     @edit-project="editProject"
     @edit-profile="currentView = 'profile-edit'"
@@ -45,7 +46,7 @@
     :company-schedule="selectedCompanyObject"
     @back="currentView = 'project'"
     @home="currentView = 'dashboard'"
-    @logout="loggedInUser = null; currentView = 'login'"
+    @logout="handleLogout"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
     @add-company="addCompany"
@@ -58,7 +59,7 @@
     :user-name="loggedInUser?.fullName || ''"
     :edit-project="editingProject"
     @back="editingProject = null; currentView = 'dashboard'"
-    @logout="loggedInUser = null; currentView = 'login'"
+    @logout="handleLogout"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
     @add-company="addCompany"
@@ -70,7 +71,7 @@
     :selected-company="selectedCompany"
     :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'dashboard'"
-    @logout="loggedInUser = null; currentView = 'login'"
+    @logout="handleLogout"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
     @add-company="addCompany"
@@ -82,7 +83,7 @@
     :selected-company="selectedCompany"
     :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'dashboard'"
-    @logout="loggedInUser = null; currentView = 'login'"
+    @logout="handleLogout"
     @view-worker="openWorker"
     @view-client="openClient"
     @add-worker="openWorker({ fullName: '', contact: '', email: '', createdAt: '' })"
@@ -100,7 +101,7 @@
     :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'workers-clients'"
     @home="currentView = 'dashboard'"
-    @logout="loggedInUser = null; currentView = 'login'"
+    @logout="handleLogout"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
     @add-company="addCompany"
@@ -112,7 +113,7 @@
     :selected-company="selectedCompany"
     :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'dashboard'"
-    @logout="loggedInUser = null; currentView = 'login'"
+    @logout="handleLogout"
     @add-item="currentView = 'warehouse-add-item'"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
@@ -126,7 +127,7 @@
     :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'warehouse'"
     @home="currentView = 'dashboard'"
-    @logout="loggedInUser = null; currentView = 'login'"
+    @logout="handleLogout"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
     @add-company="addCompany"
@@ -138,7 +139,7 @@
     :selected-company="selectedCompany"
     :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'dashboard'"
-    @logout="loggedInUser = null; currentView = 'login'"
+    @logout="handleLogout"
     @view-project="openHistoryProject"
     @duplicate-project="currentView = 'dashboard'"
     @edit-profile="currentView = 'profile-edit'"
@@ -154,7 +155,7 @@
     :user-name="loggedInUser?.fullName || ''"
     :company-schedule="selectedCompanyObject"
     @back="currentView = 'production-history'"
-    @logout="loggedInUser = null; currentView = 'login'"
+    @logout="handleLogout"
     @view-drawing="openDrawing"
     @edit-project="editProject"
     @edit-profile="currentView = 'profile-edit'"
@@ -170,7 +171,7 @@
     :user-name="loggedInUser?.fullName || ''"
     @back="currentView = 'workers-clients'"
     @home="currentView = 'dashboard'"
-    @logout="loggedInUser = null; currentView = 'login'"
+    @logout="handleLogout"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
     @add-company="addCompany"
@@ -184,7 +185,7 @@
     :user-id="loggedInUser?._id || ''"
     :user-email="loggedInUser?.email || ''"
     @back="currentView = 'dashboard'"
-    @logout="loggedInUser = null; currentView = 'login'"
+    @logout="handleLogout"
     @select-company="selectCompany"
     @add-company="addCompany"
     @update-companies="updateCompanies"
@@ -194,6 +195,7 @@
 <script>
 import LoginPage from './components/LoginPage.vue'
 import ForgotPasswordPage from './components/ForgotPasswordPage.vue'
+import ResetPasswordPage from './components/ResetPasswordPage.vue'
 import DashboardPage from './components/DashboardPage.vue'
 import ProjectDetailPage from './components/ProjectDetailPage.vue'
 import DrawingDetailPage from './components/DrawingDetailPage.vue'
@@ -210,7 +212,7 @@ import api from './api'
 
 export default {
   name: 'App',
-  components: { LoginPage, ForgotPasswordPage, DashboardPage, ProjectDetailPage, DrawingDetailPage, CreateProjectPage, AnalyticsPage, WorkersClientsPage, WorkerDetailPage, ClientDetailPage, WarehousePage, WarehouseAddItemPage, ProductionHistoryPage, ProfileEditPage },
+  components: { LoginPage, ForgotPasswordPage, ResetPasswordPage, DashboardPage, ProjectDetailPage, DrawingDetailPage, CreateProjectPage, AnalyticsPage, WorkersClientsPage, WorkerDetailPage, ClientDetailPage, WarehousePage, WarehouseAddItemPage, ProductionHistoryPage, ProfileEditPage },
   data() {
     return {
       currentView: 'login',
@@ -224,6 +226,12 @@ export default {
       companyObjects: [],
       selectedCompany: '',
       loggedInUser: null,
+      isGuest: false,
+    }
+  },
+  provide() {
+    return {
+      isGuest: () => this.isGuest,
     }
   },
   computed: {
@@ -232,11 +240,43 @@ export default {
     },
   },
   async created() {
+    const saved = localStorage.getItem('dmf_user')
+    if (saved) {
+      try {
+        this.loggedInUser = JSON.parse(saved)
+        this.currentView = 'dashboard'
+      } catch { /* ignore */ }
+    }
+    const hash = window.location.hash
+    if (hash.startsWith('#reset-password')) {
+      this.currentView = 'reset-password'
+    }
     await this.fetchCompanies()
   },
   methods: {
-    handleLogin(user) {
+    handleGuest() {
+      this.loggedInUser = { fullName: 'Guest', email: '' }
+      this.isGuest = true
+      if (!this.companies.length) {
+        this.companies = ['Demo Factory']
+        this.selectedCompany = 'Demo Factory'
+      }
+      this.currentView = 'dashboard'
+    },
+    handleLogout() {
+      this.loggedInUser = null
+      this.isGuest = false
+      localStorage.removeItem('dmf_user')
+      this.currentView = 'login'
+    },
+    handleLogin({ user, rememberMe }) {
       this.loggedInUser = user
+      this.isGuest = false
+      if (rememberMe) {
+        localStorage.setItem('dmf_user', JSON.stringify(user))
+      } else {
+        localStorage.removeItem('dmf_user')
+      }
       this.currentView = 'dashboard'
     },
     async fetchCompanies() {

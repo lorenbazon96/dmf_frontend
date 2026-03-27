@@ -262,7 +262,7 @@ export default {
           email: this.email,
           password: this.password,
         });
-        this.$emit("login", data);
+        this.$emit("login", { user: data, rememberMe: this.rememberMe });
       } catch (err) {
         this.error = err.response?.data?.error || "Login failed";
       }

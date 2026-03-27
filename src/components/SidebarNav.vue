@@ -263,6 +263,7 @@ import api from "../api";
 
 export default {
   name: "SidebarNav",
+  inject: ['isGuest'],
   props: {
     companies: {
       type: Array,
@@ -320,6 +321,7 @@ export default {
   },
   methods: {
     async fetchCompanyObjects() {
+      if (this.isGuest()) return;
       try {
         const { data } = await api.get('/companies');
         this.companyObjects = data;
@@ -328,6 +330,7 @@ export default {
       }
     },
     async fetchStats() {
+      if (this.isGuest()) return;
       const params = this.selectedCompany ? { company: this.selectedCompany } : {};
       const [allRes, completedRes] = await Promise.all([
         api.get("/projects", { params }),

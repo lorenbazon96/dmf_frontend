@@ -39,7 +39,6 @@
             <table class="table align-middle mb-0">
               <thead class="dark-header sticky-top">
                 <tr>
-                  <th>ID</th>
                   <th>{{ $t("workersClients.fullName") }}</th>
                   <th>{{ $t("workersClients.contact") }}</th>
                   <th>CP</th>
@@ -55,7 +54,6 @@
               </thead>
               <tbody>
                 <tr v-for="w in filteredWorkers" :key="w.id">
-                  <td class="fw-semibold text-dark">{{ w.id }}</td>
                   <td>{{ w.fullName }}</td>
                   <td class="text-muted">{{ w.contact }}</td>
                   <td>{{ w.cp }}</td>
@@ -173,7 +171,6 @@
                 <table class="table align-middle mb-0">
                   <thead class="dark-header sticky-top">
                     <tr>
-                      <th>ID</th>
                       <th>{{ $t("clientDetail.clientType") }}</th>
                       <th>{{ $t("workersClients.clientName") }}</th>
                       <th>{{ $t("workersClients.country") }}</th>
@@ -183,7 +180,6 @@
                   </thead>
                   <tbody>
                     <tr v-for="c in filteredClients" :key="c.id">
-                      <td class="fw-semibold text-dark">{{ c.id }}</td>
                       <td>
                         <span :class="c.clientType === 'person' ? 'badge-person' : 'badge-company'">
                           {{ c.clientType === 'person' ? $t("clientDetail.personType") : $t("clientDetail.companyType") }}
@@ -233,6 +229,7 @@ import { exportWorkersPdf as generateWorkersPdf, exportClientsPdf as generateCli
 export default {
   name: "WorkersClientsPage",
   components: { SidebarNav },
+  inject: ['isGuest'],
   props: {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
@@ -253,6 +250,7 @@ export default {
   },
   methods: {
     async fetchData() {
+      if (this.isGuest()) { this.workers = []; this.clients = []; return; }
       const params = this.selectedCompany ? { company: this.selectedCompany } : {};
       const [workersRes, clientsRes] = await Promise.all([
         api.get("/workers", { params }),

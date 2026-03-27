@@ -1,25 +1,5 @@
 <template>
   <div class="login-page">
-    <div
-      class="lang-switcher position-fixed top-0 end-0 mt-3 me-4 d-flex align-items-center gap-1 z-3"
-    >
-      <button
-        class="btn btn-sm lang-btn"
-        :class="{ 'lang-active': $i18n.locale === 'hr' }"
-        @click="switchLang('hr')"
-      >
-        HR
-      </button>
-      <span class="text-muted small">|</span>
-      <button
-        class="btn btn-sm lang-btn"
-        :class="{ 'lang-active': $i18n.locale === 'en' }"
-        @click="switchLang('en')"
-      >
-        EN
-      </button>
-    </div>
-
     <div class="container-fluid px-0">
       <div class="row g-0 min-vh-100">
         <div
@@ -33,40 +13,7 @@
               alt="DMF Production"
               class="logo img-fluid mb-4"
             />
-
             <h2 class="tagline mb-4">{{ $t("branding.tagline") }}</h2>
-
-            <div class="divider-line d-none d-lg-block mb-4"></div>
-
-            <ul class="features list-unstyled mb-0">
-              <li class="d-flex align-items-start mb-3">
-                <span class="feature-icon me-3">
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <circle cx="10" cy="10" r="10" fill="#2b579a" opacity="0.1" />
-                    <path d="M6 10l3 3 5-5" stroke="#2b579a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                </span>
-                <span>{{ $t("branding.feature1") }}</span>
-              </li>
-              <li class="d-flex align-items-start mb-3">
-                <span class="feature-icon me-3">
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <circle cx="10" cy="10" r="10" fill="#2b579a" opacity="0.1" />
-                    <path d="M6 10l3 3 5-5" stroke="#2b579a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                </span>
-                <span>{{ $t("branding.feature2") }}</span>
-              </li>
-              <li class="d-flex align-items-start">
-                <span class="feature-icon me-3">
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <circle cx="10" cy="10" r="10" fill="#2b579a" opacity="0.1" />
-                    <path d="M6 10l3 3 5-5" stroke="#2b579a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                  </svg>
-                </span>
-                <span>{{ $t("branding.feature3") }}</span>
-              </li>
-            </ul>
           </div>
         </div>
 
@@ -83,30 +30,30 @@
             </div>
 
             <h1 class="login-title text-center mb-1">
-              {{ $t("forgotPassword.title") }}
+              {{ $t("resetPassword.title") }}
             </h1>
             <p class="text-muted text-center small mb-4">
-              {{ $t("forgotPassword.subtitle") }}
+              {{ $t("resetPassword.subtitle") }}
             </p>
 
             <div v-if="error" class="alert alert-danger py-2 text-center small">{{ error }}</div>
 
-            <div v-if="sent" class="success-box text-center mb-4">
+            <div v-if="success" class="success-box text-center mb-4">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" class="mb-3">
                 <circle cx="12" cy="12" r="11" stroke="#27ae60" stroke-width="2" />
                 <path d="M7 12l3 3 7-7" stroke="#27ae60" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
-              <p class="fw-semibold mb-1" style="color:#27ae60">{{ $t("forgotPassword.sentTitle") }}</p>
-              <p class="text-muted small mb-0">{{ $t("forgotPassword.sentMessage") }}</p>
+              <p class="fw-semibold mb-1" style="color:#27ae60">{{ $t("resetPassword.successTitle") }}</p>
+              <p class="text-muted small mb-0">{{ $t("resetPassword.successMessage") }}</p>
             </div>
 
-            <form v-else @submit.prevent="handleSubmit">
-              <div class="mb-4">
+            <form v-else @submit.prevent="handleReset">
+              <div class="mb-3">
                 <label
-                  for="resetEmail"
+                  for="newPassword"
                   class="form-label small fw-semibold text-uppercase letter-spacing"
                 >
-                  {{ $t("login.email") }}
+                  {{ $t("resetPassword.newPassword") }}
                 </label>
                 <div class="input-icon-wrapper">
                   <svg
@@ -118,17 +65,49 @@
                     stroke="#9ca3af"
                     stroke-width="2"
                   >
-                    <rect x="2" y="4" width="20" height="16" rx="3" />
-                    <path d="M22 7l-10 7L2 7" />
+                    <rect x="3" y="11" width="18" height="11" rx="2" />
+                    <path d="M7 11V7a5 5 0 0110 0v4" />
                   </svg>
                   <input
-                    id="resetEmail"
-                    v-model="email"
-                    type="email"
+                    id="newPassword"
+                    v-model="password"
+                    type="password"
                     class="form-control form-input"
-                    :placeholder="$t('login.emailPlaceholder')"
-                    autocomplete="email"
+                    :placeholder="$t('resetPassword.newPasswordPlaceholder')"
                     required
+                    minlength="6"
+                  />
+                </div>
+              </div>
+
+              <div class="mb-4">
+                <label
+                  for="confirmPassword"
+                  class="form-label small fw-semibold text-uppercase letter-spacing"
+                >
+                  {{ $t("resetPassword.confirmPassword") }}
+                </label>
+                <div class="input-icon-wrapper">
+                  <svg
+                    class="input-icon"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#9ca3af"
+                    stroke-width="2"
+                  >
+                    <rect x="3" y="11" width="18" height="11" rx="2" />
+                    <path d="M7 11V7a5 5 0 0110 0v4" />
+                  </svg>
+                  <input
+                    id="confirmPassword"
+                    v-model="confirmPassword"
+                    type="password"
+                    class="form-control form-input"
+                    :placeholder="$t('resetPassword.confirmPasswordPlaceholder')"
+                    required
+                    minlength="6"
                   />
                 </div>
               </div>
@@ -137,7 +116,7 @@
                 type="submit"
                 class="btn btn-primary w-100 fw-semibold py-2 btn-login mb-3"
               >
-                {{ $t("forgotPassword.submit") }}
+                {{ $t("resetPassword.submit") }}
               </button>
             </form>
 
@@ -157,28 +136,40 @@
 import api from "../api";
 
 export default {
-  name: "ForgotPasswordPage",
+  name: "ResetPasswordPage",
   emits: ["back"],
   data() {
     return {
-      email: "",
-      sent: false,
+      password: "",
+      confirmPassword: "",
       error: "",
+      success: false,
     };
   },
-  methods: {
-    async handleSubmit() {
-      this.error = "";
-      try {
-        await api.post("/auth/forgot-password", { email: this.email });
-        this.sent = true;
-      } catch (err) {
-        this.error = err.response?.data?.error || "Greška pri slanju emaila";
-      }
+  computed: {
+    token() {
+      const hash = window.location.hash;
+      const match = hash.match(/token=([^&]+)/);
+      return match ? match[1] : "";
     },
-    switchLang(lang) {
-      this.$i18n.locale = lang;
-      localStorage.setItem("locale", lang);
+  },
+  methods: {
+    async handleReset() {
+      this.error = "";
+      if (this.password !== this.confirmPassword) {
+        this.error = this.$t("resetPassword.mismatch");
+        return;
+      }
+      try {
+        await api.post("/auth/reset-password", {
+          token: this.token,
+          password: this.password,
+        });
+        this.success = true;
+        window.location.hash = "";
+      } catch (err) {
+        this.error = err.response?.data?.error || "Greška";
+      }
     },
   },
 };
@@ -189,7 +180,6 @@ export default {
   background: #f0f2f5;
   min-height: 100vh;
 }
-
 .branding-side {
   background: linear-gradient(135deg, #f8f9fb 0%, #ebeef3 100%);
   position: relative;
@@ -203,78 +193,37 @@ export default {
   width: 1px;
   background: linear-gradient(to bottom, transparent, #d1d5db, transparent);
 }
-
 .form-side {
   background: #fff;
 }
-
 .branding-content {
   max-width: 520px;
 }
-
 .logo {
   max-width: 320px;
 }
 .logo-mobile {
   max-width: 200px;
 }
-
 .tagline {
   font-size: 1.05rem;
   font-weight: 600;
   color: #1a2a3a;
   line-height: 1.6;
 }
-
-.divider-line {
-  width: 60px;
-  height: 3px;
-  background: linear-gradient(to right, #2b579a, #4a80c4);
-  border-radius: 2px;
-}
-
-.features li {
-  color: #4a5568;
-  font-size: 0.92rem;
-  line-height: 1.5;
-}
-.feature-icon {
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.lang-btn {
-  color: #9ca3af;
-  font-weight: 600;
-  font-size: 0.8rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
-  transition: all 0.2s;
-}
-.lang-btn:hover {
-  color: #2b579a;
-}
-.lang-active {
-  color: #2b579a !important;
-  background: rgba(43, 87, 154, 0.1) !important;
-}
-
 .login-card {
   max-width: 420px;
   margin: 0 auto;
 }
-
 .login-title {
   font-size: 1.6rem;
   font-weight: 700;
   color: #1a2a3a;
 }
-
 .letter-spacing {
   letter-spacing: 0.05em;
   color: #6b7280;
 }
-
 .input-icon-wrapper {
   position: relative;
 }
@@ -285,7 +234,6 @@ export default {
   transform: translateY(-50%);
   pointer-events: none;
 }
-
 .form-input {
   padding: 0.7rem 0.75rem 0.7rem 2.8rem;
   border: 1.5px solid #e5e7eb;
@@ -302,7 +250,6 @@ export default {
 .form-input::placeholder {
   color: #b0b7c3;
 }
-
 .btn-login {
   background: linear-gradient(135deg, #2b579a 0%, #1e3f73 100%);
   border: none;
@@ -317,7 +264,6 @@ export default {
   box-shadow: 0 4px 16px rgba(43, 87, 154, 0.4);
   transform: translateY(-1px);
 }
-
 .forgot-link {
   color: #2b579a;
   font-weight: 500;
@@ -325,14 +271,12 @@ export default {
 .forgot-link:hover {
   text-decoration: underline !important;
 }
-
 .success-box {
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
   border-radius: 12px;
   padding: 1.5rem;
 }
-
 @media (max-width: 991.98px) {
   .branding-side {
     display: none !important;
@@ -349,17 +293,9 @@ export default {
     max-width: 440px;
   }
 }
-
 @media (min-width: 992px) {
   .logo-mobile {
     display: none;
-  }
-}
-
-@media (max-width: 575.98px) {
-  .login-card {
-    margin: 1rem;
-    padding: 1.5rem 1.25rem !important;
   }
 }
 </style>

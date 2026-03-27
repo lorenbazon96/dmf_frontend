@@ -164,6 +164,7 @@ import { exportHistoryPdf, printHistoryList } from "../utils/pdf";
 export default {
   name: "ProductionHistoryPage",
   components: { SidebarNav },
+  inject: ['isGuest'],
   props: {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
@@ -263,6 +264,7 @@ export default {
   },
   methods: {
     async fetchHistory() {
+      if (this.isGuest()) { this.completedProjects = []; return; }
       try {
         const params = { status: "completed" };
         if (this.selectedCompany) params.company = this.selectedCompany;

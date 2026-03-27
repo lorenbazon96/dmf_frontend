@@ -24,6 +24,18 @@ const messages = {
       sentTitle: "Email je poslan!",
       sentMessage: "Provjerite svoj inbox za upute za resetiranje lozinke.",
     },
+    resetPassword: {
+      title: "Nova lozinka",
+      subtitle: "Unesite novu lozinku",
+      newPassword: "Nova lozinka",
+      newPasswordPlaceholder: "Unesite novu lozinku",
+      confirmPassword: "Potvrdite lozinku",
+      confirmPasswordPlaceholder: "Ponovite lozinku",
+      submit: "Spremi lozinku",
+      mismatch: "Lozinke se ne podudaraju",
+      successTitle: "Lozinka promijenjena!",
+      successMessage: "Možete se prijaviti s novom lozinkom.",
+    },
     branding: {
       tagline:
         "Web aplikacija za digitalizaciju proizvodnog procesa metalne konstrukcije",
@@ -420,6 +432,18 @@ const messages = {
       backToLogin: "Back to login",
       sentTitle: "Email sent!",
       sentMessage: "Check your inbox for password reset instructions.",
+    },
+    resetPassword: {
+      title: "New Password",
+      subtitle: "Enter your new password",
+      newPassword: "New password",
+      newPasswordPlaceholder: "Enter new password",
+      confirmPassword: "Confirm password",
+      confirmPasswordPlaceholder: "Repeat password",
+      submit: "Save password",
+      mismatch: "Passwords do not match",
+      successTitle: "Password changed!",
+      successMessage: "You can now log in with your new password.",
     },
     branding: {
       tagline:

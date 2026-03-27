@@ -269,6 +269,7 @@ export default {
     LineChart: Line,
     BarChart: Bar,
   },
+  inject: ['isGuest'],
   props: {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
@@ -341,6 +342,7 @@ export default {
   },
   methods: {
     async fetchAnalytics() {
+      if (this.isGuest()) return;
       if (!this.selectedCompany) return;
       try {
         const [allRes, completedRes, workersRes] = await Promise.all([

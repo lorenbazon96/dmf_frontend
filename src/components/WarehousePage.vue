@@ -118,7 +118,6 @@
                 <table class="table align-middle mb-0">
                   <thead class="dark-header">
                     <tr>
-                      <th>ID</th>
                       <th>{{ $t("warehouse.type") }}</th>
                       <th>{{ $t("warehouse.name") }}</th>
                       <th>{{ $t("warehouse.specs") }}</th>
@@ -128,7 +127,6 @@
                   </thead>
                   <tbody>
                     <tr v-for="item in filteredItems" :key="item.id">
-                      <td class="fw-semibold text-dark">{{ item.id }}</td>
                       <td>{{ item.type }}</td>
                       <td>{{ item.name }}</td>
                       <td class="text-muted">{{ item.specs }}</td>
@@ -168,6 +166,7 @@ import { exportWarehousePdf, printWarehouseList } from "../utils/pdf";
 export default {
   name: "WarehousePage",
   components: { SidebarNav },
+  inject: ['isGuest'],
   props: {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
@@ -261,6 +260,7 @@ export default {
   },
   methods: {
     async fetchItems() {
+      if (this.isGuest()) { this.items = []; return; }
       const params = this.selectedCompany ? { company: this.selectedCompany } : {};
       const { data } = await api.get("/warehouse", { params });
       this.items = data.map(i => ({ ...i, id: i._id }));
