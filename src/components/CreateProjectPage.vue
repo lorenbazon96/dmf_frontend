@@ -2546,7 +2546,6 @@ export default {
   background: #2b579a;
 }
 
-/* Modal styles */
 .modal-overlay {
   position: fixed;
   top: 0;

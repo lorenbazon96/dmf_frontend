@@ -29,7 +29,7 @@
     :company-schedule="selectedCompanyObject"
     @back="currentView = 'dashboard'"
     @logout="handleLogout"
-    @view-drawing="openDrawing"
+    @view-drawing="openDrawing($event, selectedProject, 'project')"
     @edit-project="editProject"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
@@ -38,13 +38,13 @@
   />
   <DrawingDetailPage
     v-else-if="currentView === 'drawing'"
-    :project="selectedProject"
+    :project="selectedDrawingProject"
     :drawing="selectedDrawing"
     :companies="companies"
     :selected-company="selectedCompany"
     :user-name="loggedInUser?.fullName || ''"
     :company-schedule="selectedCompanyObject"
-    @back="currentView = 'project'"
+    @back="currentView = drawingBackView"
     @home="currentView = 'dashboard'"
     @logout="handleLogout"
     @edit-profile="currentView = 'profile-edit'"
@@ -156,7 +156,7 @@
     :company-schedule="selectedCompanyObject"
     @back="currentView = 'production-history'"
     @logout="handleLogout"
-    @view-drawing="openDrawing"
+    @view-drawing="openDrawing($event, selectedHistoryProject, 'history-project')"
     @edit-project="editProject"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
@@ -218,6 +218,8 @@ export default {
       currentView: 'login',
       selectedProject: null,
       selectedDrawing: null,
+      selectedDrawingProject: null,
+      drawingBackView: 'project',
       selectedWorker: null,
       selectedClient: null,
       selectedHistoryProject: null,
@@ -245,7 +247,9 @@ export default {
       try {
         this.loggedInUser = JSON.parse(saved)
         this.currentView = 'dashboard'
-      } catch { /* ignore */ }
+      } catch {
+        localStorage.removeItem('dmf_user')
+      }
     }
     const hash = window.location.hash
     if (hash.startsWith('#reset-password')) {
@@ -299,8 +303,10 @@ export default {
       this.editingProject = project
       this.currentView = 'create-project'
     },
-    openDrawing(drawing) {
+    openDrawing(drawing, project, backView = 'project') {
       this.selectedDrawing = drawing
+      this.selectedDrawingProject = project
+      this.drawingBackView = backView
       this.currentView = 'drawing'
     },
     openWorker(worker) {

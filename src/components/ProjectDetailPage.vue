@@ -71,6 +71,14 @@
                   <strong>{{ $t("project.estimatedEnd") }}:</strong>
                   {{ estimatedEndDate }}
                 </div>
+                <div v-if="actualEndDate !== '–'" class="project-meta">
+                  <strong>{{ $t("project.actualEnd") }}:</strong>
+                  {{ actualEndDate }}
+                </div>
+                <div v-if="actualDuration !== '–'" class="project-meta">
+                  <strong>{{ $t("project.actualDuration") }}:</strong>
+                  {{ actualDuration }}
+                </div>
               </div>
             </div>
 
@@ -685,6 +693,33 @@ export default {
       const adjustedStart = new Date(new Date(start).getTime() + this.totalPausedMinutes * 60000);
       const end = addWorkingMinutes(adjustedStart, this.totalEstimatedMinutes, this.companySchedule);
       return end.toLocaleString("hr-HR");
+    },
+    actualEndAt() {
+      if (this.projectData.status !== "completed") return null;
+      const drawings = this.projectData.drawings || [];
+      let latestCompletedAt = null;
+      for (const drawing of drawings) {
+        for (const worker of drawing.assignedWorkers || []) {
+          if (!worker.completedAt) continue;
+          const completedAt = new Date(worker.completedAt);
+          if (!latestCompletedAt || completedAt > latestCompletedAt) {
+            latestCompletedAt = completedAt;
+          }
+        }
+      }
+      return latestCompletedAt;
+    },
+    actualEndDate() {
+      const end = this.actualEndAt;
+      return end ? end.toLocaleString("hr-HR") : "–";
+    },
+    actualDuration() {
+      const start = this.projectData.startedAt || this.projectData.createdAt;
+      const end = this.actualEndAt;
+      if (!start || !end) return "–";
+      const workingMinutes = getWorkingMinutesBetween(start, end, this.companySchedule);
+      const actualMinutes = Math.max(0, workingMinutes - this.totalPausedMinutes);
+      return this.formatMinutes(actualMinutes);
     },
     clientPhone() {
       if (!this.clientData) return "–";

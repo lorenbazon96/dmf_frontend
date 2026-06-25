@@ -308,7 +308,9 @@ export default {
             if (this.selectedCompany) params.company = this.selectedCompany;
             const { data: clients } = await api.get("/clients", { params });
             this.clientData = clients.find((c) => c.clientName === data.client) || null;
-          } catch (e) { /* ignore */ }
+          } catch {
+            this.clientData = null;
+          }
         }
       } catch (e) {
         this.projectData = this.project;

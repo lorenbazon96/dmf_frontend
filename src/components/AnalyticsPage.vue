@@ -126,10 +126,8 @@
                   </button>
                 </div>
 
-                <!-- General Tab -->
                 <div v-if="activeTab === 'general'">
                   <div class="row g-3">
-                    <!-- Pie chart -->
                     <div class="col-lg-6">
                       <h6 class="chart-title">
                         {{ $t("analytics.timeByOperation") }}
@@ -368,7 +366,6 @@ export default {
         const opKeys = ["pipeCutting", "sheetCutting", "welding", "grinding", "assembly", "drilling", "bending"];
         const opDisplayNames = ["Rez. cijevi", "Rez. lima", "Zavarivanje", "Brušenje", "Montaža", "Bušenje", "Savijanje"];
 
-        // --- Stats: avgDuration ---
         let avgDuration = "0h";
         if (completedProjects.length > 0) {
           let totalMin = 0;
@@ -388,7 +385,6 @@ export default {
           avgDuration = m > 0 ? h + "h " + m + "min" : h + "h";
         }
 
-        // --- Pie chart: total estimatedMinutes per operation across ALL projects ---
         const opTotals = {};
         for (const k of opKeys) opTotals[k] = 0;
         for (const proj of allProjects) {
@@ -401,7 +397,6 @@ export default {
         }
         const pieValues = opKeys.map(k => opTotals[k]);
 
-        // --- Line chart: completed projects per month for last 6 months ---
         const monthNames = ["Sij", "Vel", "Ožu", "Tra", "Svi", "Lip", "Srp", "Kol", "Ruj", "Lis", "Stu", "Pro"];
         const now = new Date();
         const lineLabels = [];
@@ -420,7 +415,6 @@ export default {
           lineCounts.push(count);
         }
 
-        // --- Bar chart: estimated vs real for last 5 completed projects ---
         const estLabels = [];
         const est = [];
         const real = [];
@@ -443,7 +437,6 @@ export default {
           }
         }
 
-        // --- Worker performance table ---
         const workerTaskMap = {};
         for (const proj of allProjects) {
           for (const dr of proj.drawings || []) {
@@ -504,13 +497,11 @@ export default {
           };
         });
 
-        // --- Worker bar chart ---
         const workerEff = {
           labels: workerList.map(w => w.name),
           data: workerList.map(w => w.efficiencyNum),
         };
 
-        // --- Operation insights ---
         const insights = opKeys.map((opKey, i) => {
           const workerStats = workers.map(w => {
             const wKey = w._id || w.fullName;
@@ -547,7 +538,6 @@ export default {
           };
         });
 
-        // --- General insights (dynamic) ---
         const generalInsights = [];
         const maxOp = opKeys.reduce((a, b) => opTotals[a] > opTotals[b] ? a : b, opKeys[0]);
         const maxOpIdx = opKeys.indexOf(maxOp);
