@@ -135,7 +135,7 @@
 import SidebarNav from "./SidebarNav.vue";
 import { addWorkingMinutes, getWorkingMinutesBetween } from "../utils/workingTime";
 import { calcTimePerOperation } from "../utils/calculations";
-import api from "../api";
+import api, { backendBaseURL } from "../api";
 
 export default {
   name: "DrawingDetailPage",
@@ -155,7 +155,7 @@ export default {
       clientData: null,
       now: Date.now(),
       timer: null,
-      backendBase: "http://localhost:3000",
+      backendBase: backendBaseURL,
     };
   },
   created() {
