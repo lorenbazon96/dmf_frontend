@@ -249,11 +249,18 @@ export default {
           email: this.email,
           password: this.password,
         });
-        if (!data.user || !data.token) {
+        const user = data.user || {
+          _id: data._id,
+          email: data.email,
+          fullName: data.fullName,
+          role: data.role,
+          companies: data.companies || [],
+        };
+        if (!user._id) {
           this.error = "Login failed";
           return;
         }
-        this.$emit("login", { user: data.user, token: data.token, rememberMe: this.rememberMe });
+        this.$emit("login", { user, token: data.token || "", rememberMe: this.rememberMe });
       } catch (err) {
         this.error = err.response?.data?.error || "Login failed";
       }

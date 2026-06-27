@@ -246,8 +246,7 @@ export default {
   },
   async created() {
     const saved = localStorage.getItem('dmf_user') || sessionStorage.getItem('dmf_user')
-    const token = localStorage.getItem('dmf_token') || sessionStorage.getItem('dmf_token')
-    if (saved && token) {
+    if (saved) {
       try {
         this.loggedInUser = JSON.parse(saved)
         this.currentView = 'dashboard'
@@ -288,7 +287,7 @@ export default {
       this.currentView = 'login'
     },
     async handleLogin({ user, token, rememberMe }) {
-      if (!user || !token) {
+      if (!user) {
         this.handleLogout()
         return
       }
@@ -297,14 +296,16 @@ export default {
       this.isGuest = false
       if (rememberMe) {
         localStorage.setItem('dmf_user', JSON.stringify(user))
-        localStorage.setItem('dmf_token', token)
+        if (token) localStorage.setItem('dmf_token', token)
+        else localStorage.removeItem('dmf_token')
         sessionStorage.removeItem('dmf_user')
         sessionStorage.removeItem('dmf_token')
       } else {
         localStorage.removeItem('dmf_user')
         localStorage.removeItem('dmf_token')
         sessionStorage.setItem('dmf_user', JSON.stringify(user))
-        sessionStorage.setItem('dmf_token', token)
+        if (token) sessionStorage.setItem('dmf_token', token)
+        else sessionStorage.removeItem('dmf_token')
       }
       this.currentView = 'dashboard'
       await this.fetchCompanies()

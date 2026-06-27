@@ -133,7 +133,7 @@
 import SidebarNav from "./SidebarNav.vue";
 import { addWorkingMinutes, getWorkingMinutesBetween } from "../utils/workingTime";
 import { calcTimePerOperation } from "../utils/calculations";
-import api from "../api";
+import api, { backendBaseURL } from "../api";
 
 export default {
   name: "DrawingDetailPage",
@@ -154,6 +154,7 @@ export default {
       now: Date.now(),
       timer: null,
       pdfUrl: "",
+      backendBase: backendBaseURL,
     };
   },
   created() {
@@ -298,6 +299,12 @@ export default {
     },
   },
   methods: {
+    authToken() {
+      return localStorage.getItem("dmf_token") || sessionStorage.getItem("dmf_token");
+    },
+    legacyFileUrl(filePath) {
+      return filePath ? this.backendBase + filePath : "";
+    },
     fileEndpoint(filePath) {
       const filename = (filePath || "").split("/").pop();
       return filename ? `/files/${encodeURIComponent(filename)}` : "";
@@ -308,6 +315,11 @@ export default {
     },
     async loadPdf() {
       this.revokePdfUrl();
+      if (!this.authToken()) {
+        this.pdfUrl = this.legacyFileUrl(this.drawing.pdfFile);
+        return;
+      }
+
       const endpoint = this.fileEndpoint(this.drawing.pdfFile);
       if (!endpoint) return;
 
@@ -319,6 +331,11 @@ export default {
       }
     },
     async openFile(filePath) {
+      if (!this.authToken()) {
+        window.open(this.legacyFileUrl(filePath), "_blank");
+        return;
+      }
+
       const endpoint = this.fileEndpoint(filePath);
       if (!endpoint) return;
 
@@ -328,6 +345,11 @@ export default {
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     },
     async downloadFile(filePath) {
+      if (!this.authToken()) {
+        window.open(this.legacyFileUrl(filePath), "_blank");
+        return;
+      }
+
       const endpoint = this.fileEndpoint(filePath);
       if (!endpoint) return;
 
