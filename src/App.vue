@@ -26,7 +26,7 @@
     :companies="companies"
     :selected-company="selectedCompany"
     :user-name="displayUserName"
-    :company-schedule="selectedCompanyObject"
+    :company-schedule="companyScheduleFor(selectedProject?.company)"
     @back="currentView = 'dashboard'"
     @logout="handleLogout"
     @view-drawing="openDrawing($event, selectedProject, 'project')"
@@ -43,7 +43,7 @@
     :companies="companies"
     :selected-company="selectedCompany"
     :user-name="displayUserName"
-    :company-schedule="selectedCompanyObject"
+    :company-schedule="companyScheduleFor(selectedDrawingProject?.company)"
     @back="currentView = drawingBackView"
     @home="currentView = 'dashboard'"
     @logout="handleLogout"
@@ -153,7 +153,7 @@
     :companies="companies"
     :selected-company="selectedCompany"
     :user-name="displayUserName"
-    :company-schedule="selectedCompanyObject"
+    :company-schedule="companyScheduleFor(selectedHistoryProject?.company)"
     @back="currentView = 'production-history'"
     @logout="handleLogout"
     @view-drawing="openDrawing($event, selectedHistoryProject, 'history-project')"
@@ -264,6 +264,9 @@ export default {
     }
   },
   methods: {
+    companyScheduleFor(companyName) {
+      return this.companyObjects.find(c => c.name === companyName) || this.selectedCompanyObject;
+    },
     clearStoredAuth() {
       localStorage.removeItem('dmf_user')
       localStorage.removeItem('dmf_token')
@@ -320,10 +323,12 @@ export default {
     },
     openHistoryProject(project) {
       this.selectedHistoryProject = project
+      if (project?.company) this.selectedCompany = project.company
       this.currentView = 'history-project'
     },
     openProject(project) {
       this.selectedProject = project
+      if (project?.company) this.selectedCompany = project.company
       this.currentView = 'project'
     },
     editProject(project) {
@@ -334,6 +339,7 @@ export default {
       this.selectedDrawing = drawing
       this.selectedDrawingProject = project
       this.drawingBackView = backView
+      if (project?.company) this.selectedCompany = project.company
       this.currentView = 'drawing'
     },
     openWorker(worker) {
