@@ -6,7 +6,7 @@
     v-else-if="currentView === 'dashboard'"
     :companies="companies"
     :selected-company="selectedCompany"
-    :user-name="loggedInUser?.fullName || ''"
+    :user-name="displayUserName"
     :company-schedule="selectedCompanyObject"
     @logout="handleLogout"
     @view-project="openProject"
@@ -25,7 +25,7 @@
     :project="selectedProject"
     :companies="companies"
     :selected-company="selectedCompany"
-    :user-name="loggedInUser?.fullName || ''"
+    :user-name="displayUserName"
     :company-schedule="selectedCompanyObject"
     @back="currentView = 'dashboard'"
     @logout="handleLogout"
@@ -42,7 +42,7 @@
     :drawing="selectedDrawing"
     :companies="companies"
     :selected-company="selectedCompany"
-    :user-name="loggedInUser?.fullName || ''"
+    :user-name="displayUserName"
     :company-schedule="selectedCompanyObject"
     @back="currentView = drawingBackView"
     @home="currentView = 'dashboard'"
@@ -56,7 +56,7 @@
     v-else-if="currentView === 'create-project'"
     :companies="companies"
     :selected-company="selectedCompany"
-    :user-name="loggedInUser?.fullName || ''"
+    :user-name="displayUserName"
     :edit-project="editingProject"
     @back="editingProject = null; currentView = 'dashboard'"
     @logout="handleLogout"
@@ -69,7 +69,7 @@
     v-else-if="currentView === 'analytics'"
     :companies="companies"
     :selected-company="selectedCompany"
-    :user-name="loggedInUser?.fullName || ''"
+    :user-name="displayUserName"
     @back="currentView = 'dashboard'"
     @logout="handleLogout"
     @edit-profile="currentView = 'profile-edit'"
@@ -81,7 +81,7 @@
     v-else-if="currentView === 'workers-clients'"
     :companies="companies"
     :selected-company="selectedCompany"
-    :user-name="loggedInUser?.fullName || ''"
+    :user-name="displayUserName"
     @back="currentView = 'dashboard'"
     @logout="handleLogout"
     @view-worker="openWorker"
@@ -98,7 +98,7 @@
     :worker="selectedWorker"
     :companies="companies"
     :selected-company="selectedCompany"
-    :user-name="loggedInUser?.fullName || ''"
+    :user-name="displayUserName"
     @back="currentView = 'workers-clients'"
     @home="currentView = 'dashboard'"
     @logout="handleLogout"
@@ -111,7 +111,7 @@
     v-else-if="currentView === 'warehouse'"
     :companies="companies"
     :selected-company="selectedCompany"
-    :user-name="loggedInUser?.fullName || ''"
+    :user-name="displayUserName"
     @back="currentView = 'dashboard'"
     @logout="handleLogout"
     @add-item="currentView = 'warehouse-add-item'"
@@ -124,7 +124,7 @@
     v-else-if="currentView === 'warehouse-add-item'"
     :companies="companies"
     :selected-company="selectedCompany"
-    :user-name="loggedInUser?.fullName || ''"
+    :user-name="displayUserName"
     @back="currentView = 'warehouse'"
     @home="currentView = 'dashboard'"
     @logout="handleLogout"
@@ -137,7 +137,7 @@
     v-else-if="currentView === 'production-history'"
     :companies="companies"
     :selected-company="selectedCompany"
-    :user-name="loggedInUser?.fullName || ''"
+    :user-name="displayUserName"
     @back="currentView = 'dashboard'"
     @logout="handleLogout"
     @view-project="openHistoryProject"
@@ -152,7 +152,7 @@
     :project="selectedHistoryProject"
     :companies="companies"
     :selected-company="selectedCompany"
-    :user-name="loggedInUser?.fullName || ''"
+    :user-name="displayUserName"
     :company-schedule="selectedCompanyObject"
     @back="currentView = 'production-history'"
     @logout="handleLogout"
@@ -168,7 +168,7 @@
     :client="selectedClient"
     :companies="companies"
     :selected-company="selectedCompany"
-    :user-name="loggedInUser?.fullName || ''"
+    :user-name="displayUserName"
     @back="currentView = 'workers-clients'"
     @home="currentView = 'dashboard'"
     @logout="handleLogout"
@@ -181,7 +181,7 @@
     v-else-if="currentView === 'profile-edit'"
     :companies="companies"
     :selected-company="selectedCompany"
-    :user-name="loggedInUser?.fullName || ''"
+    :user-name="displayUserName"
     :user-id="loggedInUser?._id || ''"
     :user-email="loggedInUser?.email || ''"
     @back="currentView = 'dashboard'"
@@ -237,6 +237,9 @@ export default {
     }
   },
   computed: {
+    displayUserName() {
+      return this.loggedInUser?.fullName || this.loggedInUser?.email || '';
+    },
     selectedCompanyObject() {
       return this.companyObjects.find(c => c.name === this.selectedCompany) || null;
     },
@@ -285,6 +288,11 @@ export default {
       this.currentView = 'login'
     },
     async handleLogin({ user, token, rememberMe }) {
+      if (!user || !token) {
+        this.handleLogout()
+        return
+      }
+
       this.loggedInUser = user
       this.isGuest = false
       if (rememberMe) {

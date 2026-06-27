@@ -165,6 +165,11 @@ export default {
     if (this.timer) clearInterval(this.timer);
     this.revokePdfUrl();
   },
+  watch: {
+    "drawing.pdfFile"() {
+      this.loadPdf();
+    },
+  },
   computed: {
     operationPhases() {
       return [

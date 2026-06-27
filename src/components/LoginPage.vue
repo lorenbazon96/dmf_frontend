@@ -219,19 +219,6 @@
                 {{ $t("login.submit") }}
               </button>
 
-              <div class="divider-text d-flex align-items-center my-3">
-                <hr class="flex-grow-1" />
-                <span class="px-3 text-muted small">{{ $t("login.or") }}</span>
-                <hr class="flex-grow-1" />
-              </div>
-
-              <button
-                type="button"
-                class="btn btn-outline-dark w-100 py-2 btn-guest"
-                @click="$emit('guest')"
-              >
-                {{ $t("login.guest") }}
-              </button>
             </form>
           </div>
         </div>
@@ -262,6 +249,10 @@ export default {
           email: this.email,
           password: this.password,
         });
+        if (!data.user || !data.token) {
+          this.error = "Login failed";
+          return;
+        }
         this.$emit("login", { user: data.user, token: data.token, rememberMe: this.rememberMe });
       } catch (err) {
         this.error = err.response?.data?.error || "Login failed";
