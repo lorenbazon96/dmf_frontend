@@ -80,25 +80,23 @@
                   <path fill-rule="evenodd" d="M15 8a.5.5 0 00-.5-.5H2.707l3.147-3.146a.5.5 0 10-.708-.708l-4 4a.5.5 0 000 .708l4 4a.5.5 0 00.708-.708L2.707 8.5H14.5A.5.5 0 0015 8" />
                 </svg>
               </button>
-              <a v-if="drawing.pdfFile" class="btn btn-action" :href="backendBase + drawing.pdfFile" target="_blank">
+              <button v-if="drawing.pdfFile" class="btn btn-action" @click="openFile(drawing.pdfFile)">
                 <span>{{ $t("drawing.exportPdf") }}</span>
                 <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
                   <path d="M14 14V4.5L9.5 0H4a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2M9.5 3A1.5 1.5 0 0011 4.5h2V14a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1h5.5z" />
                 </svg>
-              </a>
-              <a
+              </button>
+              <button
                 class="btn btn-action"
-                :href="drawing.dwgFile ? backendBase + drawing.dwgFile : undefined"
-                :download="drawing.dwgFile ? '' : undefined"
                 :class="{ 'btn-action-disabled': !drawing.dwgFile }"
-                @click="!drawing.dwgFile && $event.preventDefault()"
+                @click="downloadFile(drawing.dwgFile)"
               >
                 <span>{{ $t("drawing.exportDwg") }}</span>
                 <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
                   <path d="M14 4.5V14a2 2 0 01-2 2H4a2 2 0 01-2-2V2a2 2 0 012-2h5.5zm-3 0A1.5 1.5 0 019.5 3V1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V4.5z" />
                   <path d="M4.5 12.5A.5.5 0 015 12h3a.5.5 0 010 1H5a.5.5 0 01-.5-.5m0-2A.5.5 0 015 10h6a.5.5 0 010 1H5a.5.5 0 01-.5-.5m0-2A.5.5 0 015 8h6a.5.5 0 010 1H5a.5.5 0 01-.5-.5" />
                 </svg>
-              </a>
+              </button>
               <button class="btn btn-action" @click="$emit('home')">
                 <span>{{ $t("drawing.goBackHome") }}</span>
                 <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
@@ -135,7 +133,7 @@
 import SidebarNav from "./SidebarNav.vue";
 import { addWorkingMinutes, getWorkingMinutesBetween } from "../utils/workingTime";
 import { calcTimePerOperation } from "../utils/calculations";
-import api, { backendBaseURL } from "../api";
+import api from "../api";
 
 export default {
   name: "DrawingDetailPage",
@@ -155,21 +153,19 @@ export default {
       clientData: null,
       now: Date.now(),
       timer: null,
-      backendBase: backendBaseURL,
+      pdfUrl: "",
     };
   },
   created() {
     this.fetchProject();
+    this.loadPdf();
     this.timer = setInterval(() => { this.now = Date.now(); }, 30000);
   },
   beforeUnmount() {
     if (this.timer) clearInterval(this.timer);
+    this.revokePdfUrl();
   },
   computed: {
-    pdfUrl() {
-      if (!this.drawing.pdfFile) return "";
-      return this.backendBase + this.drawing.pdfFile;
-    },
     operationPhases() {
       return [
         ["Rezanje cijevi", "Rezanje lima"],
@@ -297,6 +293,49 @@ export default {
     },
   },
   methods: {
+    fileEndpoint(filePath) {
+      const filename = (filePath || "").split("/").pop();
+      return filename ? `/files/${encodeURIComponent(filename)}` : "";
+    },
+    revokePdfUrl() {
+      if (this.pdfUrl) URL.revokeObjectURL(this.pdfUrl);
+      this.pdfUrl = "";
+    },
+    async loadPdf() {
+      this.revokePdfUrl();
+      const endpoint = this.fileEndpoint(this.drawing.pdfFile);
+      if (!endpoint) return;
+
+      try {
+        const { data } = await api.get(endpoint, { responseType: "blob" });
+        this.pdfUrl = URL.createObjectURL(data);
+      } catch {
+        this.pdfUrl = "";
+      }
+    },
+    async openFile(filePath) {
+      const endpoint = this.fileEndpoint(filePath);
+      if (!endpoint) return;
+
+      const { data } = await api.get(endpoint, { responseType: "blob" });
+      const url = URL.createObjectURL(data);
+      window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    },
+    async downloadFile(filePath) {
+      const endpoint = this.fileEndpoint(filePath);
+      if (!endpoint) return;
+
+      const { data } = await api.get(endpoint, { responseType: "blob" });
+      const url = URL.createObjectURL(data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filePath.split("/").pop();
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    },
     async fetchProject() {
       try {
         const { data } = await api.get("/projects/" + this.project._id);

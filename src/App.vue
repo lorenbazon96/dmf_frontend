@@ -242,23 +242,34 @@ export default {
     },
   },
   async created() {
-    const saved = localStorage.getItem('dmf_user')
-    if (saved) {
+    const saved = localStorage.getItem('dmf_user') || sessionStorage.getItem('dmf_user')
+    const token = localStorage.getItem('dmf_token') || sessionStorage.getItem('dmf_token')
+    if (saved && token) {
       try {
         this.loggedInUser = JSON.parse(saved)
         this.currentView = 'dashboard'
       } catch {
-        localStorage.removeItem('dmf_user')
+        this.clearStoredAuth()
       }
+    } else {
+      this.clearStoredAuth()
     }
     const hash = window.location.hash
     if (hash.startsWith('#reset-password')) {
       this.currentView = 'reset-password'
+    } else if (this.loggedInUser) {
+      await this.fetchCompanies()
     }
-    await this.fetchCompanies()
   },
   methods: {
+    clearStoredAuth() {
+      localStorage.removeItem('dmf_user')
+      localStorage.removeItem('dmf_token')
+      sessionStorage.removeItem('dmf_user')
+      sessionStorage.removeItem('dmf_token')
+    },
     handleGuest() {
+      this.clearStoredAuth()
       this.loggedInUser = { fullName: 'Guest', email: '' }
       this.isGuest = true
       if (!this.companies.length) {
@@ -270,18 +281,25 @@ export default {
     handleLogout() {
       this.loggedInUser = null
       this.isGuest = false
-      localStorage.removeItem('dmf_user')
+      this.clearStoredAuth()
       this.currentView = 'login'
     },
-    handleLogin({ user, rememberMe }) {
+    async handleLogin({ user, token, rememberMe }) {
       this.loggedInUser = user
       this.isGuest = false
       if (rememberMe) {
         localStorage.setItem('dmf_user', JSON.stringify(user))
+        localStorage.setItem('dmf_token', token)
+        sessionStorage.removeItem('dmf_user')
+        sessionStorage.removeItem('dmf_token')
       } else {
         localStorage.removeItem('dmf_user')
+        localStorage.removeItem('dmf_token')
+        sessionStorage.setItem('dmf_user', JSON.stringify(user))
+        sessionStorage.setItem('dmf_token', token)
       }
       this.currentView = 'dashboard'
+      await this.fetchCompanies()
     },
     async fetchCompanies() {
       const { data } = await api.get('/companies')
