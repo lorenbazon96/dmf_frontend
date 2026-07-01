@@ -277,7 +277,25 @@
                      />
                    </div>
                  </div>
+                 <div class="d-flex justify-content-end mt-2">
+                   <button
+                     type="button"
+                     class="btn btn-sm btn-remove-person"
+                     :disabled="responsiblePersons.length === 1"
+                     @click="removeResponsiblePerson(index)"
+                   >
+                     {{ $t("clientDetail.removeResponsiblePerson") }}
+                   </button>
+                 </div>
                </div>
+
+               <button
+                 type="button"
+                 class="btn btn-sm btn-add-person mt-3"
+                 @click="addResponsiblePerson"
+               >
+                 {{ $t("clientDetail.addResponsiblePerson") }}
+               </button>
              </div>
            </section>
           </div>
@@ -361,11 +379,28 @@ export default {
     },
   },
   methods: {
+    addResponsiblePerson() {
+      this.responsiblePersons.push({ fullName: "", email: "", contact: "", note: "" });
+    },
+    removeResponsiblePerson(index) {
+      if (this.responsiblePersons.length === 1) return;
+      this.responsiblePersons.splice(index, 1);
+    },
+    filledResponsiblePersons() {
+      return this.responsiblePersons
+        .map((p) => ({
+          fullName: (p.fullName || "").trim(),
+          email: (p.email || "").trim(),
+          contact: (p.contact || "").trim(),
+          note: (p.note || "").trim(),
+        }))
+        .filter((p) => p.fullName || p.email || p.contact || p.note);
+    },
     async saveClient() {
       const payload = {
         ...this.form,
         company: this.selectedCompany,
-        responsiblePersons: this.form.clientType === "company" ? this.responsiblePersons : [],
+        responsiblePersons: this.form.clientType === "company" ? this.filledResponsiblePersons() : [],
       };
       const clientId = this.client?._id || this.client?.id;
       if (clientId) {
@@ -460,6 +495,31 @@ export default {
 .responsible-block:last-child {
   border-bottom: none;
   padding-bottom: 0;
+}
+
+.btn-add-person {
+  background: #2b579a;
+  color: #fff;
+  border: none;
+  font-weight: 600;
+}
+.btn-add-person:hover {
+  background: #1e3f73;
+  color: #fff;
+}
+.btn-remove-person {
+  background: #f1f1f1;
+  color: #555;
+  border: 1px solid #ccc;
+  font-weight: 600;
+}
+.btn-remove-person:hover:not(:disabled) {
+  background: #e0e0e0;
+  color: #333;
+}
+.btn-remove-person:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .btn-action {

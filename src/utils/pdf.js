@@ -650,13 +650,14 @@ export async function exportProjectDetailPdf(
   if (drawings && drawings.length) {
     autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 8,
-      head: [["Br. nacrta", "Naziv dijela", "Sklop", "Težina", "Količina"]],
+      head: [["Br. nacrta", "Naziv dijela", "Sklop", "Težina", "Količina", "Materijal"]],
       body: drawings.map((d) => [
         d.no || "",
         d.partName || "",
         d.assembly || "",
         d.weight || "",
         d.qty ?? "",
+        d.materials || "–",
       ]),
       ...tableStyles,
     });
@@ -715,11 +716,13 @@ export function printProjectDetail(
     <tr><td><b>Predviđeni završetak</b></td><td>${estimatedEnd || "–"}</td></tr>
   </table>`;
   if (drawings && drawings.length) {
-    info += `<br><h3 style="color:#2b579a;">Nacrti</h3><table><tr><th>Br. nacrta</th><th>Naziv dijela</th><th>Sklop</th><th>Težina</th><th>Količina</th></tr>`;
+    info += `<br><h3 style="color:#2b579a;">Nacrti</h3><table><tr><th>Br. nacrta</th><th>Naziv dijela</th><th>Sklop</th><th>Težina</th><th>Količina</th><th>Materijal</th></tr>`;
     drawings.forEach((d) => {
       info += `<tr><td>${d.no || ""}</td><td>${d.partName || ""}</td><td>${
         d.assembly || ""
-      }</td><td>${d.weight || ""}</td><td>${d.qty ?? ""}</td></tr>`;
+      }</td><td>${d.weight || ""}</td><td>${d.qty ?? ""}</td><td>${
+        d.materials || "–"
+      }</td></tr>`;
     });
     info += "</table>";
   }

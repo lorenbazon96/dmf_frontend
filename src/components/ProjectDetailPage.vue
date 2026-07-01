@@ -83,7 +83,7 @@
             </div>
 
             <div class="d-flex flex-column gap-2">
-              <button class="btn btn-action" @click="exportPdf">
+              <button v-if="projectData.status === 'completed'" class="btn btn-action" @click="exportPdf">
                 <span>{{ $t("drawing.exportPdf") }}</span>
                 <svg
                   width="18"
@@ -548,6 +548,13 @@ export default {
         assembly: dr.assemblyName || "–",
         weight: dr.weight ? dr.weight + " kg" : "–",
         qty: dr.quantity || 1,
+        materials: (dr.assignedMaterials || [])
+          .map((m) => {
+            const specs = m.specs ? ` (${m.specs})` : "";
+            return `${m.name || ""}${specs} × ${m.useQty || 1}`;
+          })
+          .filter(Boolean)
+          .join(", "),
         pdfFile: dr.pdfFile || "",
         dwgFile: dr.dwgFile || "",
       }));

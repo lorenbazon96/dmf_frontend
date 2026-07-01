@@ -219,6 +219,9 @@ export default {
         const key = this.sortKey;
         const dir = this.sortAsc ? 1 : -1;
         result = [...result].sort((a, b) => {
+          if (key === "completedOn") {
+            return ((a.completedAtMs || 0) - (b.completedAtMs || 0)) * dir;
+          }
           return String(a[key]).localeCompare(String(b[key])) * dir;
         });
       }
@@ -269,27 +272,44 @@ export default {
         const params = { status: "completed" };
         if (this.selectedCompany) params.company = this.selectedCompany;
         const { data } = await api.get("/projects", { params });
-        this.completedProjects = data.map((p) => ({
-          _id: p._id,
-          rn: p.rn,
-          client: p.client,
-          responsible: p.responsible,
-          name: p.name,
-          status: p.status,
-          startedAt: p.startedAt,
-          pausedAt: p.pausedAt,
-          totalPausedMs: p.totalPausedMs,
-          createdAt: p.createdAt,
-          drawings: p.drawings || [],
-          completedOn: new Date(p.createdAt).toLocaleDateString("hr-HR"),
-          progress: 100,
-          color: "green",
-          est: "-",
-          company: p.company,
-        }));
+        this.completedProjects = data.map((p) => {
+          const actualEndAt = this.actualEndAt(p);
+          return {
+            _id: p._id,
+            rn: p.rn,
+            client: p.client,
+            responsible: p.responsible,
+            name: p.name,
+            status: p.status,
+            startedAt: p.startedAt,
+            pausedAt: p.pausedAt,
+            totalPausedMs: p.totalPausedMs,
+            createdAt: p.createdAt,
+            drawings: p.drawings || [],
+            completedOn: actualEndAt ? actualEndAt.toLocaleDateString("hr-HR") : "-",
+            completedAtMs: actualEndAt ? actualEndAt.getTime() : 0,
+            progress: 100,
+            color: "green",
+            est: "-",
+            company: p.company,
+          };
+        });
       } catch {
         this.completedProjects = [];
       }
+    },
+    actualEndAt(project) {
+      let latestCompletedAt = null;
+      for (const drawing of project.drawings || []) {
+        for (const worker of drawing.assignedWorkers || []) {
+          if (!worker.completedAt) continue;
+          const completedAt = new Date(worker.completedAt);
+          if (!Number.isNaN(completedAt.getTime()) && (!latestCompletedAt || completedAt > latestCompletedAt)) {
+            latestCompletedAt = completedAt;
+          }
+        }
+      }
+      return latestCompletedAt;
     },
     setFilter(client) {
       this.activeFilter = this.activeFilter === client && client !== "" ? "" : client;
