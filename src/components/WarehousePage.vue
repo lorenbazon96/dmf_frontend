@@ -122,6 +122,8 @@
                       <th>{{ $t("warehouse.name") }}</th>
                       <th>{{ $t("warehouse.specs") }}</th>
                       <th>{{ $t("warehouse.qty") }}</th>
+                      <th>{{ $t("warehouse.reserved") }}</th>
+                      <th>{{ $t("warehouse.available") }}</th>
                       <th class="text-end">{{ $t("warehouse.action") }}</th>
                     </tr>
                   </thead>
@@ -137,8 +139,11 @@
                           <button class="btn btn-qty" @click="incrementQty(item)">+</button>
                         </div>
                       </td>
+                      <td>{{ item.reservedQty || 0 }}</td>
+                      <td>{{ availableQty(item) }}</td>
                       <td class="text-end">
-                        <button class="btn btn-sm btn-delete" @click="deleteItem(item.id)">
+                        <button class="btn btn-sm btn-view me-1" @click="openMovements(item)">{{ $t("warehouse.history") }}</button>
+                        <button class="btn btn-sm btn-delete" :disabled="Number(item.reservedQty) > 0" :title="Number(item.reservedQty) > 0 ? 'Reserved items cannot be deleted.' : ''" @click="deleteItem(item)">
                           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" class="me-1">
                             <path d="M5.5 5.5A.5.5 0 016 6v6a.5.5 0 01-1 0V6a.5.5 0 01.5-.5m2.5 0a.5.5 0 01.5.5v6a.5.5 0 01-1 0V6a.5.5 0 01.5-.5m3 .5a.5.5 0 00-1 0v6a.5.5 0 001 0z" />
                             <path d="M14.5 3a1 1 0 01-1 1H13v9a2 2 0 01-2 2H5a2 2 0 01-2-2V4h-.5a1 1 0 01-1-1V2a1 1 0 011-1H6a1 1 0 011-1h2a1 1 0 011 1h3.5a1 1 0 011 1zM4.118 4L4 4.059V13a1 1 0 001 1h6a1 1 0 001-1V4.059L11.882 4zM2.5 3h11V2h-11z" />
@@ -155,6 +160,13 @@
         </div>
       </div>
     </main>
+    <div v-if="movementItem" class="modal-overlay" @click.self="movementItem = null">
+      <div class="modal-box" style="max-width:850px">
+        <div class="modal-header-custom"><h6>{{ $t("warehouse.history") }} - {{ movementItem.name }}</h6><button class="btn" @click="movementItem = null">X</button></div>
+        <div class="table-responsive"><table class="table table-sm"><thead><tr><th>{{ $t("warehouse.time") }}</th><th>{{ $t("warehouse.movementType") }}</th><th>Qty delta</th><th>Reserved delta</th><th>{{ $t("warehouse.project") }}</th><th>{{ $t("warehouse.reason") }}</th></tr></thead>
+          <tbody><tr v-for="m in movements" :key="m._id"><td>{{ formatDate(m.createdAt || m.timestamp) }}</td><td>{{ m.type }}</td><td>{{ m.qtyDelta }}</td><td>{{ m.reservedDelta }}</td><td>{{ m.projectRn || m.project?.rn || m.projectName || '-' }}</td><td>{{ m.reason || '-' }}</td></tr></tbody></table></div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -162,6 +174,7 @@
 import SidebarNav from "./SidebarNav.vue";
 import api from "../api";
 import { exportWarehousePdf, printWarehouseList } from "../utils/pdf";
+import { availableQty } from "../utils/domain";
 
 export default {
   name: "WarehousePage",
@@ -182,6 +195,8 @@ export default {
       showFilterDropdown: false,
       showSortDropdown: false,
       items: [],
+      movementItem: null,
+      movements: [],
     };
   },
   watch: {
@@ -266,18 +281,29 @@ export default {
       this.items = data.map(i => ({ ...i, id: i._id }));
     },
     async incrementQty(item) {
-      item.qty++;
-      await api.put(`/warehouse/${item.id}`, { qty: item.qty });
+      await this.adjustQty(item, 1);
     },
     async decrementQty(item) {
-      if (item.qty > 0) {
-        item.qty--;
-        await api.put(`/warehouse/${item.id}`, { qty: item.qty });
-      }
+      if (availableQty(item) <= 0) return;
+      await this.adjustQty(item, -1);
     },
-    async deleteItem(id) {
-      await api.delete(`/warehouse/${id}`);
-      this.items = this.items.filter((i) => i.id !== id);
+    availableQty,
+    async adjustQty(item, delta) {
+      const { data } = await api.post(`/warehouse/${item.id}/adjust`, { delta, reason: "Manual adjustment" });
+      Object.assign(item, data.item || data);
+    },
+    async openMovements(item) {
+      this.movementItem = item;
+      const { data } = await api.get(`/warehouse/${item.id}/movements`);
+      this.movements = data.movements || data;
+    },
+    formatDate(value) {
+      return value ? new Date(value).toLocaleString() : "–";
+    },
+    async deleteItem(item) {
+      if (Number(item.reservedQty) > 0) return;
+      await api.delete(`/warehouse/${item.id}`);
+      this.items = this.items.filter((i) => i.id !== item.id);
     },
     setFilter(type) {
       this.activeFilter = this.activeFilter === type && type !== "" ? "" : type;

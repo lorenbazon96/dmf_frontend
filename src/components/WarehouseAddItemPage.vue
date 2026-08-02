@@ -42,13 +42,6 @@
                   <path fill-rule="evenodd" d="M15 8a.5.5 0 00-.5-.5H2.707l3.147-3.146a.5.5 0 10-.708-.708l-4 4a.5.5 0 000 .708l4 4a.5.5 0 00.708-.708L2.707 8.5H14.5A.5.5 0 0015 8" />
                 </svg>
               </button>
-              <button class="btn btn-action">
-                <span>{{ $t("warehouseAdd.print") }}</span>
-                <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">
-                  <path d="M2.5 8a.5.5 0 100-1 .5.5 0 000 1" />
-                  <path d="M5 1a2 2 0 00-2 2v2H2a2 2 0 00-2 2v3a2 2 0 002 2h1v1a2 2 0 002 2h6a2 2 0 002-2v-1h1a2 2 0 002-2V7a2 2 0 00-2-2h-1V3a2 2 0 00-2-2zM4 3a1 1 0 011-1h6a1 1 0 011 1v2H4zm1 10a1 1 0 01-1-1V9h8v3a1 1 0 01-1 1z" />
-                </svg>
-              </button>
               <button class="btn btn-action" @click="$emit('home')">
                 <span>{{ $t("warehouseAdd.goBackToHome") }}</span>
                 <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" opacity="0.8">

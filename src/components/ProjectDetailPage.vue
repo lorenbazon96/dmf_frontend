@@ -113,7 +113,7 @@
                 </svg>
               </button>
               <button
-                v-if="!projectData.startedAt"
+                v-if="projectActions(projectData.status).start"
                 class="btn btn-action btn-action-start"
                 @click="startProject"
               >
@@ -369,19 +369,22 @@
                       <td class="text-end">
                         <div class="d-flex gap-1 justify-content-end">
                           <button
-                            v-if="
-                              p.status !== 'completed' && projectData.startedAt
-                            "
+                            v-if="taskActions(p.status, projectData.status).complete"
                             class="btn btn-sm btn-complete"
                             :disabled="!canCompleteTask(p)"
                             :title="!canCompleteTask(p) ? $t('project.prerequisiteNotDone') : ''"
-                            @click="canCompleteTask(p) && openCompleteModal(p)"
+                            @click="canCompleteTask(p) && runTaskAction(p, 'complete')"
                           >
                             ✓
                           </button>
+                          <button v-if="taskActions(p.status, projectData.status).start" class="btn btn-sm btn-primary-action" @click="runTaskAction(p, 'start')">Start</button>
+                          <button v-if="taskActions(p.status, projectData.status).pause" class="btn btn-sm btn-secondary" @click="runTaskAction(p, 'pause')">Pause</button>
+                          <button v-if="taskActions(p.status, projectData.status).resume" class="btn btn-sm btn-primary-action" @click="runTaskAction(p, 'resume')">Resume</button>
                           <button
-                            v-if="p.status !== 'completed'"
+                            v-if="p.status === 'pending'"
                             class="btn btn-sm btn-remove-worker"
+                            :disabled="productionPlan.length <= 1"
+                            :title="productionPlan.length <= 1 ? $t('project.lastWorkerRequired') : ''"
                             @click="removeWorker(p.drawingIdx, p.workerIdx)"
                           >
                             ✕
@@ -397,49 +400,6 @@
         </div>
       </div>
     </main>
-
-    <div
-      v-if="showCompleteModal"
-      class="modal-overlay"
-      @click.self="showCompleteModal = false"
-    >
-      <div class="modal-box" style="max-width: 400px">
-        <div class="modal-header-custom">
-          <h6 class="mb-0 fw-bold">{{ $t("project.completeTask") }}</h6>
-          <button class="btn btn-sm p-0" @click="showCompleteModal = false">
-            ✕
-          </button>
-        </div>
-        <div class="modal-body-custom">
-          <p style="font-size: 0.85rem">
-            <strong>{{ completeTarget.worksOn }}</strong> –
-            {{ completeTarget.operation }}
-          </p>
-          <label class="form-label-sm"
-            >{{ $t("project.actualFinishTime") }}:</label
-          >
-          <input
-            v-model="completeDateTime"
-            type="datetime-local"
-            class="form-control form-control-sm"
-          />
-        </div>
-        <div class="modal-footer-custom">
-          <button
-            class="btn btn-sm btn-secondary"
-            @click="showCompleteModal = false"
-          >
-            {{ $t("project.cancel") }}
-          </button>
-          <button
-            class="btn btn-sm btn-primary-action"
-            @click="confirmComplete"
-          >
-            {{ $t("project.confirmComplete") }}
-          </button>
-        </div>
-      </div>
-    </div>
 
     <Transition name="modal-fade">
       <div
@@ -483,6 +443,7 @@ import { exportProjectDetailPdf, printProjectDetail } from "../utils/pdf";
 import { calcTimePerOperation } from "../utils/calculations";
 import { addWorkingMinutes, getWorkingMinutesBetween } from "../utils/workingTime";
 import api from "../api";
+import { projectActions, taskActions } from "../utils/domain";
 
 export default {
   name: "ProjectDetailPage",
@@ -510,9 +471,6 @@ export default {
   data() {
     return {
       showDeleteModal: false,
-      showCompleteModal: false,
-      completeTarget: {},
-      completeDateTime: "",
       projectData: { ...this.project },
       clientData: null,
       now: Date.now(),
@@ -611,12 +569,14 @@ export default {
           const phaseStart = this.opPhaseTotals[op] || 0;
           const withinOpOffset = opCumulativeOffset[op] || 0;
           plan.push({
+            taskId: aw._id,
             drawingNo: dr.drawingNo,
             operation: aw.operation,
             worksOn: aw.workerName,
             status: aw.status || "pending",
             workerId: aw.workerId,
             estimatedMinutes: aw.estimatedMinutes || 0,
+            actualMinutes: aw.actualMinutes || 0,
             completedAt: aw.completedAt,
             drawingIdx: dIdx,
             workerIdx: wIdx,
@@ -744,6 +704,8 @@ export default {
     },
   },
   methods: {
+    projectActions,
+    taskActions,
     recalcMissingEstimates() {
       const drawings = this.projectData.drawings;
       if (!drawings) return;
@@ -917,10 +879,9 @@ export default {
         console.error("Failed to resume project:", err);
       }
     },
-    toLocalDateTimeString(date) {
-      const d = new Date(date);
-      const pad = (n) => String(n).padStart(2, "0");
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    async runTaskAction(task, action) {
+      await api.put(`/projects/${this.projectData._id}/tasks/${task.taskId}/${action}`);
+      await this.refreshProject();
     },
     canCompleteTask(task) {
       const phases = this.operationPhases;
@@ -941,66 +902,8 @@ export default {
       }
       return true;
     },
-    openCompleteModal(task) {
-      this.completeTarget = task;
-      if (this.projectData.startedAt && task.estimatedMinutes) {
-        const adjustedStart = new Date(new Date(this.projectData.startedAt).getTime() + this.totalPausedMinutes * 60000);
-        const suggested = addWorkingMinutes(adjustedStart, (task.startOffset || 0) + task.estimatedMinutes, this.companySchedule);
-        const capped = new Date(Math.min(suggested.getTime(), Date.now()));
-        this.completeDateTime = this.toLocalDateTimeString(capped);
-      } else {
-        this.completeDateTime = this.toLocalDateTimeString(new Date());
-      }
-      this.showCompleteModal = true;
-    },
-    async confirmComplete() {
-      const t = this.completeTarget;
-      const estMinutes = t.estimatedMinutes || 0;
-      try {
-        const { data } = await api.put(
-          "/projects/" + this.projectData._id + "/complete-task",
-          {
-            drawingIndex: t.drawingIdx,
-            workerIndex: t.workerIdx,
-            completedAt: this.completeDateTime,
-          },
-        );
-        this.projectData = data;
-        this.recalcMissingEstimates();
-
-        if (t.workerId && this.projectData.startedAt && estMinutes > 0) {
-          const taskStartMs =
-            new Date(this.projectData.startedAt).getTime() +
-            (t.startOffset || 0) * 60000;
-          const actualMinutes =
-            (new Date(this.completeDateTime).getTime() - taskStartMs) / 60000;
-          const ratio = Math.min(
-            100,
-            Math.round((estMinutes / Math.max(actualMinutes, 1)) * 100),
-          );
-          const opKeyMap = {
-            "Rezanje cijevi": "pipeCutting",
-            "Rezanje lima": "sheetCutting",
-            Bušenje: "drilling",
-            Zavarivanje: "welding",
-            Brušenje: "grinding",
-            Savijanje: "bending",
-            Montaža: "assembly",
-          };
-          const opKey = opKeyMap[t.operation];
-          if (opKey) {
-            await api.put("/workers/" + t.workerId + "/rating", {
-              operation: opKey,
-              rating: ratio,
-            });
-          }
-        }
-      } catch (err) {
-        console.error("Failed to complete task:", err);
-      }
-      this.showCompleteModal = false;
-    },
     async removeWorker(drawingIdx, workerIdx) {
+      if (this.productionPlan.length <= 1) return;
       try {
         const { data } = await api.put(
           "/projects/" + this.projectData._id + "/remove-worker",

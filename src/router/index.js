@@ -5,6 +5,7 @@ const views = [
   "login", "forgot-password", "reset-password", "dashboard", "project", "drawing",
   "create-project", "analytics", "workers-clients", "worker-detail", "client-detail",
   "warehouse", "warehouse-add-item", "production-history", "history-project", "profile-edit",
+  "my-tasks",
 ];
 
 const routes = views.map(name => ({

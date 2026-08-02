@@ -2,6 +2,7 @@ import { createI18n } from "vue-i18n";
 
 const messages = {
   hr: {
+    myTasks: { title: "Moji zadaci", guest: "Moji zadaci nisu dostupni u gostujućem načinu.", unlinked: "Vaš email nije povezan s emailom radnika. Zamolite administratora da ih uskladi." },
     login: {
       title: "Prijava",
       subtitle: "Prijavite se na svoj račun",
@@ -355,6 +356,13 @@ const messages = {
       itemSaved: "Stavka spremljena",
     },
     warehouse: {
+      reserved: "Rezervirano",
+      available: "Dostupno",
+      history: "Povijest",
+      time: "Vrijeme",
+      movementType: "Tip",
+      project: "Projekt",
+      reason: "Razlog",
       title: "Skladište",
       totalItems: "Ukupno stavki",
       totalPcs: "Ukupno komada",
@@ -414,6 +422,7 @@ const messages = {
     },
   },
   en: {
+    myTasks: { title: "My tasks", guest: "My tasks are unavailable in guest mode.", unlinked: "Your email is not linked to a Worker email. Ask an administrator to match them." },
     login: {
       title: "Login",
       subtitle: "Sign in to your account",

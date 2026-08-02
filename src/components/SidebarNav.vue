@@ -242,10 +242,15 @@
           </button>
           <button
             class="btn btn-sm edit-modal-btn edit-modal-btn-delete"
-            @click="deleteCompany"
+            @click="requestDeleteCompany"
           >
             {{ $t("dashboard.deleteCompany") }}
           </button>
+          <div v-if="confirmingDelete" class="alert alert-danger mt-2 small">
+            {{ $t("dashboard.hardDeleteWarning") }}
+            <input v-model="deleteConfirmName" class="form-control form-control-sm mt-2" :placeholder="companies[editingCompany]" />
+            <button class="btn btn-sm btn-danger mt-2" :disabled="deleteConfirmName !== companies[editingCompany]" @click="deleteCompany">{{ $t("dashboard.confirmDelete") }}</button>
+          </div>
           <button
             class="btn btn-sm edit-modal-btn edit-modal-btn-cancel"
             @click="closeEditModal"
@@ -292,6 +297,8 @@ export default {
       showEditModal: false,
       editingCompany: null,
       editCompanyName: "",
+      confirmingDelete: false,
+      deleteConfirmName: "",
       editWorkStart: "07:00",
       editWorkEnd: "15:00",
       editWorkDays: [1, 2, 3, 4, 5],
@@ -383,11 +390,16 @@ export default {
       this.$emit("update-companies");
       this.closeEditModal();
     },
+    requestDeleteCompany() {
+      this.confirmingDelete = true;
+      this.deleteConfirmName = "";
+    },
     async deleteCompany() {
       const oldName = this.companies[this.editingCompany];
+      if (this.deleteConfirmName !== oldName) return;
       const co = this.companyObjects.find(o => o.name === oldName);
       if (co?._id) {
-        await api.delete(`/companies/${co._id}`);
+        await api.delete(`/companies/${co._id}`, { data: { confirmName: this.deleteConfirmName } });
       }
       this.$emit("update-companies");
       this.closeEditModal();
@@ -396,6 +408,8 @@ export default {
       this.showEditModal = false;
       this.editingCompany = null;
       this.editCompanyName = "";
+      this.confirmingDelete = false;
+      this.deleteConfirmName = "";
       if (this._escHandler) {
         document.removeEventListener("keydown", this._escHandler);
         this._escHandler = null;

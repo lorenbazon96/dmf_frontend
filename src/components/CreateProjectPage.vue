@@ -1275,13 +1275,13 @@
                   </td>
                   <td class="fw-semibold">{{ m.type }} – {{ m.name }}</td>
                   <td class="text-muted">{{ m.specs }}</td>
-                  <td>{{ m.qty }}</td>
+                  <td>{{ availableQty(m) }}</td>
                   <td>
                     <input
                       type="number"
                       class="form-control form-control-sm"
                       min="1"
-                      :max="m.qty"
+                      :max="availableQty(m)"
                       :value="getMaterialQty(m.id)"
                       @input="setMaterialQty(m.id, $event.target.value)"
                       style="width: 80px"
@@ -1500,6 +1500,7 @@
 <script>
 import SidebarNav from "./SidebarNav.vue";
 import api from "../api";
+import { availableQty, materialPayload } from "../utils/domain";
 import {
   calcTotalTime,
   calcTimePerOperation,
@@ -1693,6 +1694,7 @@ export default {
     },
   },
   methods: {
+    availableQty,
     async fetchData() {
       const params = this.selectedCompany
         ? { company: this.selectedCompany }
@@ -1718,6 +1720,7 @@ export default {
         name: i.name,
         specs: i.specs,
         qty: i.qty,
+        reservedQty: i.reservedQty || 0,
         company: i.company,
       }));
     },
@@ -2081,6 +2084,7 @@ export default {
         isAssemblyDrawing: this.form.isAssemblyDrawing,
         treatments: this.form.isAssemblyDrawing ? [] : this.treatmentSections,
         assignedWorkers: this.assignedWorkers.map((aw) => ({
+          ...(aw.taskId ? { _id: aw.taskId } : {}),
           workerName: aw.name,
           workerId: aw.id || "",
           operation: aw.operation,
@@ -2088,24 +2092,8 @@ export default {
           type: aw.type,
           estimatedMinutes: aw.estimatedMinutes || 0,
         })),
-        assignedMaterials: this.assignedMaterials.map((am) => ({
-          name: am.name,
-          specs: am.specs,
-          useQty: am.useQty,
-        })),
+        assignedMaterials: this.assignedMaterials.map(materialPayload),
       };
-    },
-
-    async deductMaterials() {
-      for (const am of this.assignedMaterials) {
-        if (!am.id) continue;
-        const item = this.allWarehouseItems.find((i) => i.id === am.id);
-        if (item) {
-          const newQty = Math.max(0, item.qty - am.useQty);
-          await api.put(`/warehouse/${am.id}`, { qty: newQty });
-          item.qty = newQty;
-        }
-      }
     },
 
     async saveDrawingToProject(drawing) {
@@ -2190,6 +2178,14 @@ export default {
       }
       if (!this.form.name.trim()) errors.name = req;
       if (!this.form.client) errors.client = req;
+      const hasWorkerInOtherDrawing = (this.editProject?.drawings || []).some(
+        (drawing, index) => index !== this.editingDrawingIndex && (drawing.assignedWorkers || []).length,
+      );
+      if (!this.assignedWorkers.length && !hasWorkerInOtherDrawing) {
+        errors.workers = this.$t("createProject.workerRequired");
+        this.errorMessage = errors.workers;
+        this.showErrorModal = true;
+      }
 
       if (this.part.weight !== "" && !this.isNumeric(this.part.weight))
         errors.weight = num;
@@ -2232,7 +2228,6 @@ export default {
       this.saving = true;
       try {
         const drawing = await this.buildDrawingPayload();
-        await this.deductMaterials();
         await this.saveDrawingToProject(drawing);
 
         this.editingDrawingIndex = -1;
@@ -2252,7 +2247,6 @@ export default {
       this.saving = true;
       try {
         const drawing = await this.buildDrawingPayload();
-        await this.deductMaterials();
         await this.saveDrawingToProject(drawing);
 
         this.showSuccessModal = true;
@@ -2313,6 +2307,7 @@ export default {
       }
 
       this.assignedWorkers = (drawing.assignedWorkers || []).map((aw) => ({
+        taskId: aw._id || "",
         id: aw.workerId || "",
         name: aw.workerName || "",
         operation: aw.operation || "",
@@ -2323,7 +2318,7 @@ export default {
       }));
 
       this.assignedMaterials = (drawing.assignedMaterials || []).map((am) => ({
-        id: am._id || "",
+        id: am.warehouseItemId?._id || am.warehouseItemId || "",
         name: am.name || "",
         specs: am.specs || "",
         useQty: am.useQty || 1,

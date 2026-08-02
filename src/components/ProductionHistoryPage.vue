@@ -13,6 +13,7 @@
 
     <main class="main-content flex-grow-1">
       <div class="content-wrap p-3 p-lg-4">
+        <div v-if="duplicateError" class="alert alert-danger">{{ duplicateError }}</div>
         <div class="row g-3 g-lg-4 align-items-start">
           <div class="col-lg-3 col-md-4 col-12">
             <div class="d-flex flex-column gap-3">
@@ -180,6 +181,7 @@ export default {
       showFilterDropdown: false,
       showSortDropdown: false,
       completedProjects: [],
+      duplicateError: "",
     };
   },
   computed: {
@@ -357,6 +359,7 @@ export default {
           if (copy.assignedMaterials) {
             copy.assignedMaterials = copy.assignedMaterials.map((m) => {
               const mc = { ...m };
+              mc.warehouseItemId = m.warehouseItemId?._id || m.warehouseItemId || null;
               delete mc._id;
               return mc;
             });
@@ -381,7 +384,7 @@ export default {
         await api.post("/projects", payload);
         this.$emit("duplicate-project");
       } catch (err) {
-        console.error("Failed to duplicate project", err);
+        this.duplicateError = err.response?.data?.error || err.message;
       }
     },
   },
