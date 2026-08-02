@@ -1,4 +1,8 @@
 <template>
+  <div v-if="globalError" class="global-toast alert alert-danger" role="alert" aria-live="assertive">
+    <span>{{ globalError }}</span>
+    <button type="button" class="btn-close" aria-label="Zatvori" @click="globalError = ''"></button>
+  </div>
   <LoginPage v-if="currentView === 'login'" @login="handleLogin" @guest="handleGuest" @forgot-password="currentView = 'forgot-password'" />
   <ForgotPasswordPage v-else-if="currentView === 'forgot-password'" @back="currentView = 'login'" />
   <ResetPasswordPage v-else-if="currentView === 'reset-password'" @back="currentView = 'login'" />
@@ -193,22 +197,24 @@
 </template>
 
 <script>
+import { defineAsyncComponent } from 'vue'
 import LoginPage from './components/LoginPage.vue'
 import ForgotPasswordPage from './components/ForgotPasswordPage.vue'
 import ResetPasswordPage from './components/ResetPasswordPage.vue'
-import DashboardPage from './components/DashboardPage.vue'
-import ProjectDetailPage from './components/ProjectDetailPage.vue'
-import DrawingDetailPage from './components/DrawingDetailPage.vue'
-import CreateProjectPage from './components/CreateProjectPage.vue'
-import AnalyticsPage from './components/AnalyticsPage.vue'
-import WorkersClientsPage from './components/WorkersClientsPage.vue'
-import WorkerDetailPage from './components/WorkerDetailPage.vue'
-import ClientDetailPage from './components/ClientDetailPage.vue'
-import WarehousePage from './components/WarehousePage.vue'
-import WarehouseAddItemPage from './components/WarehouseAddItemPage.vue'
-import ProductionHistoryPage from './components/ProductionHistoryPage.vue'
-import ProfileEditPage from './components/ProfileEditPage.vue'
-import api from './api'
+import api, { clearStoredAuth } from './api'
+
+const DashboardPage = defineAsyncComponent(() => import('./components/DashboardPage.vue'))
+const ProjectDetailPage = defineAsyncComponent(() => import('./components/ProjectDetailPage.vue'))
+const DrawingDetailPage = defineAsyncComponent(() => import('./components/DrawingDetailPage.vue'))
+const CreateProjectPage = defineAsyncComponent(() => import('./components/CreateProjectPage.vue'))
+const AnalyticsPage = defineAsyncComponent(() => import('./components/AnalyticsPage.vue'))
+const WorkersClientsPage = defineAsyncComponent(() => import('./components/WorkersClientsPage.vue'))
+const WorkerDetailPage = defineAsyncComponent(() => import('./components/WorkerDetailPage.vue'))
+const ClientDetailPage = defineAsyncComponent(() => import('./components/ClientDetailPage.vue'))
+const WarehousePage = defineAsyncComponent(() => import('./components/WarehousePage.vue'))
+const WarehouseAddItemPage = defineAsyncComponent(() => import('./components/WarehouseAddItemPage.vue'))
+const ProductionHistoryPage = defineAsyncComponent(() => import('./components/ProductionHistoryPage.vue'))
+const ProfileEditPage = defineAsyncComponent(() => import('./components/ProfileEditPage.vue'))
 
 export default {
   name: 'App',
@@ -229,6 +235,8 @@ export default {
       selectedCompany: '',
       loggedInUser: null,
       isGuest: false,
+      globalError: '',
+      errorTimer: null,
     }
   },
   provide() {
@@ -256,27 +264,57 @@ export default {
     } else {
       this.clearStoredAuth()
     }
-    const hash = window.location.hash
-    if (hash.startsWith('#reset-password')) {
+    if (this.$route.name === 'reset-password') {
       this.currentView = 'reset-password'
-    } else if (this.loggedInUser) {
+    } else if (this.$route.name && (this.loggedInUser || this.$route.meta.public)) {
+      this.currentView = this.$route.name
+    }
+    if (this.loggedInUser && this.currentView !== 'reset-password') {
       await this.fetchCompanies()
     }
+    window.addEventListener('dmf:session-expired', this.onSessionExpired)
+    window.addEventListener('dmf:api-error', this.onApiError)
+  },
+  beforeUnmount() {
+    window.removeEventListener('dmf:session-expired', this.onSessionExpired)
+    window.removeEventListener('dmf:api-error', this.onApiError)
+    clearTimeout(this.errorTimer)
+  },
+  watch: {
+    currentView(view) {
+      if (this.$route.name !== view) this.$router.push({ name: view })
+    },
+    '$route.name'(view) {
+      if (view && view !== this.currentView) this.currentView = view
+    },
   },
   methods: {
+    showError(message) {
+      this.globalError = message
+      clearTimeout(this.errorTimer)
+      this.errorTimer = setTimeout(() => { this.globalError = '' }, 6000)
+    },
+    onApiError(event) {
+      this.showError(event.detail?.userMessage || 'Dogodila se pogreška.')
+    },
+    onSessionExpired() {
+      if (!this.loggedInUser && this.currentView === 'login') return
+      this.loggedInUser = null
+      this.isGuest = false
+      this.currentView = 'login'
+      this.showError('Sesija je istekla. Prijavite se ponovno.')
+    },
     companyScheduleFor(companyName) {
       return this.companyObjects.find(c => c.name === companyName) || this.selectedCompanyObject;
     },
     clearStoredAuth() {
-      localStorage.removeItem('dmf_user')
-      localStorage.removeItem('dmf_token')
-      sessionStorage.removeItem('dmf_user')
-      sessionStorage.removeItem('dmf_token')
+      clearStoredAuth()
     },
     handleGuest() {
       this.clearStoredAuth()
       this.loggedInUser = { fullName: 'Guest', email: '' }
       this.isGuest = true
+      sessionStorage.setItem('dmf_guest', '1')
       if (!this.companies.length) {
         this.companies = ['Demo Factory']
         this.selectedCompany = 'Demo Factory'
@@ -370,6 +408,7 @@ export default {
 </script>
 
 <style>
+.global-toast { position: fixed; z-index: 2000; top: 1rem; left: 50%; transform: translateX(-50%); min-width: min(90vw, 360px); display: flex; justify-content: space-between; gap: 1rem; box-shadow: 0 4px 18px rgba(0,0,0,.2); }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body, #app {
   height: 100vh;

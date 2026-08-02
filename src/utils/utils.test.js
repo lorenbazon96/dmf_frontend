@@ -1,0 +1,19 @@
+import { describe, expect, it } from "vitest";
+import { calcPipeCutting, calcTotalTime, formatTime } from "./calculations";
+import { addWorkingMinutes, getWorkingMinutesBetween } from "./workingTime";
+
+describe("production calculations", () => {
+  it("returns deterministic operation and total values", () => {
+    expect(calcPipeCutting({ qty: 2, cuts: 3, thickness: 3, length: 1 })).toBeCloseTo(7.8);
+    expect(calcTotalTime({ pipeCutting: { qty: 2, cuts: 3, thickness: 3, m: 1 } })).toBeCloseTo(7.8);
+    expect(formatTime(90)).toBe("1h 30min");
+  });
+});
+
+describe("working time", () => {
+  const schedule = { workStart: "07:00", workEnd: "15:00", breaks: [{ from: "11:00", to: "11:30" }], workDays: [1,2,3,4,5] };
+  it("excludes breaks and weekends", () => {
+    expect(getWorkingMinutesBetween(new Date(2026, 7, 3, 10), new Date(2026, 7, 3, 12), schedule)).toBe(90);
+    expect(addWorkingMinutes(new Date(2026, 7, 7, 14), 120, schedule)).toEqual(new Date(2026, 7, 10, 8));
+  });
+});

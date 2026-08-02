@@ -148,9 +148,7 @@ export default {
   },
   computed: {
     token() {
-      const hash = window.location.hash;
-      const match = hash.match(/token=([^&]+)/);
-      return match ? match[1] : "";
+      return this.$route.query.token || "";
     },
   },
   methods: {
@@ -166,7 +164,7 @@ export default {
           password: this.password,
         });
         this.success = true;
-        window.location.hash = "";
+        this.$router.replace({ name: "login" });
       } catch (err) {
         this.error = err.response?.data?.error || "Greška";
       }
