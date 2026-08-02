@@ -328,7 +328,8 @@
                       <td class="fw-semibold text-dark">{{ p.drawingNo }}</td>
                       <td>{{ p.operation }}</td>
                       <td class="d-none d-sm-table-cell text-muted">
-                        {{ p.worksOn }}
+                        <div>{{ p.worksOn }}</div>
+                        <span :class="'badge-' + p.status">{{ taskStatusLabel(p.status) }}</span>
                       </td>
                       <td>
                         <div class="d-flex align-items-center gap-2">
@@ -375,11 +376,10 @@
                             :title="!canCompleteTask(p) ? $t('project.prerequisiteNotDone') : ''"
                             @click="canCompleteTask(p) && runTaskAction(p, 'complete')"
                           >
-                            ✓
+                            {{ $t("project.completeTask") }}
                           </button>
-                          <button v-if="taskActions(p.status, projectData.status).start" class="btn btn-sm btn-primary-action" @click="runTaskAction(p, 'start')">Start</button>
-                          <button v-if="taskActions(p.status, projectData.status).pause" class="btn btn-sm btn-secondary" @click="runTaskAction(p, 'pause')">Pause</button>
-                          <button v-if="taskActions(p.status, projectData.status).resume" class="btn btn-sm btn-primary-action" @click="runTaskAction(p, 'resume')">Resume</button>
+                          <button v-if="taskActions(p.status, projectData.status).pause" class="btn btn-sm btn-secondary" @click="runTaskAction(p, 'pause')">{{ $t("project.pauseTask") }}</button>
+                          <button v-if="taskActions(p.status, projectData.status).resume" class="btn btn-sm btn-primary-action" @click="runTaskAction(p, 'resume')">{{ $t("project.resumeTask") }}</button>
                           <button
                             v-if="p.status === 'pending'"
                             class="btn btn-sm btn-remove-worker"
@@ -577,6 +577,9 @@ export default {
             workerId: aw.workerId,
             estimatedMinutes: aw.estimatedMinutes || 0,
             actualMinutes: aw.actualMinutes || 0,
+            startedAt: aw.startedAt,
+            pausedAt: aw.pausedAt,
+            totalPausedMs: aw.totalPausedMs || 0,
             completedAt: aw.completedAt,
             drawingIdx: dIdx,
             workerIdx: wIdx,
@@ -774,17 +777,21 @@ export default {
       if (h > 0) return `${h}h ${m}min`;
       return `${m}min`;
     },
+    taskStatusLabel(status) {
+      return this.$t(`project.taskStatus.${status}`);
+    },
     getTaskProgress(task) {
       if (task.status === "completed") return 100;
-      if (!this.projectData.startedAt || !task.estimatedMinutes) return 0;
-      const taskElapsed = this.effectiveElapsedMinutes - (task.startOffset || 0);
-      if (taskElapsed <= 0) return 0;
+      if (!task.startedAt || !task.estimatedMinutes) return 0;
+      const end = task.pausedAt ? new Date(task.pausedAt).getTime() : this.now;
+      const taskElapsed = Math.max(0, (end - new Date(task.startedAt).getTime() - (task.totalPausedMs || 0)) / 60000);
       return Math.min(
         100,
         Math.round((taskElapsed / task.estimatedMinutes) * 100),
       );
     },
     getTaskEstimatedEndDate(task) {
+      if (task.status === "pending") return this.$t("project.queued");
       const start = this.projectData.startedAt || this.projectData.createdAt;
       if (!start || !task.estimatedMinutes) return "–";
       const adjustedStart = new Date(new Date(start).getTime() + this.totalPausedMinutes * 60000);

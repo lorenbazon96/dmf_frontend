@@ -19,13 +19,11 @@
     @workers-clients="currentView = 'workers-clients'"
     @warehouse="currentView = 'warehouse'"
     @production-history="currentView = 'production-history'"
-    @my-tasks="currentView = 'my-tasks'"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
     @add-company="addCompany"
     @update-companies="updateCompanies"
   />
-  <MyTasksPage v-else-if="currentView === 'my-tasks'" :companies="companies" :selected-company="selectedCompany" :user-name="displayUserName" @back="currentView = 'dashboard'" @logout="handleLogout" @select-company="selectCompany" />
   <ProjectDetailPage
     v-else-if="currentView === 'project'"
     :project="selectedProject"
@@ -217,11 +215,10 @@ const WarehousePage = defineAsyncComponent(() => import('./components/WarehouseP
 const WarehouseAddItemPage = defineAsyncComponent(() => import('./components/WarehouseAddItemPage.vue'))
 const ProductionHistoryPage = defineAsyncComponent(() => import('./components/ProductionHistoryPage.vue'))
 const ProfileEditPage = defineAsyncComponent(() => import('./components/ProfileEditPage.vue'))
-const MyTasksPage = defineAsyncComponent(() => import('./components/MyTasksPage.vue'))
 
 export default {
   name: 'App',
-  components: { LoginPage, ForgotPasswordPage, ResetPasswordPage, DashboardPage, MyTasksPage, ProjectDetailPage, DrawingDetailPage, CreateProjectPage, AnalyticsPage, WorkersClientsPage, WorkerDetailPage, ClientDetailPage, WarehousePage, WarehouseAddItemPage, ProductionHistoryPage, ProfileEditPage },
+  components: { LoginPage, ForgotPasswordPage, ResetPasswordPage, DashboardPage, ProjectDetailPage, DrawingDetailPage, CreateProjectPage, AnalyticsPage, WorkersClientsPage, WorkerDetailPage, ClientDetailPage, WarehousePage, WarehouseAddItemPage, ProductionHistoryPage, ProfileEditPage },
   data() {
     return {
       currentView: 'login',

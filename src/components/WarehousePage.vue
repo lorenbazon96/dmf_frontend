@@ -160,11 +160,29 @@
         </div>
       </div>
     </main>
-    <div v-if="movementItem" class="modal-overlay" @click.self="movementItem = null">
-      <div class="modal-box" style="max-width:850px">
-        <div class="modal-header-custom"><h6>{{ $t("warehouse.history") }} - {{ movementItem.name }}</h6><button class="btn" @click="movementItem = null">X</button></div>
-        <div class="table-responsive"><table class="table table-sm"><thead><tr><th>{{ $t("warehouse.time") }}</th><th>{{ $t("warehouse.movementType") }}</th><th>Qty delta</th><th>Reserved delta</th><th>{{ $t("warehouse.project") }}</th><th>{{ $t("warehouse.reason") }}</th></tr></thead>
-          <tbody><tr v-for="m in movements" :key="m._id"><td>{{ formatDate(m.createdAt || m.timestamp) }}</td><td>{{ m.type }}</td><td>{{ m.qtyDelta }}</td><td>{{ m.reservedDelta }}</td><td>{{ m.projectRn || m.project?.rn || m.projectName || '-' }}</td><td>{{ m.reason || '-' }}</td></tr></tbody></table></div>
+    <div v-if="movementItem" class="modal-overlay" @click.self="closeMovements">
+      <div class="modal-box movement-modal" role="dialog" aria-modal="true" :aria-label="$t('warehouse.inventoryHistory')">
+        <div class="modal-header-custom">
+          <div>
+            <h6 class="modal-title">{{ $t("warehouse.inventoryHistory") }}</h6>
+            <div class="modal-subtitle">{{ movementItem.name }}<span v-if="movementItem.specs"> · {{ movementItem.specs }}</span></div>
+          </div>
+          <button class="btn-close-custom" type="button" :aria-label="$t('warehouse.close')" @click="closeMovements">&times;</button>
+        </div>
+        <div class="modal-body-custom">
+          <div v-if="movementsLoading" class="history-state">{{ $t("warehouse.loadingHistory") }}</div>
+          <div v-else-if="movementsError" class="alert alert-danger mb-0">{{ $t("warehouse.historyLoadError") }}</div>
+          <div v-else-if="!movements.length" class="history-state">{{ $t("warehouse.noMovements") }}</div>
+          <div v-else class="table-responsive">
+            <table class="table history-table align-middle mb-0">
+              <thead class="dark-header"><tr><th>{{ $t("warehouse.time") }}</th><th>{{ $t("warehouse.movementType") }}</th><th class="text-end">{{ $t("warehouse.stockChange") }}</th><th class="text-end">{{ $t("warehouse.reservationChange") }}</th><th>{{ $t("warehouse.project") }}</th><th>{{ $t("warehouse.reason") }}</th></tr></thead>
+              <tbody><tr v-for="m in movements" :key="m._id"><td class="text-nowrap">{{ formatDate(m.createdAt || m.timestamp) }}</td><td><span class="movement-badge" :class="`movement-${m.type}`">{{ movementTypeLabel(m.type) }}</span></td><td class="text-end fw-semibold" :class="deltaClass(m.qtyDelta)">{{ formatDelta(m.qtyDelta) }}</td><td class="text-end fw-semibold" :class="deltaClass(m.reservedDelta)">{{ formatDelta(m.reservedDelta) }}</td><td>{{ m.projectRn || m.project?.rn || m.projectName || '—' }}</td><td>{{ reasonLabel(m.reason) }}</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer-custom">
+          <button class="btn btn-secondary-action" type="button" @click="closeMovements">{{ $t("warehouse.close") }}</button>
+        </div>
       </div>
     </div>
   </div>
@@ -197,6 +215,8 @@ export default {
       items: [],
       movementItem: null,
       movements: [],
+      movementsLoading: false,
+      movementsError: false,
     };
   },
   watch: {
@@ -294,11 +314,49 @@ export default {
     },
     async openMovements(item) {
       this.movementItem = item;
-      const { data } = await api.get(`/warehouse/${item.id}/movements`);
-      this.movements = data.movements || data;
+      this.movements = [];
+      this.movementsError = false;
+      this.movementsLoading = true;
+      try {
+        const { data } = await api.get(`/warehouse/${item.id}/movements`);
+        this.movements = data.movements || data;
+      } catch {
+        this.movementsError = true;
+      } finally {
+        this.movementsLoading = false;
+      }
+    },
+    closeMovements() {
+      this.movementItem = null;
+      this.movements = [];
+      this.movementsError = false;
+    },
+    movementTypeLabel(type) {
+      const key = {
+        opening: "opening",
+        "manual-adjustment": "manualAdjustment",
+        reserve: "reservation",
+        release: "reservationRelease",
+        "project-consumption": "projectConsumption",
+        "project-adjustment": "projectAdjustment",
+      }[type];
+      return key ? this.$t(`warehouse.movementTypes.${key}`) : type;
+    },
+    reasonLabel(reason) {
+      if (!reason) return "—";
+      const key = { "Initial stock": "initialStock", "Manual adjustment": "manualAdjustment" }[reason];
+      return key ? this.$t(`warehouse.reasons.${key}`) : reason;
+    },
+    formatDelta(value) {
+      const delta = Number(value) || 0;
+      return delta > 0 ? `+${delta}` : String(delta);
+    },
+    deltaClass(value) {
+      const delta = Number(value) || 0;
+      return { "delta-positive": delta > 0, "delta-negative": delta < 0, "delta-neutral": delta === 0 };
     },
     formatDate(value) {
-      return value ? new Date(value).toLocaleString() : "–";
+      return value ? new Date(value).toLocaleString(this.$i18n.locale === "hr" ? "hr-HR" : "en-GB") : "—";
     },
     async deleteItem(item) {
       if (Number(item.reservedQty) > 0) return;
@@ -545,6 +603,120 @@ export default {
   font-size: 1.2rem;
   font-weight: 700;
   opacity: 0.85;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.5);
+}
+.modal-box {
+  display: flex;
+  flex-direction: column;
+  width: 90%;
+  max-height: 85vh;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+.movement-modal {
+  max-width: 920px;
+}
+.modal-header-custom,
+.modal-footer-custom {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+}
+.modal-header-custom {
+  justify-content: space-between;
+  border-bottom: 1px solid #ddd;
+}
+.modal-footer-custom {
+  justify-content: flex-end;
+  border-top: 1px solid #ddd;
+}
+.modal-title {
+  margin: 0;
+  color: #1a1a1a;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.modal-subtitle {
+  margin-top: 0.15rem;
+  color: #666;
+  font-size: 0.78rem;
+}
+.btn-close-custom {
+  padding: 0 0.35rem;
+  border: 0;
+  background: transparent;
+  color: #666;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+.btn-close-custom:hover {
+  color: #1a1a1a;
+}
+.modal-body-custom {
+  flex: 1;
+  min-height: 150px;
+  padding: 1rem;
+  overflow-y: auto;
+}
+.history-state {
+  padding: 2.5rem 1rem;
+  color: #777;
+  text-align: center;
+}
+.history-table thead th {
+  padding: 0.55rem 0.7rem;
+}
+.movement-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: #e8eaed;
+  color: #444;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.movement-reserve,
+.movement-project-consumption {
+  background: #e3f2fd;
+  color: #1e5799;
+}
+.movement-release {
+  background: #fff3cd;
+  color: #7a5b00;
+}
+.movement-opening,
+.movement-manual-adjustment,
+.movement-project-adjustment {
+  background: #e8eaed;
+  color: #444;
+}
+.delta-positive { color: #218838 !important; }
+.delta-negative { color: #c0392b !important; }
+.delta-neutral { color: #888 !important; }
+.btn-secondary-action {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid #bbb;
+  border-radius: 6px;
+  background: #fff;
+  color: #444;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.btn-secondary-action:hover {
+  background: #e8eaed;
 }
 
 @media (max-width: 767.98px) {

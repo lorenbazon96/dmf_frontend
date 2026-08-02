@@ -7,7 +7,6 @@ export const projectActions = status => ({
 });
 
 export const taskActions = (status, projectStatus) => ({
-  start: projectStatus === "in-progress" && status === "pending",
   pause: projectStatus === "in-progress" && status === "in-progress",
   resume: projectStatus === "in-progress" && status === "paused",
   complete: projectStatus === "in-progress" && status === "in-progress",

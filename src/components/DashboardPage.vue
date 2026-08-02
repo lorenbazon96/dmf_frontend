@@ -89,9 +89,6 @@
                 <span>{{ $t("dashboard.createProject") }}</span>
                 <span class="action-icon">+</span>
               </button>
-              <button class="btn btn-action" @click="$emit('my-tasks')">
-                <span>{{ $t("myTasks.title") }}</span>
-              </button>
               <button class="btn btn-action" @click="$emit('workers-clients')">
                 <span>{{ $t("dashboard.allWorkers") }}</span>
                 <svg
@@ -227,7 +224,6 @@ export default {
     "logout",
     "view-project",
     "create-project",
-    "my-tasks",
     "analytics",
     "workers-clients",
     "warehouse",
