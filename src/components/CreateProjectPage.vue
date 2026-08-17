@@ -1599,6 +1599,12 @@ export default {
         this.loadProjectForEditing(project);
       },
     },
+    assignedMaterials: {
+      deep: true,
+      handler() {
+        this.syncCurrentDrawingMaterials();
+      },
+    },
   },
   computed: {
     isCopy() {
@@ -2120,6 +2126,12 @@ export default {
         project.client = this.form.client;
         project.responsible = this.form.responsible;
 
+        if (this.isCopy) {
+          project.drawings = [
+            ...this.draftDrawings,
+            ...project.drawings.slice(this.draftDrawings.length),
+          ];
+        }
         if (
           this.editingDrawingIndex >= 0 &&
           this.editingDrawingIndex < project.drawings.length
@@ -2128,25 +2140,22 @@ export default {
         } else {
           project.drawings.push(drawing);
         }
-        await api.put(`/projects/${this.currentProjectId}`, {
+        if (this.isCopy) project.drawings = this.linkedCopyDrawings(project.drawings);
+        const { data: saved } = await api.put(`/projects/${this.currentProjectId}`, {
           rn: project.rn,
           name: project.name,
           client: project.client,
           responsible: project.responsible,
           drawings: project.drawings,
         }, { suppressGlobalError: true });
+        if (this.isCopy) this.draftDrawings = saved.drawings || [];
       } else {
         const drawings = this.isCopy
-          ? this.draftDrawings.map((existing, index) => {
-              const copiedDrawing = index === this.editingDrawingIndex ? drawing : existing;
-              return {
-                ...copiedDrawing,
-                assignedMaterials: linkedMaterials(
-                  copiedDrawing.assignedMaterials,
-                  this.allWarehouseItems,
-                ),
-              };
-            })
+          ? this.linkedCopyDrawings(
+              this.draftDrawings.map((existing, index) =>
+                index === this.editingDrawingIndex ? drawing : existing,
+              ),
+            )
           : [drawing];
         const payload = {
           rn: this.form.rn,
@@ -2160,7 +2169,18 @@ export default {
           suppressGlobalError: true,
         });
         this.currentProjectId = created._id;
+        if (this.isCopy) this.draftDrawings = created.drawings || [];
       }
+    },
+
+    linkedCopyDrawings(drawings) {
+      return drawings.map(copiedDrawing => ({
+        ...copiedDrawing,
+        assignedMaterials: linkedMaterials(
+          copiedDrawing.assignedMaterials,
+          this.allWarehouseItems,
+        ),
+      }));
     },
 
     treatmentError(sIdx, op, field) {
@@ -2368,16 +2388,17 @@ export default {
       };
       return map[label] || "";
     },
+    syncCurrentDrawingMaterials() {
+      if (!this.isCopy || this.editingDrawingIndex < 0) return;
+      const current = this.draftDrawings[this.editingDrawingIndex];
+      if (!current) return;
+      this.draftDrawings.splice(this.editingDrawingIndex, 1, {
+        ...current,
+        assignedMaterials: this.assignedMaterials.map(materialPayload),
+      });
+    },
     selectEditDrawing(idx) {
-      if (this.isCopy && this.editingDrawingIndex >= 0) {
-        const current = this.draftDrawings[this.editingDrawingIndex];
-        if (current) {
-          this.draftDrawings[this.editingDrawingIndex] = {
-            ...current,
-            assignedMaterials: this.assignedMaterials.map(materialPayload),
-          };
-        }
-      }
+      this.syncCurrentDrawingMaterials();
       const drawings = this.isCopy
         ? this.draftDrawings
         : (this.editProject?.drawings || []);
