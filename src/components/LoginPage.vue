@@ -232,7 +232,7 @@ import api from "../api";
 
 export default {
   name: "LoginPage",
-  emits: ["guest", "forgot-password", "login"],
+  emits: ["forgot-password", "login"],
   data() {
     return {
       email: "",
@@ -248,7 +248,7 @@ export default {
         const { data } = await api.post("/auth/login", {
           email: this.email,
           password: this.password,
-        });
+        }, { suppressGlobalError: true });
         const user = data.user || {
           _id: data._id,
           email: data.email,
@@ -257,12 +257,12 @@ export default {
           companies: data.companies || [],
         };
         if (!user._id) {
-          this.error = "Login failed";
+          this.error = this.$t("apiErrors.unexpected");
           return;
         }
         this.$emit("login", { user, token: data.token || "", rememberMe: this.rememberMe });
       } catch (err) {
-        this.error = err.response?.data?.error || "Login failed";
+        this.error = err.userMessage || this.$t("apiErrors.unexpected");
       }
     },
     switchLang(lang) {
@@ -414,20 +414,6 @@ export default {
   background: linear-gradient(135deg, #1e3f73 0%, #162d54 100%);
   box-shadow: 0 4px 16px rgba(43, 87, 154, 0.4);
   transform: translateY(-1px);
-}
-
-.btn-guest {
-  border-radius: 10px;
-  font-size: 0.9rem;
-  border-color: #d1d5db;
-  color: #4a5568;
-  transition: all 0.2s;
-}
-
-.btn-guest:hover {
-  border-color: #2b579a;
-  color: #2b579a;
-  background: rgba(43, 87, 154, 0.04);
 }
 
 .form-check-input {

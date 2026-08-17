@@ -160,12 +160,12 @@
 <script>
 import SidebarNav from "./SidebarNav.vue";
 import api from "../api";
+import { localeCode } from "../utils/domain";
 import { exportHistoryPdf, printHistoryList } from "../utils/pdf";
 
 export default {
   name: "ProductionHistoryPage",
   components: { SidebarNav },
-  inject: ['isGuest'],
   props: {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
@@ -252,6 +252,9 @@ export default {
         this.fetchHistory();
       },
     },
+    "$i18n.locale"() {
+      this.fetchHistory();
+    },
   },
   mounted() {
     this._onClickOutside = (e) => {
@@ -269,7 +272,6 @@ export default {
   },
   methods: {
     async fetchHistory() {
-      if (this.isGuest()) { this.completedProjects = []; return; }
       try {
         const params = { status: "completed" };
         if (this.selectedCompany) params.company = this.selectedCompany;
@@ -288,7 +290,9 @@ export default {
             totalPausedMs: p.totalPausedMs,
             createdAt: p.createdAt,
             drawings: p.drawings || [],
-            completedOn: actualEndAt ? actualEndAt.toLocaleDateString("hr-HR") : "-",
+            completedOn: actualEndAt
+              ? actualEndAt.toLocaleDateString(localeCode(this.$i18n.locale))
+              : "-",
             completedAtMs: actualEndAt ? actualEndAt.getTime() : 0,
             progress: 100,
             color: "green",
@@ -342,7 +346,9 @@ export default {
     },
     async duplicateProject(project) {
       try {
-        const { data: original } = await api.get(`/projects/${project._id}`);
+        const { data: original } = await api.get(`/projects/${project._id}`, {
+          suppressGlobalError: true,
+        });
         const cleanDrawings = (original.drawings || []).map((d) => {
           const copy = { ...d };
           delete copy._id;
@@ -381,10 +387,9 @@ export default {
           company: original.company,
           drawings: cleanDrawings,
         };
-        await api.post("/projects", payload);
-        this.$emit("duplicate-project");
+        this.$emit("duplicate-project", { ...payload, _isCopy: true });
       } catch (err) {
-        this.duplicateError = err.response?.data?.error || err.message;
+        this.duplicateError = err.userMessage || err.message;
       }
     },
   },

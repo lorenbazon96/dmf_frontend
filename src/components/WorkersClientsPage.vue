@@ -27,7 +27,7 @@
                   />
                 </svg>
               </button>
-              <button class="btn btn-link p-0" @click="printWorkers" aria-label="Print">
+              <button class="btn btn-link p-0" @click="printWorkers" :aria-label="$t('drawing.print')">
                 <svg width="20" height="20" viewBox="0 0 16 16" fill="#444">
                   <path d="M2.5 8a.5.5 0 100-1 .5.5 0 000 1" />
                   <path d="M5 1a2 2 0 00-2 2v2H2a2 2 0 00-2 2v3a2 2 0 002 2h1v1a2 2 0 002 2h6a2 2 0 002-2v-1h1a2 2 0 002-2V7a2 2 0 00-2-2h-1V3a2 2 0 00-2-2zM4 3a1 1 0 011-1h6a1 1 0 011 1v2H4zm1 10a1 1 0 01-1-1V9h8v3a1 1 0 01-1 1z" />
@@ -159,7 +159,7 @@
                       <path d="M4.603 14.087a.8.8 0 01-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.7 7.7 0 011.482-.645 20 20 0 001.062-2.227 7.3 7.3 0 01-.43-1.295c-.086-.4-.119-.796-.046-1.136.075-.354.274-.672.65-.823.192-.077.4-.12.602-.077a.7.7 0 01.477.365c.088.164.12.356.127.538.007.188-.012.396-.047.614-.084.51-.27 1.134-.52 1.794a11 11 0 00.98 1.686 5.8 5.8 0 011.334.05c.364.066.734.195.96.465.12.144.193.32.2.518.007.192-.047.382-.138.563a1.04 1.04 0 01-.354.416.86.86 0 01-.51.138c-.331-.014-.654-.196-.933-.417a6.1 6.1 0 01-.911-.95 11.7 11.7 0 00-1.997.406 11.3 11.3 0 01-1.02 1.51c-.292.35-.609.656-.927.787a.8.8 0 01-.58.029z" />
                     </svg>
                   </button>
-                  <button class="btn btn-link p-0" @click="printClients" aria-label="Print">
+                  <button class="btn btn-link p-0" @click="printClients" :aria-label="$t('drawing.print')">
                     <svg width="20" height="20" viewBox="0 0 16 16" fill="#444">
                       <path d="M2.5 8a.5.5 0 100-1 .5.5 0 000 1" />
                       <path d="M5 1a2 2 0 00-2 2v2H2a2 2 0 00-2 2v3a2 2 0 002 2h1v1a2 2 0 002 2h6a2 2 0 002-2v-1h1a2 2 0 002-2V7a2 2 0 00-2-2h-1V3a2 2 0 00-2-2zM4 3a1 1 0 011-1h6a1 1 0 011 1v2H4zm1 10a1 1 0 01-1-1V9h8v3a1 1 0 01-1 1z" />
@@ -229,7 +229,6 @@ import { exportWorkersPdf as generateWorkersPdf, exportClientsPdf as generateCli
 export default {
   name: "WorkersClientsPage",
   components: { SidebarNav },
-  inject: ['isGuest'],
   props: {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
@@ -250,7 +249,6 @@ export default {
   },
   methods: {
     async fetchData() {
-      if (this.isGuest()) { this.workers = []; this.clients = []; return; }
       const params = this.selectedCompany ? { company: this.selectedCompany } : {};
       const [workersRes, clientsRes] = await Promise.all([
         api.get("/workers", { params }),

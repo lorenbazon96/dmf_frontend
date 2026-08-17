@@ -2,9 +2,30 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import robotoRegular from "@/assets/roboto-regular.js";
 import robotoBold from "@/assets/roboto-bold.js";
+import i18n from "../i18n";
+import { localeCode, operationLabel } from "./domain";
 const logoUrl = require("@/assets/logo-dmf.png");
 
 let logoBase64 = null;
+
+const report = key => i18n.global.t(`reports.${key}`);
+const operation = value => operationLabel(value, key => i18n.global.t(key));
+const projectStatus = value => i18n.global.t(`project.projectStatus.${value || "active"}`);
+const reportLocale = () => localeCode(
+  typeof i18n.global.locale === "string" ? i18n.global.locale : i18n.global.locale.value,
+);
+const yesNo = value => report(value ? "yes" : "no");
+const clientType = value => report(value === "person" ? "person" : "company");
+const itemType = value => {
+  const key = {
+    Lim: "sheet",
+    Cijev: "pipe",
+    Profil: "profile",
+    "Vijčani materijal": "fasteners",
+    Ostalo: "other",
+  }[value];
+  return key ? i18n.global.t(`warehouseAdd.types.${key}`) : value;
+};
 
 function loadImage(url) {
   return new Promise((resolve) => {
@@ -86,14 +107,14 @@ const tableStyles = {
 export async function exportWorkersPdf(workers, userName, companyName) {
   await initPdf();
   const doc = createDoc("l");
-  const startY = addPdfHeader(doc, "Radnici / Workers", userName, companyName);
+  const startY = addPdfHeader(doc, report("workers"), userName, companyName);
   autoTable(doc, {
     startY,
     head: [
       [
         "#",
-        "Ime i prezime",
-        "Kontakt",
+        report("fullName"),
+        report("contact"),
         "CP",
         "CS",
         "D",
@@ -101,7 +122,7 @@ export async function exportWorkersPdf(workers, userName, companyName) {
         "B",
         "W",
         "A",
-        "Ocjena",
+        report("rating"),
       ],
     ],
     body: workers.map((w, i) => [
@@ -119,21 +140,21 @@ export async function exportWorkersPdf(workers, userName, companyName) {
     ]),
     ...tableStyles,
   });
-  doc.save("radnici.pdf");
+  doc.save(`${report("fileWorkers")}.pdf`);
 }
 
 export async function exportClientsPdf(clients, userName, companyName) {
   await initPdf();
   const doc = createDoc("l");
-  const startY = addPdfHeader(doc, "Klijenti / Clients", userName, companyName);
+  const startY = addPdfHeader(doc, report("clients"), userName, companyName);
   autoTable(doc, {
     startY,
     head: [
-      ["#", "Tip", "Naziv", "Država", "Adresa", "Kontakt", "Email", "OIB"],
+      ["#", report("type"), report("name"), report("country"), report("address"), report("contact"), report("email"), report("taxId")],
     ],
     body: clients.map((c, i) => [
       i + 1,
-      c.clientType === "person" ? "Osoba" : "Firma",
+      clientType(c.clientType),
       c.clientName,
       c.country,
       c.adressa,
@@ -143,7 +164,7 @@ export async function exportClientsPdf(clients, userName, companyName) {
     ]),
     ...tableStyles,
   });
-  doc.save("klijenti.pdf");
+  doc.save(`${report("fileClients")}.pdf`);
 }
 
 export async function exportSingleWorkerPdf(
@@ -159,48 +180,48 @@ export async function exportSingleWorkerPdf(
   const doc = createDoc("p");
   const startY = addPdfHeader(
     doc,
-    "Radnik: " + (worker.fullName || ""),
+    `${report("worker")}: ${worker.fullName || ""}`,
     userName,
     companyName,
   );
   const t1 = autoTable(doc, {
     startY,
-    head: [["Polje", "Vrijednost"]],
+    head: [[report("field"), report("value")]],
     body: [
-      ["Ime i prezime", worker.fullName || ""],
-      ["Email", worker.email || ""],
-      ["Adresa", worker.address || ""],
-      ["Kontakt", worker.contact || ""],
-      ["Radno mjesto", worker.jobPosition || ""],
-      ["Ukupna ocjena", String(totalRating)],
-      ["Završeni projekti", String(projectsCompleted)],
+      [report("fullName"), worker.fullName || ""],
+      [report("email"), worker.email || ""],
+      [report("address"), worker.address || ""],
+      [report("contact"), worker.contact || ""],
+      [report("jobPosition"), worker.jobPosition || ""],
+      [report("totalRating"), String(totalRating)],
+      [report("completedProjects"), String(projectsCompleted)],
     ],
     ...tableStyles,
     columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
   });
   autoTable(doc, {
     startY: t1.finalY + 8,
-    head: [["Operacija", "Ocjena", "Aktivno"]],
+    head: [[report("operation"), report("rating"), report("active")]],
     body: [
       [
-        "Rezanje cijevi",
+        i18n.global.t("createProject.pipeCutting"),
         ratings.pipeCutting,
-        operations.pipeCutting ? "Da" : "Ne",
+        yesNo(operations.pipeCutting),
       ],
       [
-        "Rezanje lima",
+        i18n.global.t("createProject.sheetCutting"),
         ratings.sheetCutting,
-        operations.sheetCutting ? "Da" : "Ne",
+        yesNo(operations.sheetCutting),
       ],
-      ["Zavarivanje", ratings.welding, operations.welding ? "Da" : "Ne"],
-      ["Savijanje", ratings.bending, operations.bending ? "Da" : "Ne"],
-      ["Brušenje", ratings.grinding, operations.grinding ? "Da" : "Ne"],
-      ["Bušenje", ratings.drilling, operations.drilling ? "Da" : "Ne"],
-      ["Montaža", ratings.assembly, operations.assembly ? "Da" : "Ne"],
+      [i18n.global.t("createProject.welding"), ratings.welding, yesNo(operations.welding)],
+      [i18n.global.t("createProject.bending"), ratings.bending, yesNo(operations.bending)],
+      [i18n.global.t("createProject.grinding"), ratings.grinding, yesNo(operations.grinding)],
+      [i18n.global.t("createProject.drilling"), ratings.drilling, yesNo(operations.drilling)],
+      [i18n.global.t("createProject.assembly"), ratings.assembly, yesNo(operations.assembly)],
     ],
     ...tableStyles,
   });
-  doc.save(`radnik-${(worker.fullName || "radnik").replace(/\s+/g, "_")}.pdf`);
+  doc.save(`${report("fileWorker")}-${(worker.fullName || report("fileWorker")).replace(/\s+/g, "_")}.pdf`);
 }
 
 export async function exportSingleClientPdf(
@@ -213,22 +234,22 @@ export async function exportSingleClientPdf(
   const doc = createDoc("p");
   const startY = addPdfHeader(
     doc,
-    "Klijent: " + (form.clientName || ""),
+    `${report("client")}: ${form.clientName || ""}`,
     userName,
     companyName,
   );
   const t1 = autoTable(doc, {
     startY,
-    head: [["Polje", "Vrijednost"]],
+    head: [[report("field"), report("value")]],
     body: [
-      ["Tip", form.clientType === "person" ? "Osoba" : "Firma"],
-      ["Naziv", form.clientName || ""],
-      ["OIB", form.oib || ""],
-      ["Država", form.country || ""],
-      ["Adresa", form.adressa || ""],
-      ["Vlasnik", form.owner || ""],
-      ["Kontakt", form.contact || ""],
-      ["Email", form.email || ""],
+      [report("type"), clientType(form.clientType)],
+      [report("name"), form.clientName || ""],
+      [report("taxId"), form.oib || ""],
+      [report("country"), form.country || ""],
+      [report("address"), form.adressa || ""],
+      [report("owner"), form.owner || ""],
+      [report("contact"), form.contact || ""],
+      [report("email"), form.email || ""],
     ],
     ...tableStyles,
     columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
@@ -240,14 +261,14 @@ export async function exportSingleClientPdf(
     if (filled.length) {
       autoTable(doc, {
         startY: t1.finalY + 8,
-        head: [["Ime i prezime", "Email", "Kontakt", "Napomena"]],
+        head: [[report("fullName"), report("email"), report("contact"), report("note")]],
         body: filled.map((p) => [p.fullName, p.email, p.contact, p.note]),
         ...tableStyles,
       });
     }
   }
   doc.save(
-    `klijent-${(form.clientName || "klijent").replace(/\s+/g, "_")}.pdf`,
+    `${report("fileClient")}-${(form.clientName || report("fileClient")).replace(/\s+/g, "_")}.pdf`,
   );
 }
 
@@ -286,8 +307,8 @@ export function printWorkersList(workers, userName, companyName) {
     )
     .join("");
   printContent(
-    "Radnici",
-    `<table><tr><th>#</th><th>Ime i prezime</th><th>Kontakt</th><th>CP</th><th>CS</th><th>D</th><th>G</th><th>B</th><th>W</th><th>A</th><th>Ocjena</th></tr>${rows}</table>`,
+    report("workers"),
+    `<table><tr><th>#</th><th>${report("fullName")}</th><th>${report("contact")}</th><th>CP</th><th>CS</th><th>D</th><th>G</th><th>B</th><th>W</th><th>A</th><th>${report("rating")}</th></tr>${rows}</table>`,
     userName,
     companyName,
   );
@@ -298,15 +319,15 @@ export function printClientsList(clients, userName, companyName) {
     .map(
       (c, i) =>
         `<tr><td>${i + 1}</td><td>${
-          c.clientType === "person" ? "Osoba" : "Firma"
+          clientType(c.clientType)
         }</td><td>${c.clientName}</td><td>${c.country}</td><td>${
           c.adressa
         }</td><td>${c.contact || ""}</td><td>${c.email || ""}</td></tr>`,
     )
     .join("");
   printContent(
-    "Klijenti",
-    `<table><tr><th>#</th><th>Tip</th><th>Naziv</th><th>Država</th><th>Adresa</th><th>Kontakt</th><th>Email</th></tr>${rows}</table>`,
+    report("clients"),
+    `<table><tr><th>#</th><th>${report("type")}</th><th>${report("name")}</th><th>${report("country")}</th><th>${report("address")}</th><th>${report("contact")}</th><th>${report("email")}</th></tr>${rows}</table>`,
     userName,
     companyName,
   );
@@ -322,38 +343,38 @@ export function printSingleWorker(
   companyName,
 ) {
   let info = `<table>
-    <tr><th>Polje</th><th>Vrijednost</th></tr>
-    <tr><td><b>Ime i prezime</b></td><td>${worker.fullName || ""}</td></tr>
-    <tr><td><b>Email</b></td><td>${worker.email || ""}</td></tr>
-    <tr><td><b>Adresa</b></td><td>${worker.address || ""}</td></tr>
-    <tr><td><b>Kontakt</b></td><td>${worker.contact || ""}</td></tr>
-    <tr><td><b>Radno mjesto</b></td><td>${worker.jobPosition || ""}</td></tr>
-    <tr><td><b>Ukupna ocjena</b></td><td>${totalRating}</td></tr>
-    <tr><td><b>Završeni projekti</b></td><td>${projectsCompleted}</td></tr>
-  </table><br><table><tr><th>Operacija</th><th>Ocjena</th><th>Aktivno</th></tr>
-    <tr><td>Rezanje cijevi</td><td>${ratings.pipeCutting}</td><td>${
-    operations.pipeCutting ? "Da" : "Ne"
+    <tr><th>${report("field")}</th><th>${report("value")}</th></tr>
+    <tr><td><b>${report("fullName")}</b></td><td>${worker.fullName || ""}</td></tr>
+    <tr><td><b>${report("email")}</b></td><td>${worker.email || ""}</td></tr>
+    <tr><td><b>${report("address")}</b></td><td>${worker.address || ""}</td></tr>
+    <tr><td><b>${report("contact")}</b></td><td>${worker.contact || ""}</td></tr>
+    <tr><td><b>${report("jobPosition")}</b></td><td>${worker.jobPosition || ""}</td></tr>
+    <tr><td><b>${report("totalRating")}</b></td><td>${totalRating}</td></tr>
+    <tr><td><b>${report("completedProjects")}</b></td><td>${projectsCompleted}</td></tr>
+  </table><br><table><tr><th>${report("operation")}</th><th>${report("rating")}</th><th>${report("active")}</th></tr>
+    <tr><td>${i18n.global.t("createProject.pipeCutting")}</td><td>${ratings.pipeCutting}</td><td>${
+    yesNo(operations.pipeCutting)
   }</td></tr>
-    <tr><td>Rezanje lima</td><td>${ratings.sheetCutting}</td><td>${
-    operations.sheetCutting ? "Da" : "Ne"
+    <tr><td>${i18n.global.t("createProject.sheetCutting")}</td><td>${ratings.sheetCutting}</td><td>${
+    yesNo(operations.sheetCutting)
   }</td></tr>
-    <tr><td>Zavarivanje</td><td>${ratings.welding}</td><td>${
-    operations.welding ? "Da" : "Ne"
+    <tr><td>${i18n.global.t("createProject.welding")}</td><td>${ratings.welding}</td><td>${
+    yesNo(operations.welding)
   }</td></tr>
-    <tr><td>Savijanje</td><td>${ratings.bending}</td><td>${
-    operations.bending ? "Da" : "Ne"
+    <tr><td>${i18n.global.t("createProject.bending")}</td><td>${ratings.bending}</td><td>${
+    yesNo(operations.bending)
   }</td></tr>
-    <tr><td>Brušenje</td><td>${ratings.grinding}</td><td>${
-    operations.grinding ? "Da" : "Ne"
+    <tr><td>${i18n.global.t("createProject.grinding")}</td><td>${ratings.grinding}</td><td>${
+    yesNo(operations.grinding)
   }</td></tr>
-    <tr><td>Bušenje</td><td>${ratings.drilling}</td><td>${
-    operations.drilling ? "Da" : "Ne"
+    <tr><td>${i18n.global.t("createProject.drilling")}</td><td>${ratings.drilling}</td><td>${
+    yesNo(operations.drilling)
   }</td></tr>
-    <tr><td>Montaža</td><td>${ratings.assembly}</td><td>${
-    operations.assembly ? "Da" : "Ne"
+    <tr><td>${i18n.global.t("createProject.assembly")}</td><td>${ratings.assembly}</td><td>${
+    yesNo(operations.assembly)
   }</td></tr>
   </table>`;
-  printContent("Radnik: " + worker.fullName, info, userName, companyName);
+  printContent(`${report("worker")}: ${worker.fullName}`, info, userName, companyName);
 }
 
 export function printSingleClient(
@@ -363,31 +384,31 @@ export function printSingleClient(
   companyName,
 ) {
   let info = `<table>
-    <tr><th>Polje</th><th>Vrijednost</th></tr>
-    <tr><td><b>Tip</b></td><td>${
-      form.clientType === "person" ? "Osoba" : "Firma"
+    <tr><th>${report("field")}</th><th>${report("value")}</th></tr>
+    <tr><td><b>${report("type")}</b></td><td>${
+      clientType(form.clientType)
     }</td></tr>
-    <tr><td><b>Naziv</b></td><td>${form.clientName || ""}</td></tr>
-    <tr><td><b>OIB</b></td><td>${form.oib || ""}</td></tr>
-    <tr><td><b>Država</b></td><td>${form.country || ""}</td></tr>
-    <tr><td><b>Adresa</b></td><td>${form.adressa || ""}</td></tr>
-    <tr><td><b>Vlasnik</b></td><td>${form.owner || ""}</td></tr>
-    <tr><td><b>Kontakt</b></td><td>${form.contact || ""}</td></tr>
-    <tr><td><b>Email</b></td><td>${form.email || ""}</td></tr>
+    <tr><td><b>${report("name")}</b></td><td>${form.clientName || ""}</td></tr>
+    <tr><td><b>${report("taxId")}</b></td><td>${form.oib || ""}</td></tr>
+    <tr><td><b>${report("country")}</b></td><td>${form.country || ""}</td></tr>
+    <tr><td><b>${report("address")}</b></td><td>${form.adressa || ""}</td></tr>
+    <tr><td><b>${report("owner")}</b></td><td>${form.owner || ""}</td></tr>
+    <tr><td><b>${report("contact")}</b></td><td>${form.contact || ""}</td></tr>
+    <tr><td><b>${report("email")}</b></td><td>${form.email || ""}</td></tr>
   </table>`;
   if (form.clientType === "company" && responsiblePersons?.length) {
     const filled = responsiblePersons.filter(
       (p) => p.fullName || p.email || p.contact,
     );
     if (filled.length) {
-      info += `<br><h3 style="color:#2b579a;">Odgovorne osobe</h3><table><tr><th>Ime i prezime</th><th>Email</th><th>Kontakt</th><th>Napomena</th></tr>`;
+      info += `<br><h3 style="color:#2b579a;">${report("responsiblePersons")}</h3><table><tr><th>${report("fullName")}</th><th>${report("email")}</th><th>${report("contact")}</th><th>${report("note")}</th></tr>`;
       filled.forEach((p) => {
         info += `<tr><td>${p.fullName}</td><td>${p.email}</td><td>${p.contact}</td><td>${p.note}</td></tr>`;
       });
       info += "</table>";
     }
   }
-  printContent("Klijent: " + form.clientName, info, userName, companyName);
+  printContent(`${report("client")}: ${form.clientName}`, info, userName, companyName);
 }
 
 export async function exportWarehousePdf(items, userName, companyName) {
@@ -395,37 +416,37 @@ export async function exportWarehousePdf(items, userName, companyName) {
   const doc = createDoc("l");
   const startY = addPdfHeader(
     doc,
-    "Skladište / Warehouse",
+    report("warehouse"),
     userName,
     companyName,
   );
   autoTable(doc, {
     startY,
-    head: [["#", "Tip", "Naziv", "Specifikacija", "Količina"]],
+    head: [["#", report("type"), report("name"), report("specification"), report("quantity")]],
     body: items.map((item, i) => [
       i + 1,
-      item.type || "",
+      itemType(item.type) || "",
       item.name || "",
       item.specs || "",
       item.qty ?? 0,
     ]),
     ...tableStyles,
   });
-  doc.save("skladiste.pdf");
+  doc.save(`${report("fileWarehouse")}.pdf`);
 }
 
 export function printWarehouseList(items, userName, companyName) {
   let rows = items
     .map(
       (item, i) =>
-        `<tr><td>${i + 1}</td><td>${item.type || ""}</td><td>${
+        `<tr><td>${i + 1}</td><td>${itemType(item.type) || ""}</td><td>${
           item.name || ""
         }</td><td>${item.specs || ""}</td><td>${item.qty ?? 0}</td></tr>`,
     )
     .join("");
   printContent(
-    "Skladište",
-    `<table><tr><th>#</th><th>Tip</th><th>Naziv</th><th>Specifikacija</th><th>Količina</th></tr>${rows}</table>`,
+    report("warehouse"),
+    `<table><tr><th>#</th><th>${report("type")}</th><th>${report("name")}</th><th>${report("specification")}</th><th>${report("quantity")}</th></tr>${rows}</table>`,
     userName,
     companyName,
   );
@@ -436,13 +457,13 @@ export async function exportHistoryPdf(projects, userName, companyName) {
   const doc = createDoc("l");
   const startY = addPdfHeader(
     doc,
-    "Povijest proizvodnje / Production History",
+    report("productionHistory"),
     userName,
     companyName,
   );
   autoTable(doc, {
     startY,
-    head: [["#", "RN", "Klijent", "Naziv", "Završeno"]],
+    head: [["#", "RN", report("client"), report("name"), report("completed")]],
     body: projects.map((p, i) => [
       i + 1,
       p.rn || "",
@@ -452,7 +473,7 @@ export async function exportHistoryPdf(projects, userName, companyName) {
     ]),
     ...tableStyles,
   });
-  doc.save("povijest-proizvodnje.pdf");
+  doc.save(`${report("fileHistory")}.pdf`);
 }
 
 export function printHistoryList(projects, userName, companyName) {
@@ -465,8 +486,8 @@ export function printHistoryList(projects, userName, companyName) {
     )
     .join("");
   printContent(
-    "Povijest proizvodnje",
-    `<table><tr><th>#</th><th>RN</th><th>Klijent</th><th>Naziv</th><th>Završeno</th></tr>${rows}</table>`,
+    report("productionHistory"),
+    `<table><tr><th>#</th><th>RN</th><th>${report("client")}</th><th>${report("name")}</th><th>${report("completed")}</th></tr>${rows}</table>`,
     userName,
     companyName,
   );
@@ -482,18 +503,18 @@ export async function exportAnalyticsPdf(
   const doc = createDoc("p");
   const startY = addPdfHeader(
     doc,
-    "Analitika / Analytics",
+    report("analytics"),
     userName,
     companyName,
   );
   const t1 = autoTable(doc, {
     startY,
-    head: [["Pokazatelj", "Vrijednost"]],
+    head: [[report("metric"), report("value")]],
     body: [
-      ["Projekti", String(stats.projects || 0)],
-      ["Završeno", String(stats.completed || 0)],
-      ["Prosječno trajanje", stats.avgDuration || "0h"],
-      ["Točnost", stats.accuracy || "0%"],
+      [report("projects"), String(stats.projects || 0)],
+      [report("completed"), String(stats.completed || 0)],
+      [report("averageDuration"), stats.avgDuration || "0 h"],
+      [report("accuracy"), stats.accuracy || "0%"],
     ],
     ...tableStyles,
     columnStyles: { 0: { fontStyle: "bold", cellWidth: 60 } },
@@ -502,7 +523,7 @@ export async function exportAnalyticsPdf(
     autoTable(doc, {
       startY: t1.finalY + 8,
       head: [
-        ["Radnik", "Vrijednost", "Zadaci", "Prosječno vrijeme", "Efikasnost"],
+        [report("worker"), report("value"), report("tasks"), report("averageTime"), report("efficiency")],
       ],
       body: workerPerformance.map((w) => [
         w.name || "",
@@ -514,7 +535,7 @@ export async function exportAnalyticsPdf(
       ...tableStyles,
     });
   }
-  doc.save("analitika.pdf");
+  doc.save(`${report("fileAnalytics")}.pdf`);
 }
 
 export function printAnalytics(
@@ -524,16 +545,16 @@ export function printAnalytics(
   companyName,
 ) {
   let info = `<table>
-    <tr><th>Pokazatelj</th><th>Vrijednost</th></tr>
-    <tr><td><b>Projekti</b></td><td>${stats.projects || 0}</td></tr>
-    <tr><td><b>Završeno</b></td><td>${stats.completed || 0}</td></tr>
-    <tr><td><b>Prosječno trajanje</b></td><td>${
-      stats.avgDuration || "0h"
+    <tr><th>${report("metric")}</th><th>${report("value")}</th></tr>
+    <tr><td><b>${report("projects")}</b></td><td>${stats.projects || 0}</td></tr>
+    <tr><td><b>${report("completed")}</b></td><td>${stats.completed || 0}</td></tr>
+    <tr><td><b>${report("averageDuration")}</b></td><td>${
+      stats.avgDuration || "0 h"
     }</td></tr>
-    <tr><td><b>Točnost</b></td><td>${stats.accuracy || "0%"}</td></tr>
+    <tr><td><b>${report("accuracy")}</b></td><td>${stats.accuracy || "0%"}</td></tr>
   </table>`;
   if (workerPerformance && workerPerformance.length) {
-    info += `<br><h3 style="color:#2b579a;">Radnici</h3><table><tr><th>Radnik</th><th>Vrijednost</th><th>Zadaci</th><th>Prosječno vrijeme</th><th>Efikasnost</th></tr>`;
+    info += `<br><h3 style="color:#2b579a;">${report("workers")}</h3><table><tr><th>${report("worker")}</th><th>${report("value")}</th><th>${report("tasks")}</th><th>${report("averageTime")}</th><th>${report("efficiency")}</th></tr>`;
     workerPerformance.forEach((w) => {
       info += `<tr><td>${w.name || ""}</td><td>${w.value ?? ""}</td><td>${
         w.tasks ?? ""
@@ -541,7 +562,7 @@ export function printAnalytics(
     });
     info += "</table>";
   }
-  printContent("Analitika", info, userName, companyName);
+  printContent(report("analytics"), info, userName, companyName);
 }
 
 export async function exportDashboardPdf(
@@ -554,13 +575,13 @@ export async function exportDashboardPdf(
   const doc = createDoc("l");
   const startY = addPdfHeader(
     doc,
-    "Aktivni projekti / Active Projects",
+    report("activeProjects"),
     userName,
     companyName,
   );
   const t1 = autoTable(doc, {
     startY,
-    head: [["RN", "Naziv", "Klijent", "Radi na", "Napredak (%)", "EST"]],
+    head: [["RN", report("name"), report("client"), report("worksOn"), report("progress"), report("estimated")]],
     body: projects.map((p) => [
       p.rn || "",
       p.name || "",
@@ -574,10 +595,10 @@ export async function exportDashboardPdf(
   if (assemblies && assemblies.length) {
     autoTable(doc, {
       startY: t1.finalY + 8,
-      head: [["RN", "Operacija", "Radi na", "EST", "Napredak (%)"]],
+      head: [["RN", report("operation"), report("worksOn"), report("estimated"), report("progress")]],
       body: assemblies.map((a) => [
         a.rn || "",
-        a.operation || "",
+        operation(a.operation) || "",
         a.worksOn || "",
         a.est || "-",
         a.progress ?? 0,
@@ -585,11 +606,11 @@ export async function exportDashboardPdf(
       ...tableStyles,
     });
   }
-  doc.save("aktivni-projekti.pdf");
+  doc.save(`${report("fileDashboard")}.pdf`);
 }
 
 export function printDashboard(projects, assemblies, userName, companyName) {
-  let info = `<h3 style="color:#2b579a;">Aktivni projekti</h3><table><tr><th>RN</th><th>Naziv</th><th>Klijent</th><th>Radi na</th><th>Napredak (%)</th><th>EST</th></tr>`;
+  let info = `<h3 style="color:#2b579a;">${report("activeProjects")}</h3><table><tr><th>RN</th><th>${report("name")}</th><th>${report("client")}</th><th>${report("worksOn")}</th><th>${report("progress")}</th><th>${report("estimated")}</th></tr>`;
   projects.forEach((p) => {
     info += `<tr><td>${p.rn || ""}</td><td>${p.name || ""}</td><td>${
       p.client || ""
@@ -599,15 +620,15 @@ export function printDashboard(projects, assemblies, userName, companyName) {
   });
   info += "</table>";
   if (assemblies && assemblies.length) {
-    info += `<br><h3 style="color:#2b579a;">Sklopovi</h3><table><tr><th>RN</th><th>Operacija</th><th>Radi na</th><th>EST</th><th>Napredak (%)</th></tr>`;
+    info += `<br><h3 style="color:#2b579a;">${report("assemblies")}</h3><table><tr><th>RN</th><th>${report("operation")}</th><th>${report("worksOn")}</th><th>${report("estimated")}</th><th>${report("progress")}</th></tr>`;
     assemblies.forEach((a) => {
-      info += `<tr><td>${a.rn || ""}</td><td>${a.operation || ""}</td><td>${
+      info += `<tr><td>${a.rn || ""}</td><td>${operation(a.operation) || ""}</td><td>${
         a.worksOn || ""
       }</td><td>${a.est || "-"}</td><td>${a.progress ?? 0}</td></tr>`;
     });
     info += "</table>";
   }
-  printContent("Aktivni projekti", info, userName, companyName);
+  printContent(report("activeProjects"), info, userName, companyName);
 }
 
 export async function exportProjectDetailPdf(
@@ -623,26 +644,26 @@ export async function exportProjectDetailPdf(
 ) {
   await initPdf();
   const doc = createDoc("l");
-  const title = "Projekt: " + (project.rn || "") + " – " + (project.name || "");
+  const title = `${report("project")}: ${project.rn || ""} – ${project.name || ""}`;
   const startY = addPdfHeader(doc, title, userName, companyName);
   autoTable(doc, {
     startY,
-    head: [["Polje", "Vrijednost"]],
+    head: [[report("field"), report("value")]],
     body: [
       ["RN", project.rn || ""],
-      ["Naziv", project.name || ""],
-      ["Klijent", project.client || ""],
-      ["Telefon", clientPhone || "–"],
-      ["Email", clientEmail || "–"],
-      ["Status", project.status || "active"],
+      [report("name"), project.name || ""],
+      [report("client"), project.client || ""],
+      [report("phone"), clientPhone || "–"],
+      [report("email"), clientEmail || "–"],
+      [report("status"), projectStatus(project.status)],
       [
-        "Započeto",
+        report("startedAt"),
         (project.startedAt || project.createdAt)
-          ? new Date(project.startedAt || project.createdAt).toLocaleString("hr-HR")
+          ? new Date(project.startedAt || project.createdAt).toLocaleString(reportLocale())
           : "–",
       ],
-      ["Napredak", (overallProgress ?? 0) + "%"],
-      ["Predviđeni završetak", estimatedEnd || "–"],
+      [report("progress"), (overallProgress ?? 0) + "%"],
+      [report("estimatedEnd"), estimatedEnd || "–"],
     ],
     ...tableStyles,
     columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
@@ -650,7 +671,7 @@ export async function exportProjectDetailPdf(
   if (drawings && drawings.length) {
     autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 8,
-      head: [["Br. nacrta", "Naziv dijela", "Sklop", "Težina", "Količina", "Materijal"]],
+      head: [[report("drawingNo"), report("partName"), report("assembly"), report("weight"), report("quantity"), report("material")]],
       body: drawings.map((d) => [
         d.no || "",
         d.partName || "",
@@ -667,17 +688,17 @@ export async function exportProjectDetailPdf(
       startY: doc.lastAutoTable.finalY + 8,
       head: [
         [
-          "Br. nacrta",
-          "Operacija",
-          "Radi na",
-          "Proces (%)",
-          "Predviđeni završetak",
-          "Stvarni završetak",
+          report("drawingNo"),
+          report("operation"),
+          report("worksOn"),
+          report("progress"),
+          report("estimatedEnd"),
+          report("actualEnd"),
         ],
       ],
       body: productionPlan.map((p) => [
         p.drawingNo || "",
-        p.operation || "",
+        operation(p.operation) || "",
         p.worksOn || "",
         (p.progress ?? 0) + "%",
         p.estimatedEndDate || "–",
@@ -686,7 +707,44 @@ export async function exportProjectDetailPdf(
       ...tableStyles,
     });
   }
-  doc.save(`projekt-${(project.rn || "projekt").replace(/\s+/g, "_")}.pdf`);
+  doc.save(`${report("fileProject")}-${(project.rn || report("fileProject")).replace(/\s+/g, "_")}.pdf`);
+}
+
+export async function exportProjectPreviewPdf(data, labels, userName, companyName) {
+  await initPdf();
+  const doc = createDoc("p");
+  let startY = addPdfHeader(doc, labels.title, userName, companyName);
+  autoTable(doc, {
+    startY,
+    head: [[labels.field, labels.value]],
+    body: [
+      [labels.rn, data.project.rn || "-"],
+      [labels.name, data.project.name || "-"],
+      [labels.client, data.project.client || "-"],
+      [labels.drawing, [data.drawing.drawingNo, data.drawing.partName].filter(Boolean).join(" - ") || "-"],
+      [labels.estimate, data.estimate || "-"],
+    ],
+    ...tableStyles,
+  });
+  startY = doc.lastAutoTable.finalY + 8;
+  const sections = [
+    [labels.treatments, data.treatments],
+    [labels.workers, data.workers],
+    [labels.materials, data.materials],
+  ];
+  sections.forEach(([title, rows]) => {
+    doc.setFont("Roboto", "bold");
+    doc.text(title, 14, startY);
+    autoTable(doc, {
+      startY: startY + 2,
+      head: [["#", labels.description]],
+      body: (rows.length ? rows : ["-"]).map((value, index) => [index + 1, value]),
+      ...tableStyles,
+    });
+    startY = doc.lastAutoTable.finalY + 8;
+  });
+  const fileName = (data.project.rn || labels.fileName).replace(/[^\w-]+/g, "_");
+  doc.save(`${fileName}.pdf`);
 }
 
 export function printProjectDetail(
@@ -701,22 +759,22 @@ export function printProjectDetail(
   clientEmail,
 ) {
   const startedAt = (project.startedAt || project.createdAt)
-    ? new Date(project.startedAt || project.createdAt).toLocaleString("hr-HR")
+    ? new Date(project.startedAt || project.createdAt).toLocaleString(reportLocale())
     : "–";
   let info = `<table>
-    <tr><th>Polje</th><th>Vrijednost</th></tr>
+    <tr><th>${report("field")}</th><th>${report("value")}</th></tr>
     <tr><td><b>RN</b></td><td>${project.rn || ""}</td></tr>
-    <tr><td><b>Naziv</b></td><td>${project.name || ""}</td></tr>
-    <tr><td><b>Klijent</b></td><td>${project.client || ""}</td></tr>
-    <tr><td><b>Telefon</b></td><td>${clientPhone || "–"}</td></tr>
-    <tr><td><b>Email</b></td><td>${clientEmail || "–"}</td></tr>
-    <tr><td><b>Status</b></td><td>${project.status || "active"}</td></tr>
-    <tr><td><b>Započeto</b></td><td>${startedAt}</td></tr>
-    <tr><td><b>Napredak</b></td><td>${overallProgress ?? 0}%</td></tr>
-    <tr><td><b>Predviđeni završetak</b></td><td>${estimatedEnd || "–"}</td></tr>
+    <tr><td><b>${report("name")}</b></td><td>${project.name || ""}</td></tr>
+    <tr><td><b>${report("client")}</b></td><td>${project.client || ""}</td></tr>
+    <tr><td><b>${report("phone")}</b></td><td>${clientPhone || "–"}</td></tr>
+    <tr><td><b>${report("email")}</b></td><td>${clientEmail || "–"}</td></tr>
+    <tr><td><b>${report("status")}</b></td><td>${projectStatus(project.status)}</td></tr>
+    <tr><td><b>${report("startedAt")}</b></td><td>${startedAt}</td></tr>
+    <tr><td><b>${report("progress")}</b></td><td>${overallProgress ?? 0}%</td></tr>
+    <tr><td><b>${report("estimatedEnd")}</b></td><td>${estimatedEnd || "–"}</td></tr>
   </table>`;
   if (drawings && drawings.length) {
-    info += `<br><h3 style="color:#2b579a;">Nacrti</h3><table><tr><th>Br. nacrta</th><th>Naziv dijela</th><th>Sklop</th><th>Težina</th><th>Količina</th><th>Materijal</th></tr>`;
+    info += `<br><h3 style="color:#2b579a;">${report("drawings")}</h3><table><tr><th>${report("drawingNo")}</th><th>${report("partName")}</th><th>${report("assembly")}</th><th>${report("weight")}</th><th>${report("quantity")}</th><th>${report("material")}</th></tr>`;
     drawings.forEach((d) => {
       info += `<tr><td>${d.no || ""}</td><td>${d.partName || ""}</td><td>${
         d.assembly || ""
@@ -727,7 +785,7 @@ export function printProjectDetail(
     info += "</table>";
   }
   if (productionPlan && productionPlan.length) {
-    info += `<br><h3 style="color:#2b579a;">Plan proizvodnje</h3><table><tr><th>Br. nacrta</th><th>Operacija</th><th>Radi na</th><th>Proces (%)</th><th>Predviđeni završetak</th><th>Stvarni završetak</th></tr>`;
+    info += `<br><h3 style="color:#2b579a;">${report("productionPlan")}</h3><table><tr><th>${report("drawingNo")}</th><th>${report("operation")}</th><th>${report("worksOn")}</th><th>${report("progress")}</th><th>${report("estimatedEnd")}</th><th>${report("actualEnd")}</th></tr>`;
     productionPlan.forEach((p) => {
       const color =
         (p.progress ?? 0) >= 100
@@ -736,7 +794,7 @@ export function printProjectDetail(
           ? "#e67e22"
           : "#2196f3";
       info += `<tr><td>${p.drawingNo || ""}</td><td>${
-        p.operation || ""
+        operation(p.operation) || ""
       }</td><td>${
         p.worksOn || ""
       }</td><td style="color:${color};font-weight:600">${
@@ -748,7 +806,7 @@ export function printProjectDetail(
     info += "</table>";
   }
   printContent(
-    "Projekt: " + (project.rn || "") + " – " + (project.name || ""),
+    `${report("project")}: ${project.rn || ""} – ${project.name || ""}`,
     info,
     userName,
     companyName,

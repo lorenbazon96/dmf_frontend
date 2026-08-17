@@ -27,12 +27,12 @@
 
         <div class="mb-3">
           <label class="form-label-sm">{{ $t("profileEdit.pw") }}:</label>
-          <input v-model="form.password" type="password" class="form-control form-control-sm" :placeholder="$t('profileEdit.newPassword') || 'New password'" />
+          <input v-model="form.password" type="password" class="form-control form-control-sm" :placeholder="$t('profileEdit.newPassword')" />
         </div>
 
         <div class="mb-4">
           <label class="form-label-sm">{{ $t("profileEdit.createdAt") }}:</label>
-          <input v-model="form.createdAt" type="text" class="form-control form-control-sm" readonly />
+          <input :value="formattedCreatedAt" type="text" class="form-control form-control-sm" readonly />
         </div>
 
         <div class="d-flex flex-column gap-2">
@@ -57,6 +57,7 @@
 <script>
 import SidebarNav from "./SidebarNav.vue";
 import api from "../api";
+import { localeCode } from "../utils/domain";
 
 export default {
   name: "ProfileEditPage",
@@ -75,9 +76,16 @@ export default {
         fullName: this.userName || "",
         email: this.userEmail || "",
         password: "",
-        createdAt: "",
       },
+      createdAt: null,
     };
+  },
+  computed: {
+    formattedCreatedAt() {
+      return this.createdAt
+        ? new Date(this.createdAt).toLocaleDateString(localeCode(this.$i18n.locale))
+        : "";
+    },
   },
   async created() {
     if (this.userId) {
@@ -85,7 +93,7 @@ export default {
         const { data } = await api.get(`/auth/me/${this.userId}`);
         this.form.fullName = data.fullName || "";
         this.form.email = data.email || "";
-        this.form.createdAt = data.createdAt ? new Date(data.createdAt).toLocaleDateString("hr") : "";
+        this.createdAt = data.createdAt || null;
       } catch (err) {
         console.error("Failed to load profile:", err);
       }

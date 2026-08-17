@@ -12,6 +12,32 @@ export const taskActions = (status, projectStatus) => ({
   complete: projectStatus === "in-progress" && status === "in-progress",
 });
 
+const operationKeys = {
+  "Rezanje cijevi": "pipeCutting",
+  "Pipe cutting": "pipeCutting",
+  "Rezanje lima": "sheetCutting",
+  "Sheet cutting": "sheetCutting",
+  Bušenje: "drilling",
+  Drilling: "drilling",
+  Zavarivanje: "welding",
+  Welding: "welding",
+  Brušenje: "grinding",
+  Grinding: "grinding",
+  Savijanje: "bending",
+  Bending: "bending",
+  Montaža: "assembly",
+  Assembly: "assembly",
+};
+
+export const operationKey = operation => operationKeys[operation] || null;
+
+export const operationLabel = (operation, translate) => {
+  const key = operationKey(operation);
+  return key ? translate(`createProject.${key}`) : operation;
+};
+
+export const localeCode = locale => locale === "hr" ? "hr-HR" : "en-GB";
+
 export const materialPayload = material => ({
   warehouseItemId: material.id,
   name: material.name,

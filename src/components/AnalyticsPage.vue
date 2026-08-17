@@ -48,9 +48,7 @@
                     class="bottleneck-alert mt-1 d-flex align-items-start gap-2"
                   >
                     <span class="bottleneck-icon">&#9888;</span>
-                    <span class="bottleneck-text">{{
-                      $t("analytics.bottleneckMsg")
-                    }}</span>
+                    <span class="bottleneck-text">{{ bottleneckMessage }}</span>
                   </div>
                 </div>
               </div>
@@ -186,9 +184,9 @@
                           :key="op.name"
                         >
                           <strong>{{ op.name }}</strong>
-                          <div class="small">&#10003; Best: {{ op.best }}</div>
-                          <div class="small">&#9888; Worst: {{ op.worst }}</div>
-                          <div class="small text-muted">Avg: {{ op.avg }}</div>
+                          <div class="small">&#10003; {{ $t("analytics.best") }}: {{ op.best }}</div>
+                          <div class="small">&#9888; {{ $t("analytics.worst") }}: {{ op.worst }}</div>
+                          <div class="small text-muted">{{ $t("analytics.average") }}: {{ op.avg }}</div>
                         </div>
                       </div>
                     </div>
@@ -233,6 +231,7 @@
 import SidebarNav from "./SidebarNav.vue";
 import api from "../api";
 import { exportAnalyticsPdf, printAnalytics } from "../utils/pdf";
+import { localeCode, operationKey } from "../utils/domain";
 import { Pie, Line, Bar } from "vue-chartjs";
 import {
   Chart as ChartJS,
@@ -267,7 +266,6 @@ export default {
     LineChart: Line,
     BarChart: Bar,
   },
-  inject: ['isGuest'],
   props: {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
@@ -337,10 +335,12 @@ export default {
       immediate: true,
       handler() { this.fetchAnalytics(); },
     },
+    "$i18n.locale"() {
+      this.fetchAnalytics();
+    },
   },
   methods: {
     async fetchAnalytics() {
-      if (this.isGuest()) return;
       if (!this.selectedCompany) return;
       try {
         const [allRes, completedRes, workersRes] = await Promise.all([
@@ -353,57 +353,60 @@ export default {
         const workers = workersRes.data;
         const total = allProjects.length;
         const completed = completedProjects.length;
+        const accuracySamples = completedProjects.flatMap(project =>
+          (project.drawings || []).flatMap(drawing =>
+            (drawing.assignedWorkers || [])
+              .map(task => ({ estimated: Number(task.estimatedMinutes), actual: this.taskActualMinutes(task) }))
+              .filter(({ estimated, actual }) => estimated > 0 && actual > 0)
+              .map(({ estimated, actual }) => (Math.min(estimated, actual) / Math.max(estimated, actual)) * 100),
+          ),
+        );
+        const accuracy = accuracySamples.length
+          ? `${Math.round(accuracySamples.reduce((sum, value) => sum + value, 0) / accuracySamples.length)}%`
+          : "0%";
 
-        const opLabelToKey = {
-          "Rezanje cijevi": "pipeCutting",
-          "Rezanje lima": "sheetCutting",
-          "Bušenje": "drilling",
-          "Zavarivanje": "welding",
-          "Brušenje": "grinding",
-          "Savijanje": "bending",
-          "Montaža": "assembly",
-        };
         const opKeys = ["pipeCutting", "sheetCutting", "welding", "grinding", "assembly", "drilling", "bending"];
-        const opDisplayNames = ["Rez. cijevi", "Rez. lima", "Zavarivanje", "Brušenje", "Montaža", "Bušenje", "Savijanje"];
+        const opDisplayNames = opKeys.map(key => this.$t(`createProject.${key}`));
 
-        let avgDuration = "0h";
-        if (completedProjects.length > 0) {
-          let totalMin = 0;
-          for (const proj of completedProjects) {
-            let projMin = 0;
-            for (const dr of proj.drawings || []) {
-              if (dr.isAssemblyDrawing) continue;
-              for (const aw of dr.assignedWorkers || []) {
-                projMin += aw.estimatedMinutes || 0;
-              }
-            }
-            totalMin += projMin;
-          }
-          const avg = Math.round(totalMin / completedProjects.length);
-          const h = Math.floor(avg / 60);
-          const m = avg % 60;
-          avgDuration = m > 0 ? h + "h " + m + "min" : h + "h";
-        }
+        const completedDurations = completedProjects
+          .map(project => this.projectActualMinutes(project))
+          .filter(minutes => minutes > 0);
+        const avgDuration = this.formatDuration(completedDurations.length
+          ? completedDurations.reduce((sum, minutes) => sum + minutes, 0) / completedDurations.length
+          : 0);
 
         const opTotals = {};
+        const activeTasksByOp = {};
         for (const k of opKeys) opTotals[k] = 0;
+        for (const k of opKeys) activeTasksByOp[k] = 0;
         for (const proj of allProjects) {
           for (const dr of proj.drawings || []) {
             for (const aw of dr.assignedWorkers || []) {
-              const key = opLabelToKey[aw.operation];
-              if (key) opTotals[key] += aw.estimatedMinutes || 0;
+              const key = operationKey(aw.operation);
+              if (key) {
+                opTotals[key] += aw.estimatedMinutes || 0;
+                if (aw.status !== "completed") activeTasksByOp[key]++;
+              }
             }
           }
         }
         const pieValues = opKeys.map(k => opTotals[k]);
+        const bottleneck = opKeys
+          .map((key, index) => ({
+            key,
+            operation: opDisplayNames[index],
+            tasks: activeTasksByOp[key],
+            workers: workers.filter(worker => worker.operations?.[key]).length,
+          }))
+          .filter(item => item.tasks > item.workers)
+          .sort((a, b) => (b.tasks - b.workers) - (a.tasks - a.workers))[0] || null;
 
-        const monthNames = ["Sij", "Vel", "Ožu", "Tra", "Svi", "Lip", "Srp", "Kol", "Ruj", "Lis", "Stu", "Pro"];
         const now = new Date();
         const lineLabels = [];
         const lineCounts = [];
         for (let i = 5; i >= 0; i--) {
           const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          lineLabels.push(monthNames[d.getMonth()]);
+          lineLabels.push(new Intl.DateTimeFormat(localeCode(this.$i18n.locale), { month: "short" }).format(d));
           const month = d.getMonth();
           const year = d.getFullYear();
           const count = completedProjects.filter(p => {
@@ -430,8 +433,7 @@ export default {
           est.push(totalEst);
           const latestCompleted = this._latestCompletedAt(proj);
           if (latestCompleted && proj.startedAt) {
-            const realMin = Math.round((new Date(latestCompleted) - new Date(proj.startedAt)) / 60000);
-            real.push(Math.max(0, realMin));
+            real.push(this.projectActualMinutes(proj));
           } else {
             real.push(totalEst);
           }
@@ -445,8 +447,8 @@ export default {
               const wKey = aw.workerId || aw.workerName;
               if (!wKey) continue;
               if (!workerTaskMap[wKey]) workerTaskMap[wKey] = { name: aw.workerName, tasks: [], opTasks: {} };
-              const taskEntry = { ...aw, _projectStartedAt: proj.startedAt };
-              const opKey = opLabelToKey[aw.operation] || "";
+              const taskEntry = { ...aw };
+              const opKey = operationKey(aw.operation) || "";
               workerTaskMap[wKey].tasks.push(taskEntry);
               if (opKey) {
                 if (!workerTaskMap[wKey].opTasks[opKey]) workerTaskMap[wKey].opTasks[opKey] = [];
@@ -463,20 +465,20 @@ export default {
 
           let avgTimeVal = 0;
           if (taskCount > 0) {
-            const totalEst = data.tasks.reduce((s, t) => s + (t.estimatedMinutes || 0), 0);
-            avgTimeVal = Math.round(totalEst / taskCount);
+            avgTimeVal = Math.round(data.tasks.reduce(
+              (sum, task) => sum + (this.taskActualMinutes(task) || task.estimatedMinutes || 0),
+              0,
+            ) / taskCount);
           }
-          const avgTimeStr = avgTimeVal >= 60
-            ? Math.floor(avgTimeVal / 60) + "h " + (avgTimeVal % 60) + "min"
-            : avgTimeVal + "min";
+          const avgTimeStr = this.formatDuration(avgTimeVal);
 
           let efficiency = 0;
-          const effTasks = data.tasks.filter(t => t.completedAt && t.estimatedMinutes > 0 && t._projectStartedAt);
+          const effTasks = data.tasks.filter(t => t.estimatedMinutes > 0 && this.taskActualMinutes(t) > 0);
           if (effTasks.length > 0) {
             let effSum = 0;
             for (const t of effTasks) {
               const estMin = t.estimatedMinutes;
-              const actualMin = Math.round((new Date(t.completedAt) - new Date(t._projectStartedAt)) / 60000);
+              const actualMin = this.taskActualMinutes(t);
               const ratio = actualMin > 0 ? Math.round((estMin / actualMin) * 100) : 100;
               effSum += Math.min(ratio, 100);
             }
@@ -509,12 +511,12 @@ export default {
             const tasks = (data.opTasks && data.opTasks[opKey]) || [];
             const completedCount = tasks.length;
             let eff = 0;
-            const effTasks = tasks.filter(t => t.completedAt && t.estimatedMinutes > 0 && t._projectStartedAt);
+            const effTasks = tasks.filter(t => t.estimatedMinutes > 0 && this.taskActualMinutes(t) > 0);
             if (effTasks.length > 0) {
               let effSum = 0;
               for (const t of effTasks) {
                 const estMin = t.estimatedMinutes;
-                const actualMin = Math.round((new Date(t.completedAt) - new Date(t._projectStartedAt)) / 60000);
+                const actualMin = this.taskActualMinutes(t);
                 const ratio = actualMin > 0 ? Math.round((estMin / actualMin) * 100) : 100;
                 effSum += Math.min(ratio, 100);
               }
@@ -532,8 +534,8 @@ export default {
 
           return {
             name: opDisplayNames[i],
-            best: best ? best.name + " (" + best.completedCount + " tasks, " + best.eff + "%)" : "-",
-            worst: worst && workerStats.length > 1 ? worst.name + " (" + worst.completedCount + " tasks, " + worst.eff + "%)" : "-",
+            best: best ? `${best.name} (${this.$t("analytics.taskCount", { count: best.completedCount })}, ${best.eff}%)` : "-",
+            worst: worst && workerStats.length > 1 ? `${worst.name} (${this.$t("analytics.taskCount", { count: worst.completedCount })}, ${worst.eff}%)` : "-",
             avg: avgEff + "%",
           };
         });
@@ -542,29 +544,37 @@ export default {
         const maxOp = opKeys.reduce((a, b) => opTotals[a] > opTotals[b] ? a : b, opKeys[0]);
         const maxOpIdx = opKeys.indexOf(maxOp);
         if (opTotals[maxOp] > 0) {
-          generalInsights.push(opDisplayNames[maxOpIdx] + " oduzima najviše vremena (" + Math.round(opTotals[maxOp] / 60) + "h)");
+          generalInsights.push(this.$t("analytics.mostTime", {
+            operation: opDisplayNames[maxOpIdx],
+            duration: this.formatDuration(opTotals[maxOp]),
+          }));
         }
         if (completed > 0 && total > 0) {
-          generalInsights.push("Završeno " + completed + " od " + total + " projekata (" + Math.round((completed / total) * 100) + "%)");
+          generalInsights.push(this.$t("analytics.completedSummary", {
+            completed,
+            total,
+            percent: Math.round((completed / total) * 100),
+          }));
         }
         const avgEff = workerList.length > 0 ? Math.round(workerList.reduce((s, w) => s + w.efficiencyNum, 0) / workerList.length) : 0;
         if (avgEff > 0) {
-          generalInsights.push("Prosječna efikasnost radnika: " + avgEff + "%");
+          generalInsights.push(this.$t("analytics.averageEfficiency", { percent: avgEff }));
         }
         if (completedProjects.length >= 2) {
           const months = lineCounts.slice(-3);
           const trend = months[months.length - 1] - months[0];
-          if (trend > 0) generalInsights.push("Trend završavanja projekata raste");
-          else if (trend < 0) generalInsights.push("Trend završavanja projekata pada");
-          else generalInsights.push("Prosječno vrijeme projekta stabilno");
+          if (trend > 0) generalInsights.push(this.$t("analytics.trendRising"));
+          else if (trend < 0) generalInsights.push(this.$t("analytics.trendFalling"));
+          else generalInsights.push(this.$t("analytics.trendStable"));
         }
 
         this.companyData = {
           projects: total,
           completed,
           avgDuration,
-          accuracy: total > 0 ? Math.round((completed / total) * 100) + "%" : "0%",
-          bottleneck: total > 5,
+          accuracy,
+          bottleneck,
+          bottleneckMessage: bottleneck ? this.$t("analytics.bottleneckDynamic", bottleneck) : "",
           pie: pieValues,
           line: lineCounts,
           lineLabels,
@@ -592,6 +602,27 @@ export default {
       }
       return latest;
     },
+    taskActualMinutes(task) {
+      const stored = Number(task.actualMinutes);
+      if (Number.isFinite(stored) && stored > 0) return stored;
+      if (!task.startedAt || !task.completedAt) return 0;
+      const elapsed = new Date(task.completedAt) - new Date(task.startedAt) - Number(task.totalPausedMs || 0);
+      return Math.max(0, Math.round(elapsed / 60000));
+    },
+    projectActualMinutes(project) {
+      const completedAt = project.completedAt || this._latestCompletedAt(project);
+      if (!project.startedAt || !completedAt) return 0;
+      const elapsed = new Date(completedAt) - new Date(project.startedAt) - Number(project.totalPausedMs || 0);
+      return Math.max(0, Math.round(elapsed / 60000));
+    },
+    formatDuration(minutes) {
+      const rounded = Math.max(0, Math.round(minutes || 0));
+      const hours = Math.floor(rounded / 60);
+      const mins = rounded % 60;
+      if (!hours) return this.$t("analytics.minutesShort", { count: mins });
+      if (!mins) return this.$t("analytics.hoursShort", { count: hours });
+      return `${this.$t("analytics.hoursShort", { count: hours })} ${this.$t("analytics.minutesShort", { count: mins })}`;
+    },
     async exportPdf() {
       const stats = {
         projects: this.statsProjects,
@@ -617,27 +648,29 @@ export default {
     },
     statsProjects() { return this.cd.projects || 0; },
     statsCompleted() { return this.cd.completed || 0; },
-    statsAvgDuration() { return this.cd.avgDuration || "0h"; },
+    statsAvgDuration() { return this.cd.avgDuration || this.formatDuration(0); },
     statsAccuracy() { return this.cd.accuracy || "0%"; },
     showBottleneck() { return !!this.cd.bottleneck; },
+    bottleneckMessage() { return this.cd.bottleneckMessage || ""; },
     pieData() {
       return {
-        labels: ["Rez. cijevi", "Rez. lima", "Zavarivanje", "Brušenje", "Montaža", "Bušenje", "Savijanje"],
+        labels: ["pipeCutting", "sheetCutting", "welding", "grinding", "assembly", "drilling", "bending"]
+          .map(key => this.$t(`createProject.${key}`)),
         datasets: [{ data: this.cd.pie || [0, 0, 0, 0, 0, 0, 0], backgroundColor: ["#42a5f5", "#ec407a", "#ffa726", "#ffee58", "#66bb6a", "#ab47bc", "#26c6da"], borderWidth: 0 }],
       };
     },
     lineData() {
       return {
         labels: this.cd.lineLabels || [],
-        datasets: [{ label: "Projects", data: this.cd.line || [], borderColor: "#42a5f5", backgroundColor: "rgba(66,165,245,0.1)", fill: true, tension: 0.3, pointRadius: 4, pointBackgroundColor: "#42a5f5" }],
+        datasets: [{ label: this.$t("analytics.projects"), data: this.cd.line || [], borderColor: "#42a5f5", backgroundColor: "rgba(66,165,245,0.1)", fill: true, tension: 0.3, pointRadius: 4, pointBackgroundColor: "#42a5f5" }],
       };
     },
     estVsRealData() {
       return {
         labels: this.cd.estLabels || [],
         datasets: [
-          { label: "Estimated", data: this.cd.est || [], backgroundColor: "#90caf9" },
-          { label: "Real", data: this.cd.real || [], backgroundColor: "#f48fb1" },
+          { label: this.$t("analytics.estimated"), data: this.cd.est || [], backgroundColor: "#90caf9" },
+          { label: this.$t("analytics.real"), data: this.cd.real || [], backgroundColor: "#f48fb1" },
         ],
       };
     },
@@ -645,7 +678,7 @@ export default {
       const eff = this.cd.workerEff || { labels: [], data: [] };
       return {
         labels: eff.labels,
-        datasets: [{ label: "Efficiency %", data: eff.data, backgroundColor: "#90caf9" }],
+        datasets: [{ label: `${this.$t("analytics.efficiency")} %`, data: eff.data, backgroundColor: "#90caf9" }],
       };
     },
     operationInsights() { return this.cd.insights || []; },

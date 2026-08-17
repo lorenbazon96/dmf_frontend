@@ -129,6 +129,8 @@
                     :placeholder="$t('login.emailPlaceholder')"
                     autocomplete="email"
                     required
+                    @invalid="setValidationMessage"
+                    @input="$event.target.setCustomValidity('')"
                   />
                 </div>
               </div>
@@ -167,13 +169,17 @@ export default {
     };
   },
   methods: {
+    setValidationMessage(event) {
+      const key = event.target.validity.valueMissing ? "common.required" : "common.invalidEmail";
+      event.target.setCustomValidity(this.$t(key));
+    },
     async handleSubmit() {
       this.error = "";
       try {
-        await api.post("/auth/forgot-password", { email: this.email });
+        await api.post("/auth/forgot-password", { email: this.email }, { suppressGlobalError: true });
         this.sent = true;
       } catch (err) {
-        this.error = err.response?.data?.error || "Greška pri slanju emaila";
+        this.error = err.userMessage || this.$t("apiErrors.unexpected");
       }
     },
     switchLang(lang) {

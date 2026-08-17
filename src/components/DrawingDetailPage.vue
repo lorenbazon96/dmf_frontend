@@ -40,7 +40,7 @@
                 </div>
                 <div class="project-meta">
                   <strong>{{ $t("project.status") }}:</strong>
-                  <span :class="'badge-' + (projectData.status || 'active')">{{ projectData.status || 'active' }}</span>
+                  <span :class="'badge-' + (projectData.status || 'active')">{{ projectStatusLabel(projectData.status) }}</span>
                 </div>
                 <div class="project-meta">
                   <strong>{{ $t("project.startedAt") }}:</strong>
@@ -118,7 +118,7 @@
                   class="drawing-pdf"
                 ></iframe>
                 <div v-else class="no-pdf text-muted">
-                  PDF nije dostupan
+                  {{ $t("drawing.pdfUnavailable") }}
                 </div>
               </div>
             </section>
@@ -133,6 +133,7 @@
 import SidebarNav from "./SidebarNav.vue";
 import { addWorkingMinutes, getWorkingMinutesBetween } from "../utils/workingTime";
 import { calcTimePerOperation } from "../utils/calculations";
+import { localeCode } from "../utils/domain";
 import api, { backendBaseURL } from "../api";
 
 export default {
@@ -281,7 +282,7 @@ export default {
       if (!start || !this.totalEstimatedMinutes) return "–";
       const adjustedStart = new Date(new Date(start).getTime() + this.totalPausedMinutes * 60000);
       const end = addWorkingMinutes(adjustedStart, this.totalEstimatedMinutes, this.companySchedule);
-      return end.toLocaleString("hr-HR");
+      return end.toLocaleString(localeCode(this.$i18n.locale));
     },
     clientPhone() {
       if (!this.clientData) return "–";
@@ -415,7 +416,10 @@ export default {
     },
     formatDate(d) {
       if (!d) return "–";
-      return new Date(d).toLocaleString("hr-HR");
+      return new Date(d).toLocaleString(localeCode(this.$i18n.locale));
+    },
+    projectStatusLabel(status) {
+      return this.$t(`project.projectStatus.${status || "active"}`);
     },
     formatMinutes(m) {
       if (!m) return "–";

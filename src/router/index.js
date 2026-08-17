@@ -7,8 +7,16 @@ const views = [
   "warehouse", "warehouse-add-item", "production-history", "history-project", "profile-edit",
 ];
 
+const contextualRoutes = {
+  project: "/projects/:id",
+  "history-project": "/history/projects/:id",
+  drawing: "/projects/:projectId/drawings/:drawingId",
+  "worker-detail": "/workers/:id",
+  "client-detail": "/clients/:id",
+};
+
 const routes = views.map(name => ({
-  path: name === "login" ? "/" : `/${name}`,
+  path: contextualRoutes[name] || (name === "login" ? "/" : `/${name}`),
   name,
   component: { render: () => null },
   meta: { public: publicViews.has(name) },
@@ -16,7 +24,7 @@ const routes = views.map(name => ({
 
 const router = createRouter({ history: createWebHashHistory(), routes });
 router.beforeEach(to => {
-  const authenticated = Boolean(localStorage.getItem("dmf_user") || sessionStorage.getItem("dmf_user") || sessionStorage.getItem("dmf_guest"));
+  const authenticated = Boolean(localStorage.getItem("dmf_user") || sessionStorage.getItem("dmf_user"));
   if (!to.meta.public && !authenticated) return { name: "login" };
   return true;
 });

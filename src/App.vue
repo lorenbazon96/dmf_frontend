@@ -3,7 +3,7 @@
     <span>{{ globalError }}</span>
     <button type="button" class="btn-close" aria-label="Zatvori" @click="globalError = ''"></button>
   </div>
-  <LoginPage v-if="currentView === 'login'" @login="handleLogin" @guest="handleGuest" @forgot-password="currentView = 'forgot-password'" />
+  <LoginPage v-if="currentView === 'login'" @login="handleLogin" @forgot-password="currentView = 'forgot-password'" />
   <ForgotPasswordPage v-else-if="currentView === 'forgot-password'" @back="currentView = 'login'" />
   <ResetPasswordPage v-else-if="currentView === 'reset-password'" @back="currentView = 'login'" />
   <DashboardPage
@@ -48,7 +48,7 @@
     :selected-company="selectedCompany"
     :user-name="displayUserName"
     :company-schedule="companyScheduleFor(selectedDrawingProject?.company)"
-    @back="currentView = drawingBackView"
+    @back="backFromDrawing"
     @home="currentView = 'dashboard'"
     @logout="handleLogout"
     @edit-profile="currentView = 'profile-edit'"
@@ -145,7 +145,7 @@
     @back="currentView = 'dashboard'"
     @logout="handleLogout"
     @view-project="openHistoryProject"
-    @duplicate-project="currentView = 'dashboard'"
+    @duplicate-project="duplicateProject"
     @edit-profile="currentView = 'profile-edit'"
     @select-company="selectCompany"
     @add-company="addCompany"
@@ -234,14 +234,9 @@ export default {
       companyObjects: [],
       selectedCompany: '',
       loggedInUser: null,
-      isGuest: false,
       globalError: '',
       errorTimer: null,
-    }
-  },
-  provide() {
-    return {
-      isGuest: () => this.isGuest,
+      routeLoadToken: 0,
     }
   },
   computed: {
@@ -266,11 +261,13 @@ export default {
     }
     if (this.$route.name === 'reset-password') {
       this.currentView = 'reset-password'
-    } else if (this.$route.name && (this.loggedInUser || this.$route.meta.public)) {
+    } else if (this.$route.name && (this.loggedInUser || this.$route.meta.public) &&
+      !['project', 'history-project', 'drawing', 'worker-detail', 'client-detail'].includes(this.$route.name)) {
       this.currentView = this.$route.name
     }
     if (this.loggedInUser && this.currentView !== 'reset-password') {
       await this.fetchCompanies()
+      await this.applyRoute(this.$route)
     }
     window.addEventListener('dmf:session-expired', this.onSessionExpired)
     window.addEventListener('dmf:api-error', this.onApiError)
@@ -282,27 +279,80 @@ export default {
   },
   watch: {
     currentView(view) {
-      if (this.$route.name !== view) this.$router.push({ name: view })
+      if (this.$route.name !== view && !['project', 'history-project', 'drawing', 'worker-detail', 'client-detail'].includes(view)) {
+        this.$router.push({ name: view })
+      }
     },
-    '$route.name'(view) {
-      if (view && view !== this.currentView) this.currentView = view
+    '$route.fullPath'() {
+      this.applyRoute(this.$route)
     },
   },
   methods: {
+    backFromDrawing() {
+      const project = this.selectedDrawingProject
+      if (!project) {
+        this.currentView = 'dashboard'
+        return
+      }
+      const name = this.drawingBackView === 'history-project' ? 'history-project' : 'project'
+      this.$router.push({ name, params: { id: project._id || project.id } })
+    },
+    async applyRoute(route) {
+      if (!route.name || (!this.loggedInUser && !route.meta.public)) return
+      const loadToken = ++this.routeLoadToken
+      try {
+        if (route.name === 'project' || route.name === 'history-project') {
+          const target = route.name === 'project' ? this.selectedProject : this.selectedHistoryProject
+          const project = String(target?._id) === String(route.params.id)
+            ? target
+            : (await api.get(`/projects/${route.params.id}`, { suppressGlobalError: true })).data
+          if (route.name === 'project') this.selectedProject = project
+          else this.selectedHistoryProject = project
+          if (project?.company) this.selectedCompany = project.company
+        } else if (route.name === 'drawing') {
+          const project = String(this.selectedDrawingProject?._id) === String(route.params.projectId)
+            ? this.selectedDrawingProject
+            : (await api.get(`/projects/${route.params.projectId}`, { suppressGlobalError: true })).data
+          const drawings = project.drawings || project.parts || []
+          const drawing = drawings.find(item => String(item._id || item.id) === String(route.params.drawingId))
+          if (!drawing) throw new Error('Drawing not found')
+          this.selectedDrawingProject = project
+          this.selectedDrawing = drawing
+          this.drawingBackView = route.query.from === 'history' ? 'history-project' : 'project'
+          if (project?.company) this.selectedCompany = project.company
+        } else if (route.name === 'worker-detail') {
+          if (String(this.selectedWorker?._id || this.selectedWorker?.id) !== String(route.params.id)) {
+            this.selectedWorker = (await api.get(`/workers/${route.params.id}`, { suppressGlobalError: true })).data
+          }
+        } else if (route.name === 'client-detail') {
+          if (String(this.selectedClient?._id || this.selectedClient?.id) !== String(route.params.id)) {
+            this.selectedClient = (await api.get(`/clients/${route.params.id}`, { suppressGlobalError: true })).data
+          }
+        }
+        if (loadToken === this.routeLoadToken && route.fullPath === this.$route.fullPath) {
+          this.currentView = route.name
+        }
+      } catch {
+        if (loadToken !== this.routeLoadToken || route.fullPath !== this.$route.fullPath) return
+        const fallback = ['history-project'].includes(route.name) ? 'production-history'
+          : ['worker-detail', 'client-detail'].includes(route.name) ? 'workers-clients' : 'dashboard'
+        this.currentView = fallback
+        if (this.$route.name !== fallback) this.$router.replace({ name: fallback })
+      }
+    },
     showError(message) {
       this.globalError = message
       clearTimeout(this.errorTimer)
       this.errorTimer = setTimeout(() => { this.globalError = '' }, 6000)
     },
     onApiError(event) {
-      this.showError(event.detail?.userMessage || 'Dogodila se pogreška.')
+      this.showError(event.detail?.userMessage || this.$t('apiErrors.unexpected'))
     },
     onSessionExpired() {
       if (!this.loggedInUser && this.currentView === 'login') return
       this.loggedInUser = null
-      this.isGuest = false
       this.currentView = 'login'
-      this.showError('Sesija je istekla. Prijavite se ponovno.')
+      this.showError(this.$t('apiErrors.sessionExpired'))
     },
     companyScheduleFor(companyName) {
       return this.companyObjects.find(c => c.name === companyName) || this.selectedCompanyObject;
@@ -310,20 +360,8 @@ export default {
     clearStoredAuth() {
       clearStoredAuth()
     },
-    handleGuest() {
-      this.clearStoredAuth()
-      this.loggedInUser = { fullName: 'Guest', email: '' }
-      this.isGuest = true
-      sessionStorage.setItem('dmf_guest', '1')
-      if (!this.companies.length) {
-        this.companies = ['Demo Factory']
-        this.selectedCompany = 'Demo Factory'
-      }
-      this.currentView = 'dashboard'
-    },
     handleLogout() {
       this.loggedInUser = null
-      this.isGuest = false
       this.clearStoredAuth()
       this.currentView = 'login'
     },
@@ -334,7 +372,6 @@ export default {
       }
 
       this.loggedInUser = user
-      this.isGuest = false
       if (rememberMe) {
         localStorage.setItem('dmf_user', JSON.stringify(user))
         if (token) localStorage.setItem('dmf_token', token)
@@ -362,15 +399,20 @@ export default {
     openHistoryProject(project) {
       this.selectedHistoryProject = project
       if (project?.company) this.selectedCompany = project.company
-      this.currentView = 'history-project'
+      this.$router.push({ name: 'history-project', params: { id: project._id || project.id } })
     },
     openProject(project) {
       this.selectedProject = project
       if (project?.company) this.selectedCompany = project.company
-      this.currentView = 'project'
+      this.$router.push({ name: 'project', params: { id: project._id || project.id } })
     },
     editProject(project) {
       this.editingProject = project
+      this.currentView = 'create-project'
+    },
+    duplicateProject(project) {
+      this.editingProject = { ...project, _id: null, _isCopy: true }
+      if (project?.company) this.selectedCompany = project.company
       this.currentView = 'create-project'
     },
     openDrawing(drawing, project, backView = 'project') {
@@ -378,15 +420,23 @@ export default {
       this.selectedDrawingProject = project
       this.drawingBackView = backView
       if (project?.company) this.selectedCompany = project.company
-      this.currentView = 'drawing'
+      this.$router.push({
+        name: 'drawing',
+        params: { projectId: project._id || project.id, drawingId: drawing._id || drawing.id },
+        query: backView === 'history-project' ? { from: 'history' } : {},
+      })
     },
     openWorker(worker) {
       this.selectedWorker = worker
-      this.currentView = 'worker-detail'
+      const id = worker?._id || worker?.id
+      if (id) this.$router.push({ name: 'worker-detail', params: { id } })
+      else this.currentView = 'worker-detail'
     },
     openClient(client) {
       this.selectedClient = client
-      this.currentView = 'client-detail'
+      const id = client?._id || client?.id
+      if (id) this.$router.push({ name: 'client-detail', params: { id } })
+      else this.currentView = 'client-detail'
     },
     selectCompany(company) {
       this.selectedCompany = company
@@ -394,7 +444,7 @@ export default {
     async addCompany() {
       const n = this.companies.length + 1
       try {
-        await api.post('/companies', { name: 'New Factory ' + n })
+        await api.post('/companies', { name: `${this.$t('dashboard.newFactory')} ${n}` })
         await this.fetchCompanies()
       } catch (err) {
         console.error('Failed to add company:', err)

@@ -62,11 +62,11 @@
                     <label class="form-label-sm">{{ $t("warehouseAdd.type") }}:</label>
                     <select v-model="form.type" class="form-select form-select-sm">
                       <option value="" disabled>{{ $t("warehouseAdd.selectType") }}</option>
-                      <option value="Lim">Lim</option>
-                      <option value="Cijev">Cijev</option>
-                      <option value="Profil">Profil</option>
-                      <option value="Vijčani materijal">Vijčani materijal</option>
-                      <option value="Ostalo">Ostalo</option>
+                      <option value="Lim">{{ $t("warehouseAdd.types.sheet") }}</option>
+                      <option value="Cijev">{{ $t("warehouseAdd.types.pipe") }}</option>
+                      <option value="Profil">{{ $t("warehouseAdd.types.profile") }}</option>
+                      <option value="Vijčani materijal">{{ $t("warehouseAdd.types.fasteners") }}</option>
+                      <option value="Ostalo">{{ $t("warehouseAdd.types.other") }}</option>
                     </select>
                   </div>
                 </div>
@@ -81,7 +81,12 @@
                 <div class="row g-2 mb-3">
                   <div class="col-md-6">
                     <label class="form-label-sm">{{ $t("warehouseAdd.quantity") }}:</label>
-                    <input v-model="form.quantity" type="text" class="form-control form-control-sm" />
+                    <input v-model.number="form.quantity" type="number" min="0" step="any" class="form-control form-control-sm" />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label-sm">{{ $t("warehouseAdd.supplier") }}:</label>
+                    <input v-model.trim="form.supplier" type="text" class="form-control form-control-sm" />
+                    <div class="form-text">{{ $t("warehouseAdd.supplierHint") }}</div>
                   </div>
                 </div>
 
@@ -91,6 +96,7 @@
                     <textarea v-model="form.specs" class="form-control form-control-sm" rows="5"></textarea>
                   </div>
                 </div>
+                <div v-if="errorMessage" class="alert alert-danger mb-0">{{ errorMessage }}</div>
               </div>
             </section>
           </div>
@@ -104,7 +110,7 @@
           <div class="save-modal-icon">✓</div>
           <h6 class="save-modal-title">{{ $t("warehouseAdd.itemSaved") }}</h6>
           <p class="save-modal-text">{{ form.name }}</p>
-          <button class="btn btn-sm save-modal-btn" @click="showSuccessModal = false">OK</button>
+          <button class="btn btn-sm save-modal-btn" @click="showSuccessModal = false">{{ $t("common.ok") }}</button>
         </div>
       </div>
     </Transition>
@@ -131,8 +137,10 @@ export default {
         name: "",
         quantity: "",
         specs: "",
+        supplier: "",
       },
       showSuccessModal: false,
+      errorMessage: "",
       totalItems: 0,
       totalPcs: 0,
     };
@@ -156,16 +164,23 @@ export default {
       }
     },
     async saveItem() {
+      const quantity = Number(this.form.quantity) || 0;
+      if (quantity > 0 && !this.form.supplier) {
+        this.errorMessage = this.$t("warehouseAdd.supplierRequired");
+        return;
+      }
+      this.errorMessage = "";
       const payload = {
         type: this.form.type,
         name: this.form.name,
         specs: this.form.specs,
-        qty: Number(this.form.quantity) || 0,
+        qty: quantity,
+        supplier: this.form.supplier,
         company: this.selectedCompany,
       };
       await api.post("/warehouse", payload);
       this.showSuccessModal = true;
-      this.form = { type: "", name: "", quantity: "", specs: "" };
+      this.form = { type: "", name: "", quantity: "", specs: "", supplier: "" };
       this.fetchStats();
     },
   },

@@ -53,7 +53,7 @@
                 <div class="project-meta">
                   <strong>{{ $t("project.status") }}:</strong>
                   <span :class="'badge-' + (projectData.status || 'active')">{{
-                    projectData.status || "active"
+                    projectStatusLabel(projectData.status)
                   }}</span>
                 </div>
                 <div class="project-meta">
@@ -167,6 +167,7 @@
                 </svg>
               </button>
               <button
+                v-if="projectData.status !== 'completed'"
                 class="btn btn-action"
                 @click="$emit('edit-project', project)"
               >
@@ -326,7 +327,7 @@
                       :class="{ 'row-completed': p.status === 'completed' }"
                     >
                       <td class="fw-semibold text-dark">{{ p.drawingNo }}</td>
-                      <td>{{ p.operation }}</td>
+                      <td>{{ localizedOperation(p.operation) }}</td>
                       <td class="d-none d-sm-table-cell text-muted">
                         <div>{{ p.worksOn }}</div>
                         <span :class="'badge-' + p.status">{{ taskStatusLabel(p.status) }}</span>
@@ -383,8 +384,8 @@
                           <button
                             v-if="p.status === 'pending'"
                             class="btn btn-sm btn-remove-worker"
-                            :disabled="productionPlan.length <= 1"
-                            :title="productionPlan.length <= 1 ? $t('project.lastWorkerRequired') : ''"
+                            :disabled="!canRemoveWorker(p.drawingIdx)"
+                            :title="!canRemoveWorker(p.drawingIdx) ? $t('project.lastWorkerRequired') : ''"
                             @click="removeWorker(p.drawingIdx, p.workerIdx)"
                           >
                             ✕
@@ -443,7 +444,7 @@ import { exportProjectDetailPdf, printProjectDetail } from "../utils/pdf";
 import { calcTimePerOperation } from "../utils/calculations";
 import { addWorkingMinutes, getWorkingMinutesBetween } from "../utils/workingTime";
 import api from "../api";
-import { projectActions, taskActions } from "../utils/domain";
+import { localeCode, operationLabel, projectActions, taskActions } from "../utils/domain";
 
 export default {
   name: "ProjectDetailPage",
@@ -662,7 +663,7 @@ export default {
       if (!start || !this.totalEstimatedMinutes) return "–";
       const adjustedStart = new Date(new Date(start).getTime() + this.totalPausedMinutes * 60000);
       const end = addWorkingMinutes(adjustedStart, this.totalEstimatedMinutes, this.companySchedule);
-      return end.toLocaleString("hr-HR");
+      return end.toLocaleString(localeCode(this.$i18n.locale));
     },
     actualEndAt() {
       if (this.projectData.status !== "completed") return null;
@@ -681,7 +682,7 @@ export default {
     },
     actualEndDate() {
       const end = this.actualEndAt;
-      return end ? end.toLocaleString("hr-HR") : "–";
+      return end ? end.toLocaleString(localeCode(this.$i18n.locale)) : "–";
     },
     actualDuration() {
       const start = this.projectData.startedAt || this.projectData.createdAt;
@@ -768,7 +769,7 @@ export default {
     },
     formatDate(d) {
       if (!d) return "–";
-      return new Date(d).toLocaleString("hr-HR");
+      return new Date(d).toLocaleString(localeCode(this.$i18n.locale));
     },
     formatMinutes(min) {
       if (!min || min <= 0) return "–";
@@ -779,6 +780,12 @@ export default {
     },
     taskStatusLabel(status) {
       return this.$t(`project.taskStatus.${status}`);
+    },
+    projectStatusLabel(status) {
+      return this.$t(`project.projectStatus.${status || "active"}`);
+    },
+    localizedOperation(operation) {
+      return operationLabel(operation, key => this.$t(key));
     },
     getTaskProgress(task) {
       if (task.status === "completed") return 100;
@@ -797,7 +804,7 @@ export default {
       const adjustedStart = new Date(new Date(start).getTime() + this.totalPausedMinutes * 60000);
       const totalMinutes = (task.startOffset || 0) + task.estimatedMinutes;
       const end = addWorkingMinutes(adjustedStart, totalMinutes, this.companySchedule);
-      return end.toLocaleString("hr-HR", {
+      return end.toLocaleString(localeCode(this.$i18n.locale), {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
@@ -910,7 +917,7 @@ export default {
       return true;
     },
     async removeWorker(drawingIdx, workerIdx) {
-      if (this.productionPlan.length <= 1) return;
+      if (!this.canRemoveWorker(drawingIdx)) return;
       try {
         const { data } = await api.put(
           "/projects/" + this.projectData._id + "/remove-worker",
@@ -924,6 +931,9 @@ export default {
         console.error("Failed to remove worker:", err);
       }
     },
+    canRemoveWorker(drawingIdx) {
+      return this.productionPlan.filter(task => task.drawingIdx === drawingIdx).length > 1;
+    },
     async deleteProject() {
       const id = this.projectData._id;
       if (!id) return;
@@ -931,6 +941,7 @@ export default {
         await api.delete("/projects/" + id);
       } catch (err) {
         console.error("Failed to delete project:", err);
+        return;
       }
       this.showDeleteModal = false;
       this.$emit("back");

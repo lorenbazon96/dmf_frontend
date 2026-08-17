@@ -41,7 +41,7 @@
                   </td>
                   <td class="d-none d-sm-table-cell text-muted">
                     <span :class="'badge-' + (p.status || 'active')">{{
-                      p.status || "active"
+                      projectStatusLabel(p.status)
                     }}</span>
                   </td>
                   <td>
@@ -178,7 +178,7 @@
                       <td class="fw-semibold text-dark">{{ w.workerName }}</td>
                       <td>{{ w.rn }}</td>
                       <td class="d-none d-sm-table-cell text-muted">{{ w.projectName }}</td>
-                      <td>{{ w.operation }}</td>
+                      <td>{{ localizedOperation(w.operation) }}</td>
                       <td class="d-none d-md-table-cell">
                         <span :class="'badge-worker-' + w.status">{{ workerStatusLabel(w.status) }}</span>
                       </td>
@@ -208,12 +208,12 @@
 import SidebarNav from "./SidebarNav.vue";
 import { calcTimePerOperation } from "../utils/calculations";
 import { getWorkingMinutesBetween } from "../utils/workingTime";
+import { operationLabel } from "../utils/domain";
 import api from "../api";
 
 export default {
   name: "DashboardPage",
   components: { SidebarNav },
-  inject: ['isGuest'],
   props: {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: "" },
@@ -309,7 +309,6 @@ export default {
   },
   methods: {
     async fetchProjects() {
-      if (this.isGuest()) { this.projects = []; return; }
       try {
         const params = {};
         if (this.selectedCompany) {
@@ -375,8 +374,13 @@ export default {
       }
     },
     workerStatusLabel(status) {
-      const labels = { pending: 'Na čekanju', 'in-progress': 'U tijeku', completed: 'Završeno' };
-      return labels[status] || status;
+      return this.$t(`project.taskStatus.${status}`);
+    },
+    projectStatusLabel(status) {
+      return this.$t(`project.projectStatus.${status || "active"}`);
+    },
+    localizedOperation(operation) {
+      return operationLabel(operation, key => this.$t(key));
     },
     getProjectProgress(p) {
       if (!p.drawings || !p.drawings.length) return 0;

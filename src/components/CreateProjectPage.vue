@@ -19,9 +19,11 @@
               <div class="panel-body">
                 <h5 class="panel-heading">
                   {{
-                    editProject
+                    editProject && !isCopy
                       ? $t("project.editProject")
-                      : $t("createProject.title")
+                      : isCopy
+                        ? $t("createProject.copyTitle")
+                        : $t("createProject.title")
                   }}
                 </h5>
 
@@ -352,7 +354,7 @@
                           :key="op"
                           class="mb-2"
                         >
-                          <div class="assigned-op-label">{{ op }}</div>
+                          <div class="assigned-op-label">{{ localizedOperation(op) }}</div>
                           <div
                             v-for="aw in group"
                             :key="aw._idx"
@@ -1097,7 +1099,7 @@
                         <label
                           class="form-check-label op-check-label"
                           :for="'mw-' + w.id + '-' + op"
-                          >{{ op }}</label
+                          >{{ localizedOperation(op) }}</label
                         >
                       </div>
                     </div>
@@ -1172,7 +1174,7 @@
             <div class="d-flex align-items-center justify-content-between mb-2">
               <div>
                 <span class="auto-op-order">{{ sIdx + 1 }}.</span>
-                <span class="auto-op-name">{{ item.operation }}</span>
+                <span class="auto-op-name">{{ localizedOperation(item.operation) }}</span>
               </div>
               <div class="d-flex gap-3 align-items-center">
                 <span class="text-muted" style="font-size: 0.75rem"
@@ -1371,7 +1373,7 @@
               :key="op"
               class="ms-2 mt-1"
             >
-              <span class="fw-semibold">{{ op }}:</span>
+              <span class="fw-semibold">{{ localizedOperation(op) }}:</span>
               <span v-for="aw in group" :key="aw._idx" class="ms-2">{{
                 aw.name
               }}</span>
@@ -1469,7 +1471,7 @@
             class="btn btn-sm btn-primary-action px-4"
             @click="showSuccessModal = false"
           >
-            OK
+            {{ $t("common.ok") }}
           </button>
         </div>
       </div>
@@ -1489,7 +1491,7 @@
             class="btn btn-sm btn-primary-action px-4"
             @click="showErrorModal = false"
           >
-            OK
+            {{ $t("common.ok") }}
           </button>
         </div>
       </div>
@@ -1500,7 +1502,8 @@
 <script>
 import SidebarNav from "./SidebarNav.vue";
 import api from "../api";
-import { availableQty, materialPayload } from "../utils/domain";
+import { exportProjectPreviewPdf } from "../utils/pdf";
+import { availableQty, materialPayload, operationLabel } from "../utils/domain";
 import {
   calcTotalTime,
   calcTimePerOperation,
@@ -1597,6 +1600,9 @@ export default {
     },
   },
   computed: {
+    isCopy() {
+      return Boolean(this.editProject?._isCopy);
+    },
     responsiblePersons() {
       const selected = this.clients.find(
         (c) => c.clientName === this.form.client,
@@ -1694,6 +1700,9 @@ export default {
     },
   },
   methods: {
+    localizedOperation(operation) {
+      return operationLabel(operation, key => this.$t(key));
+    },
     availableQty,
     async fetchData() {
       const params = this.selectedCompany
@@ -2055,6 +2064,7 @@ export default {
       formData.append("file", file);
       const { data } = await api.post("/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
+        suppressGlobalError: true,
       });
       return data.path;
     },
@@ -2083,15 +2093,17 @@ export default {
         dwgFile: dwgPath,
         isAssemblyDrawing: this.form.isAssemblyDrawing,
         treatments: this.form.isAssemblyDrawing ? [] : this.treatmentSections,
-        assignedWorkers: this.assignedWorkers.map((aw) => ({
-          ...(aw.taskId ? { _id: aw.taskId } : {}),
-          workerName: aw.name,
-          workerId: aw.id || "",
-          operation: aw.operation,
-          note: aw.note,
-          type: aw.type,
-          estimatedMinutes: aw.estimatedMinutes || 0,
-        })),
+        assignedWorkers: this.form.isAssemblyDrawing
+          ? []
+          : this.assignedWorkers.map((aw) => ({
+              ...(aw.taskId ? { _id: aw.taskId } : {}),
+              workerName: aw.name,
+              workerId: aw.id || "",
+              operation: aw.operation,
+              note: aw.note,
+              type: aw.type,
+              estimatedMinutes: aw.estimatedMinutes || 0,
+            })),
         assignedMaterials: this.assignedMaterials.map(materialPayload),
       };
     },
@@ -2100,6 +2112,7 @@ export default {
       if (this.currentProjectId) {
         const { data: project } = await api.get(
           `/projects/${this.currentProjectId}`,
+          { suppressGlobalError: true },
         );
         project.rn = this.form.rn;
         project.name = this.form.name;
@@ -2120,17 +2133,24 @@ export default {
           client: project.client,
           responsible: project.responsible,
           drawings: project.drawings,
-        });
+        }, { suppressGlobalError: true });
       } else {
+        const drawings = this.isCopy
+          ? (this.editProject.drawings || []).map((existing, index) =>
+              index === this.editingDrawingIndex ? drawing : existing,
+            )
+          : [drawing];
         const payload = {
           rn: this.form.rn,
           name: this.form.name,
           client: this.form.client,
           responsible: this.form.responsible,
           company: this.selectedCompany,
-          drawings: [drawing],
+          drawings,
         };
-        const { data: created } = await api.post("/projects", payload);
+        const { data: created } = await api.post("/projects", payload, {
+          suppressGlobalError: true,
+        });
         this.currentProjectId = created._id;
       }
     },
@@ -2163,7 +2183,10 @@ export default {
         try {
           const params = {};
           if (this.selectedCompany) params.company = this.selectedCompany;
-          const { data } = await api.get("/projects", { params });
+          const { data } = await api.get("/projects", {
+            params,
+            suppressGlobalError: true,
+          });
           if (
             data.some(
               (p) =>
@@ -2173,15 +2196,12 @@ export default {
             errors.rn = dup;
           }
         } catch (e) {
-          console.error("Failed to check RN duplicates", e);
+          errors.rn = e.userMessage || this.$t("apiErrors.unexpected");
         }
       }
       if (!this.form.name.trim()) errors.name = req;
       if (!this.form.client) errors.client = req;
-      const hasWorkerInOtherDrawing = (this.editProject?.drawings || []).some(
-        (drawing, index) => index !== this.editingDrawingIndex && (drawing.assignedWorkers || []).length,
-      );
-      if (!this.assignedWorkers.length && !hasWorkerInOtherDrawing) {
+      if (!this.form.isAssemblyDrawing && !this.assignedWorkers.length) {
         errors.workers = this.$t("createProject.workerRequired");
         this.errorMessage = errors.workers;
         this.showErrorModal = true;
@@ -2234,7 +2254,7 @@ export default {
         this.resetPartForm();
         this.showSuccessModal = true;
       } catch (err) {
-        this.errorMessage = err.response?.data?.error || err.message;
+        this.errorMessage = err.userMessage || err.message;
         this.showErrorModal = true;
       } finally {
         this.saving = false;
@@ -2254,7 +2274,7 @@ export default {
           this.$emit("back");
         }, 1500);
       } catch (err) {
-        this.errorMessage = err.response?.data?.error || err.message;
+        this.errorMessage = err.userMessage || err.message;
         this.showErrorModal = true;
       } finally {
         this.saving = false;
@@ -2262,7 +2282,7 @@ export default {
     },
 
     loadProjectForEditing(project) {
-      this.currentProjectId = project._id;
+      this.currentProjectId = project._isCopy ? null : project._id;
       this.form.rn = project.rn || "";
       this.form.name = project.name || "";
       this.form.client = project.client || "";
@@ -2373,7 +2393,33 @@ export default {
     },
 
     exportPreviewPdf() {
-      this.printPreview();
+      const describeTreatment = (item) => [item.operation, item.type, item.note]
+        .filter(Boolean).join(" - ");
+      const workerName = (item) => item.fullName || item.name || item.workerName || String(item);
+      const materialName = (item) => [item.name, item.qty || item.quantity, item.unit]
+        .filter(value => value !== undefined && value !== "").join(" - ");
+      return exportProjectPreviewPdf({
+        project: this.form,
+        drawing: this.part,
+        treatments: this.treatmentSections.map(describeTreatment).filter(Boolean),
+        workers: this.assignedWorkers.map(workerName),
+        materials: this.assignedMaterials.map(materialName),
+        estimate: this.autoEstimatedTime || "-",
+      }, {
+        title: this.$t("createProject.previewProcess"),
+        field: this.$t("reports.field"),
+        value: this.$t("reports.value"),
+        rn: this.$t("createProject.rnNumber"),
+        name: this.$t("createProject.name"),
+        client: this.$t("createProject.selectClient"),
+        drawing: this.$t("createProject.drawingNumber"),
+        estimate: this.$t("createProject.estimatedTime"),
+        treatments: this.$t("createProject.treatments"),
+        workers: this.$t("createProject.assignedWorkers"),
+        materials: this.$t("createProject.assignedMaterials"),
+        description: this.$t("createProject.description"),
+        fileName: "project-preview",
+      }, this.userName, this.selectedCompany);
     },
   },
 };

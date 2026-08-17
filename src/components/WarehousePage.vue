@@ -129,21 +129,17 @@
                   </thead>
                   <tbody>
                     <tr v-for="item in filteredItems" :key="item.id">
-                      <td>{{ item.type }}</td>
+                      <td>{{ itemTypeLabel(item.type) }}</td>
                       <td>{{ item.name }}</td>
                       <td class="text-muted">{{ item.specs }}</td>
-                      <td>
-                        <div class="qty-control d-inline-flex align-items-center">
-                          <button class="btn btn-qty" @click="decrementQty(item)">−</button>
-                          <span class="qty-value">{{ item.qty }}</span>
-                          <button class="btn btn-qty" @click="incrementQty(item)">+</button>
-                        </div>
-                      </td>
+                      <td class="fw-semibold">{{ item.qty }}</td>
                       <td>{{ item.reservedQty || 0 }}</td>
                       <td>{{ availableQty(item) }}</td>
                       <td class="text-end">
+                        <button class="btn btn-sm btn-stock-in me-1" @click="openAdjustment(item, 'in')">{{ $t("warehouse.stockIn") }}</button>
+                        <button class="btn btn-sm btn-stock-out me-1" :disabled="availableQty(item) <= 0" @click="openAdjustment(item, 'out')">{{ $t("warehouse.stockOut") }}</button>
                         <button class="btn btn-sm btn-view me-1" @click="openMovements(item)">{{ $t("warehouse.history") }}</button>
-                        <button class="btn btn-sm btn-delete" :disabled="Number(item.reservedQty) > 0" :title="Number(item.reservedQty) > 0 ? 'Reserved items cannot be deleted.' : ''" @click="deleteItem(item)">
+                        <button class="btn btn-sm btn-delete" :disabled="Number(item.reservedQty) > 0" :title="Number(item.reservedQty) > 0 ? $t('warehouse.reservedDelete') : ''" @click="deleteItem(item)">
                           <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" class="me-1">
                             <path d="M5.5 5.5A.5.5 0 016 6v6a.5.5 0 01-1 0V6a.5.5 0 01.5-.5m2.5 0a.5.5 0 01.5.5v6a.5.5 0 01-1 0V6a.5.5 0 01.5-.5m3 .5a.5.5 0 00-1 0v6a.5.5 0 001 0z" />
                             <path d="M14.5 3a1 1 0 01-1 1H13v9a2 2 0 01-2 2H5a2 2 0 01-2-2V4h-.5a1 1 0 01-1-1V2a1 1 0 011-1H6a1 1 0 011-1h2a1 1 0 011 1h3.5a1 1 0 011 1zM4.118 4L4 4.059V13a1 1 0 001 1h6a1 1 0 001-1V4.059L11.882 4zM2.5 3h11V2h-11z" />
@@ -160,6 +156,39 @@
         </div>
       </div>
     </main>
+    <div v-if="adjustmentItem" class="modal-overlay" @click.self="closeAdjustment">
+      <div class="modal-box adjustment-modal" role="dialog" aria-modal="true" :aria-label="adjustmentTitle">
+        <div class="modal-header-custom">
+          <div>
+            <h6 class="modal-title">{{ adjustmentTitle }}</h6>
+            <div class="modal-subtitle">{{ adjustmentItem.name }}<span v-if="adjustmentItem.specs"> · {{ adjustmentItem.specs }}</span></div>
+          </div>
+          <button class="btn-close-custom" type="button" :aria-label="$t('warehouse.close')" @click="closeAdjustment">&times;</button>
+        </div>
+        <form @submit.prevent="submitAdjustment">
+          <div class="modal-body-custom">
+            <div class="mb-3">
+              <label class="form-label-sm" for="movement-quantity">{{ $t("warehouse.movementQuantity") }}</label>
+              <input id="movement-quantity" v-model.number="adjustmentForm.quantity" class="form-control form-control-sm" type="number" min="0.000000001" step="any" required />
+              <div v-if="adjustmentDirection === 'out'" class="form-text">{{ $t("warehouse.availableForIssue", { count: availableQty(adjustmentItem) }) }}</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label-sm" for="movement-counterparty">{{ adjustmentDirection === "in" ? $t("warehouse.supplier") : $t("warehouse.destination") }}</label>
+              <input id="movement-counterparty" v-model.trim="adjustmentForm.counterparty" class="form-control form-control-sm" type="text" maxlength="1000" required />
+            </div>
+            <div>
+              <label class="form-label-sm" for="movement-note">{{ $t("warehouse.noteOptional") }}</label>
+              <textarea id="movement-note" v-model.trim="adjustmentForm.note" class="form-control form-control-sm" rows="3" maxlength="1000"></textarea>
+            </div>
+            <div v-if="adjustmentError" class="alert alert-danger mt-3 mb-0">{{ adjustmentError }}</div>
+          </div>
+          <div class="modal-footer-custom gap-2">
+            <button class="btn btn-secondary-action" type="button" @click="closeAdjustment">{{ $t("warehouse.cancel") }}</button>
+            <button class="btn btn-primary-action" type="submit" :disabled="adjustmentSaving">{{ $t("warehouse.saveMovement") }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
     <div v-if="movementItem" class="modal-overlay" @click.self="closeMovements">
       <div class="modal-box movement-modal" role="dialog" aria-modal="true" :aria-label="$t('warehouse.inventoryHistory')">
         <div class="modal-header-custom">
@@ -175,8 +204,8 @@
           <div v-else-if="!movements.length" class="history-state">{{ $t("warehouse.noMovements") }}</div>
           <div v-else class="table-responsive">
             <table class="table history-table align-middle mb-0">
-              <thead class="dark-header"><tr><th>{{ $t("warehouse.time") }}</th><th>{{ $t("warehouse.movementType") }}</th><th class="text-end">{{ $t("warehouse.stockChange") }}</th><th class="text-end">{{ $t("warehouse.reservationChange") }}</th><th>{{ $t("warehouse.project") }}</th><th>{{ $t("warehouse.reason") }}</th></tr></thead>
-              <tbody><tr v-for="m in movements" :key="m._id"><td class="text-nowrap">{{ formatDate(m.createdAt || m.timestamp) }}</td><td><span class="movement-badge" :class="`movement-${m.type}`">{{ movementTypeLabel(m.type) }}</span></td><td class="text-end fw-semibold" :class="deltaClass(m.qtyDelta)">{{ formatDelta(m.qtyDelta) }}</td><td class="text-end fw-semibold" :class="deltaClass(m.reservedDelta)">{{ formatDelta(m.reservedDelta) }}</td><td>{{ m.projectRn || m.project?.rn || m.projectName || '—' }}</td><td>{{ reasonLabel(m.reason) }}</td></tr></tbody>
+              <thead class="dark-header"><tr><th>{{ $t("warehouse.time") }}</th><th>{{ $t("warehouse.movementType") }}</th><th class="text-end">{{ $t("warehouse.stockChange") }}</th><th class="text-end">{{ $t("warehouse.reservationChange") }}</th><th>{{ $t("warehouse.project") }}</th><th>{{ $t("warehouse.supplierOrDestination") }}</th><th>{{ $t("warehouse.reason") }}</th></tr></thead>
+              <tbody><tr v-for="m in movements" :key="m._id"><td class="text-nowrap">{{ formatDate(m.createdAt || m.timestamp) }}</td><td><span class="movement-badge" :class="`movement-${m.type}`">{{ movementTypeLabel(m.type) }}</span></td><td class="text-end fw-semibold" :class="deltaClass(m.qtyDelta)">{{ formatDelta(m.qtyDelta) }}</td><td class="text-end fw-semibold" :class="deltaClass(m.reservedDelta)">{{ formatDelta(m.reservedDelta) }}</td><td>{{ m.projectRn || m.project?.rn || m.projectName || '—' }}</td><td>{{ movementCounterparty(m) }}</td><td>{{ reasonLabel(m.reason) }}</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -197,7 +226,6 @@ import { availableQty } from "../utils/domain";
 export default {
   name: "WarehousePage",
   components: { SidebarNav },
-  inject: ['isGuest'],
   props: {
     companies: { type: Array, default: () => [] },
     selectedCompany: { type: String, default: '' },
@@ -217,6 +245,11 @@ export default {
       movements: [],
       movementsLoading: false,
       movementsError: false,
+      adjustmentItem: null,
+      adjustmentDirection: "in",
+      adjustmentForm: { quantity: null, counterparty: "", note: "" },
+      adjustmentSaving: false,
+      adjustmentError: "",
     };
   },
   watch: {
@@ -278,6 +311,9 @@ export default {
     totalPcs() {
       return this.companyFilteredItems.reduce((sum, i) => sum + i.qty, 0);
     },
+    adjustmentTitle() {
+      return this.$t(this.adjustmentDirection === "in" ? "warehouse.receiveStock" : "warehouse.issueStock");
+    },
   },
   mounted() {
     this._onClickOutside = (e) => {
@@ -295,22 +331,44 @@ export default {
   },
   methods: {
     async fetchItems() {
-      if (this.isGuest()) { this.items = []; return; }
       const params = this.selectedCompany ? { company: this.selectedCompany } : {};
       const { data } = await api.get("/warehouse", { params });
       this.items = data.map(i => ({ ...i, id: i._id }));
     },
-    async incrementQty(item) {
-      await this.adjustQty(item, 1);
-    },
-    async decrementQty(item) {
-      if (availableQty(item) <= 0) return;
-      await this.adjustQty(item, -1);
-    },
     availableQty,
-    async adjustQty(item, delta) {
-      const { data } = await api.post(`/warehouse/${item.id}/adjust`, { delta, reason: "Manual adjustment" });
-      Object.assign(item, data.item || data);
+    openAdjustment(item, direction) {
+      if (direction === "out" && availableQty(item) <= 0) return;
+      this.adjustmentItem = item;
+      this.adjustmentDirection = direction;
+      this.adjustmentForm = { quantity: null, counterparty: "", note: "" };
+      this.adjustmentError = "";
+    },
+    closeAdjustment() {
+      if (this.adjustmentSaving) return;
+      this.adjustmentItem = null;
+      this.adjustmentError = "";
+    },
+    async submitAdjustment() {
+      const quantity = Number(this.adjustmentForm.quantity);
+      if (!(quantity > 0) || !this.adjustmentForm.counterparty) return;
+      this.adjustmentSaving = true;
+      this.adjustmentError = "";
+      try {
+        const payload = {
+          direction: this.adjustmentDirection,
+          quantity,
+          note: this.adjustmentForm.note,
+          [this.adjustmentDirection === "in" ? "supplier" : "destination"]: this.adjustmentForm.counterparty,
+        };
+        const { data } = await api.post(`/warehouse/${this.adjustmentItem.id}/adjust`, payload, { suppressGlobalError: true });
+        Object.assign(this.adjustmentItem, data.item || data);
+        this.closeAdjustment();
+      } catch (err) {
+        this.adjustmentError = err.userMessage || this.$t("apiErrors.unexpected");
+      } finally {
+        this.adjustmentSaving = false;
+        if (!this.adjustmentError) this.adjustmentItem = null;
+      }
     },
     async openMovements(item) {
       this.movementItem = item;
@@ -335,6 +393,8 @@ export default {
       const key = {
         opening: "opening",
         "manual-adjustment": "manualAdjustment",
+        "manual-receipt": "manualReceipt",
+        "manual-issue": "manualIssue",
         reserve: "reservation",
         release: "reservationRelease",
         "project-consumption": "projectConsumption",
@@ -346,6 +406,21 @@ export default {
       if (!reason) return "—";
       const key = { "Initial stock": "initialStock", "Manual adjustment": "manualAdjustment" }[reason];
       return key ? this.$t(`warehouse.reasons.${key}`) : reason;
+    },
+    movementCounterparty(movement) {
+      if (movement.supplier) return `${this.$t("warehouse.supplier")}: ${movement.supplier}`;
+      if (movement.destination) return `${this.$t("warehouse.destination")}: ${movement.destination}`;
+      return "—";
+    },
+    itemTypeLabel(type) {
+      const key = {
+        Lim: "sheet",
+        Cijev: "pipe",
+        Profil: "profile",
+        "Vijčani materijal": "fasteners",
+        Ostalo: "other",
+      }[type];
+      return key ? this.$t(`warehouseAdd.types.${key}`) : type;
     },
     formatDelta(value) {
       const delta = Number(value) || 0;
@@ -535,34 +610,18 @@ export default {
   background: rgba(0, 0, 0, 0.02);
 }
 
-.qty-control {
-  gap: 0;
-}
-.btn-qty {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  font-size: 0.9rem;
-  font-weight: 700;
-  line-height: 1;
-  border: 1px solid #ccc;
-  background: #fff;
-  color: #333;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-}
-.btn-qty:hover {
-  background: #e8eaed;
-}
-.qty-value {
-  min-width: 40px;
-  text-align: center;
-  font-size: 0.82rem;
+.btn-stock-in,
+.btn-stock-out {
+  border: none;
+  color: #fff;
+  font-size: 0.75rem;
   font-weight: 600;
-  padding: 0 4px;
 }
+.btn-stock-in { background: #218838; }
+.btn-stock-in:hover { background: #176b2b; color: #fff; }
+.btn-stock-out { background: #b26a00; }
+.btn-stock-out:hover { background: #8a5200; color: #fff; }
+.btn-stock-out:disabled { opacity: 0.5; }
 
 .btn-delete {
   font-size: 0.75rem;
@@ -627,6 +686,16 @@ export default {
 }
 .movement-modal {
   max-width: 920px;
+}
+.adjustment-modal {
+  max-width: 520px;
+}
+.form-label-sm {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #444;
+  font-size: 0.8rem;
+  font-weight: 600;
 }
 .modal-header-custom,
 .modal-footer-custom {

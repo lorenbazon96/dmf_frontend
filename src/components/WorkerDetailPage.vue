@@ -282,7 +282,7 @@
           <div class="save-modal-icon">✓</div>
           <h6 class="save-modal-title">{{ isEditing ? $t("workerDetail.workerUpdated") : $t("workerDetail.workerCreated") }}</h6>
           <p class="save-modal-text">{{ form.fullName }}</p>
-          <button class="btn btn-sm save-modal-btn" @click="showSuccessModal = false">OK</button>
+          <button class="btn btn-sm save-modal-btn" @click="showSuccessModal = false">{{ $t("common.ok") }}</button>
         </div>
       </div>
     </Transition>
@@ -307,6 +307,7 @@
 import SidebarNav from "./SidebarNav.vue";
 import api from "../api";
 import { exportSingleWorkerPdf, printSingleWorker } from "../utils/pdf";
+import { localeCode } from "../utils/domain";
 
 export default {
   name: "WorkerDetailPage",
@@ -350,21 +351,23 @@ export default {
       projectsCompleted: 0,
       showSuccessModal: false,
       showDeleteModal: false,
-      operationsList: [
-        { key: 'pipeCutting', label: 'Rezanje cijevi / Pipe cutting' },
-        { key: 'sheetCutting', label: 'Rezanje lima / Sheet cutting' },
-        { key: 'welding', label: 'Zavarivanje / Welding' },
-        { key: 'bending', label: 'Savijanje / Bending' },
-        { key: 'grinding', label: 'Brušenje / Grinding' },
-        { key: 'drilling', label: 'Bušenje / Drilling' },
-        { key: 'assembly', label: 'Montaža / Assembly' },
-      ],
     };
   },
   created() {
     this.fetchProjectsCount();
   },
   computed: {
+    operationsList() {
+      return [
+        "pipeCutting",
+        "sheetCutting",
+        "welding",
+        "bending",
+        "grinding",
+        "drilling",
+        "assembly",
+      ].map(key => ({ key, label: this.$t(`createProject.${key}`) }));
+    },
     isEditing() {
       return !!(this.worker?._id || this.worker?.id);
     },
@@ -377,8 +380,7 @@ export default {
     formattedCreatedAt() {
       const raw = this.worker?.createdAt;
       if (!raw) return "";
-      const d = new Date(raw);
-      return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}.`;
+      return new Date(raw).toLocaleDateString(localeCode(this.$i18n.locale));
     },
   },
   methods: {

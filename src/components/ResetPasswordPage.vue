@@ -75,7 +75,9 @@
                     class="form-control form-input"
                     :placeholder="$t('resetPassword.newPasswordPlaceholder')"
                     required
-                    minlength="6"
+                    minlength="8"
+                    @invalid="setValidationMessage"
+                    @input="$event.target.setCustomValidity('')"
                   />
                 </div>
               </div>
@@ -107,7 +109,9 @@
                     class="form-control form-input"
                     :placeholder="$t('resetPassword.confirmPasswordPlaceholder')"
                     required
-                    minlength="6"
+                    minlength="8"
+                    @invalid="setValidationMessage"
+                    @input="$event.target.setCustomValidity('')"
                   />
                 </div>
               </div>
@@ -152,6 +156,10 @@ export default {
     },
   },
   methods: {
+    setValidationMessage(event) {
+      const key = event.target.validity.tooShort ? "common.passwordMin" : "common.required";
+      event.target.setCustomValidity(this.$t(key));
+    },
     async handleReset() {
       this.error = "";
       if (this.password !== this.confirmPassword) {
@@ -162,11 +170,10 @@ export default {
         await api.post("/auth/reset-password", {
           token: this.token,
           password: this.password,
-        });
+        }, { suppressGlobalError: true });
         this.success = true;
-        this.$router.replace({ name: "login" });
       } catch (err) {
-        this.error = err.response?.data?.error || "Greška";
+        this.error = err.userMessage || this.$t("apiErrors.unexpected");
       }
     },
   },

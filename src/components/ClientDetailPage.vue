@@ -309,7 +309,7 @@
           <div class="save-modal-icon">✓</div>
           <h6 class="save-modal-title">{{ isEditing ? $t("clientDetail.clientUpdated") : $t("clientDetail.clientCreated") }}</h6>
           <p class="save-modal-text">{{ form.clientName }}</p>
-          <button class="btn btn-sm save-modal-btn" @click="showSuccessModal = false">OK</button>
+          <button class="btn btn-sm save-modal-btn" @click="showSuccessModal = false">{{ $t("common.ok") }}</button>
         </div>
       </div>
     </Transition>
@@ -334,6 +334,7 @@
 import SidebarNav from "./SidebarNav.vue";
 import api from "../api";
 import { exportSingleClientPdf, printSingleClient } from "../utils/pdf";
+import { localeCode } from "../utils/domain";
 
 export default {
   name: "ClientDetailPage",
@@ -374,8 +375,7 @@ export default {
     formattedCreatedAt() {
       const raw = this.client?.createdAt || this.client?.created_at;
       if (!raw) return "";
-      const d = new Date(raw);
-      return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}.`;
+      return new Date(raw).toLocaleDateString(localeCode(this.$i18n.locale));
     },
   },
   methods: {
