@@ -44,3 +44,11 @@ export const materialPayload = material => ({
   specs: material.specs,
   useQty: material.useQty,
 });
+
+export const linkedMaterials = (materials = [], warehouseItems = []) => {
+  const ids = new Set(warehouseItems.map(item => String(item.id || item._id)));
+  return materials.filter(material => {
+    const id = material.warehouseItemId?._id || material.warehouseItemId || material.id;
+    return id && ids.has(String(id));
+  });
+};

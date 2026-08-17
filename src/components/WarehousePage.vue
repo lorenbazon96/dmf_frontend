@@ -435,6 +435,7 @@ export default {
     },
     async deleteItem(item) {
       if (Number(item.reservedQty) > 0) return;
+      if (!window.confirm(this.$t("warehouse.confirmDeleteItem", { name: item.name }))) return;
       await api.delete(`/warehouse/${item.id}`);
       this.items = this.items.filter((i) => i.id !== item.id);
     },

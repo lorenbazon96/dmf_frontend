@@ -8,6 +8,7 @@ const errorCodeKeys = {
   DUPLICATE_COMPANY: "duplicateCompany",
   DUPLICATE_RN: "duplicateRn",
   DUPLICATE_RESOURCE: "duplicateResource",
+  DUPLICATE_WAREHOUSE_ITEM: "duplicateWarehouseItem",
   INSUFFICIENT_AVAILABLE_STOCK: "insufficientStock",
   INVALID_MATERIAL_QUANTITY: "invalidMaterialQuantity",
   INVALID_TASK_TRANSITION: "invalidTaskTransition",

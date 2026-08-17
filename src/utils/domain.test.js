@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { availableQty, materialPayload, projectActions, taskActions } from "./domain";
+import { availableQty, linkedMaterials, materialPayload, projectActions, taskActions } from "./domain";
 
 describe("domain helpers", () => {
   it("calculates non-negative available warehouse quantity", () => {
@@ -19,5 +19,13 @@ describe("domain helpers", () => {
     expect(materialPayload({ id: "w1", name: "Steel", specs: "2mm", useQty: 2 })).toEqual({
       warehouseItemId: "w1", name: "Steel", specs: "2mm", useQty: 2,
     });
+  });
+  it("keeps only copied materials that still belong to the current warehouse", () => {
+    const materials = [
+      { warehouseItemId: "existing", name: "Steel" },
+      { warehouseItemId: "deleted", name: "Old steel" },
+      { name: "Legacy material" },
+    ];
+    expect(linkedMaterials(materials, [{ id: "existing" }])).toEqual([materials[0]]);
   });
 });

@@ -1503,7 +1503,7 @@
 import SidebarNav from "./SidebarNav.vue";
 import api from "../api";
 import { exportProjectPreviewPdf } from "../utils/pdf";
-import { availableQty, materialPayload, operationLabel } from "../utils/domain";
+import { availableQty, linkedMaterials, materialPayload, operationLabel } from "../utils/domain";
 import {
   calcTotalTime,
   calcTimePerOperation,
@@ -2136,9 +2136,16 @@ export default {
         }, { suppressGlobalError: true });
       } else {
         const drawings = this.isCopy
-          ? (this.editProject.drawings || []).map((existing, index) =>
-              index === this.editingDrawingIndex ? drawing : existing,
-            )
+          ? (this.editProject.drawings || []).map((existing, index) => {
+              const copiedDrawing = index === this.editingDrawingIndex ? drawing : existing;
+              return {
+                ...copiedDrawing,
+                assignedMaterials: linkedMaterials(
+                  copiedDrawing.assignedMaterials,
+                  this.allWarehouseItems,
+                ),
+              };
+            })
           : [drawing];
         const payload = {
           rn: this.form.rn,
