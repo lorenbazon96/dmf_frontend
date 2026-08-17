@@ -1572,6 +1572,7 @@ export default {
 
       currentProjectId: null,
       editingDrawingIndex: -1,
+      draftDrawings: [],
 
       allWorkers: [],
       allWarehouseItems: [],
@@ -2136,7 +2137,7 @@ export default {
         }, { suppressGlobalError: true });
       } else {
         const drawings = this.isCopy
-          ? (this.editProject.drawings || []).map((existing, index) => {
+          ? this.draftDrawings.map((existing, index) => {
               const copiedDrawing = index === this.editingDrawingIndex ? drawing : existing;
               return {
                 ...copiedDrawing,
@@ -2295,7 +2296,11 @@ export default {
       this.form.client = project.client || "";
       this.form.responsible = project.responsible || "";
 
-      const drawings = project.drawings || [];
+      this.draftDrawings = (project.drawings || []).map(drawing => ({
+        ...drawing,
+        assignedMaterials: [...(drawing.assignedMaterials || [])],
+      }));
+      const drawings = this.draftDrawings;
       if (drawings.length > 0) {
         this.loadDrawingForEditing(0, drawings[0]);
       }
@@ -2364,7 +2369,18 @@ export default {
       return map[label] || "";
     },
     selectEditDrawing(idx) {
-      const drawings = this.editProject?.drawings || [];
+      if (this.isCopy && this.editingDrawingIndex >= 0) {
+        const current = this.draftDrawings[this.editingDrawingIndex];
+        if (current) {
+          this.draftDrawings[this.editingDrawingIndex] = {
+            ...current,
+            assignedMaterials: this.assignedMaterials.map(materialPayload),
+          };
+        }
+      }
+      const drawings = this.isCopy
+        ? this.draftDrawings
+        : (this.editProject?.drawings || []);
       if (drawings[idx]) {
         this.loadDrawingForEditing(idx, drawings[idx]);
       }
