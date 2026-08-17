@@ -67,7 +67,7 @@
                     v-model="form.client"
                     class="form-select form-select-sm"
                     :class="{ 'is-invalid': formErrors.client }"
-                    @change="formErrors.client = ''"
+                    @change="handleClientChange"
                   >
                     <option value=""></option>
                     <option
@@ -83,7 +83,7 @@
                   </div>
                 </div>
 
-                <div class="mb-3">
+                <div v-if="!isPersonClient" class="mb-3">
                   <label class="form-label-sm"
                     >{{ $t("createProject.selectResponsible") }}:</label
                   >
@@ -168,7 +168,7 @@
                 <span class="action-icon">+</span>
               </button>
               <button class="btn btn-action" @click="saveAndFinish">
-                <span>{{ $t("createProject.saveAndFinish") }}</span>
+                <span>{{ $t(editProject ? "createProject.saveDrawing" : "createProject.saveAndFinish") }}</span>
                 <svg
                   width="18"
                   height="18"
@@ -320,7 +320,6 @@
                       <input
                         ref="dwgInput"
                         type="file"
-                        accept=".dwg"
                         style="display: none"
                         @change="onDwgSelected"
                       />
@@ -1363,7 +1362,7 @@
             <strong>PDF:</strong> {{ pdfFileName }}
           </div>
           <div v-if="dwgFileName" class="mb-2">
-            <strong>DWG:</strong> {{ dwgFileName }}
+            <strong>{{ $t("createProject.attachment") }}:</strong> {{ dwgFileName }}
           </div>
           <hr />
           <div v-if="assignedWorkers.length" class="mb-3">
@@ -1589,9 +1588,6 @@ export default {
         this.fetchData();
       },
     },
-    "form.client"() {
-      this.form.responsible = "";
-    },
     editProject: {
       immediate: true,
       handler(project) {
@@ -1610,12 +1606,15 @@ export default {
     isCopy() {
       return Boolean(this.editProject?._isCopy);
     },
+    selectedClient() {
+      return this.clients.find(c => c.clientName === this.form.client) || null;
+    },
+    isPersonClient() {
+      return this.selectedClient?.clientType === "person";
+    },
     responsiblePersons() {
-      const selected = this.clients.find(
-        (c) => c.clientName === this.form.client,
-      );
-      if (!selected || !selected.responsiblePersons) return [];
-      return selected.responsiblePersons
+      if (!this.selectedClient?.responsiblePersons) return [];
+      return this.selectedClient.responsiblePersons
         .map((rp) => rp.fullName)
         .filter(Boolean);
     },
@@ -1721,6 +1720,7 @@ export default {
         api.get("/clients", { params }),
       ]);
       this.clients = clientsRes.data;
+      this.syncPersonResponsible();
       this.allWorkers = workersRes.data.map((w) => ({
         id: w._id,
         name: w.fullName,
@@ -1757,6 +1757,15 @@ export default {
         bending: { qty: "", thickness: "", bends: "", length: "" },
         assembly: { qty: "", kg: "", complexity: "" },
       };
+    },
+    handleClientChange() {
+      this.formErrors.client = "";
+      this.form.responsible = "";
+      this.syncPersonResponsible();
+    },
+    syncPersonResponsible() {
+      const client = this.clients.find(c => c.clientName === this.form.client);
+      if (client?.clientType === "person") this.form.responsible = client.clientName;
     },
     getSectionTime(section) {
       return formatTime(calcTotalTime(section));
@@ -2298,9 +2307,11 @@ export default {
         await this.saveDrawingToProject(drawing);
 
         this.showSuccessModal = true;
-        setTimeout(() => {
-          this.$emit("back");
-        }, 1500);
+        if (!this.editProject) {
+          setTimeout(() => {
+            this.$emit("back");
+          }, 1500);
+        }
       } catch (err) {
         this.errorMessage = err.userMessage || err.message;
         this.showErrorModal = true;
