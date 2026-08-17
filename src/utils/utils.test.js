@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { calcPipeCutting, calcTimePerOperation, calcTotalTime, formatTime } from "./calculations";
-import { addWorkingMinutes, getWorkingMinutesBetween } from "./workingTime";
+import {
+  addWorkingMinutes,
+  getPausedWorkingMinutes,
+  getWorkingMinutesBetween,
+} from "./workingTime";
 
 describe("production calculations", () => {
   it("returns deterministic operation and total values", () => {
@@ -19,5 +23,17 @@ describe("working time", () => {
   it("excludes breaks and weekends", () => {
     expect(getWorkingMinutesBetween(new Date(2026, 7, 3, 10), new Date(2026, 7, 3, 12), schedule)).toBe(90);
     expect(addWorkingMinutes(new Date(2026, 7, 7, 14), 120, schedule)).toEqual(new Date(2026, 7, 10, 8));
+  });
+  it("does not advance after the workday ends", () => {
+    const startedAt = new Date(2026, 7, 3, 14);
+    expect(getWorkingMinutesBetween(startedAt, new Date(2026, 7, 3, 15), schedule)).toBe(60);
+    expect(getWorkingMinutesBetween(startedAt, new Date(2026, 7, 3, 19), schedule)).toBe(60);
+  });
+  it("counts only the working part of a pause", () => {
+    const history = [
+      { from: "in-progress", to: "paused", at: new Date(2026, 7, 3, 14, 30) },
+      { from: "paused", to: "in-progress", at: new Date(2026, 7, 3, 18) },
+    ];
+    expect(getPausedWorkingMinutes(history, new Date(2026, 7, 3, 19), schedule)).toBe(30);
   });
 });

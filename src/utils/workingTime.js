@@ -100,6 +100,29 @@ export function getWorkingMinutesBetween(startDate, endDate, schedule) {
   return total;
 }
 
+export function getPausedWorkingMinutes(history, endDate, schedule) {
+  let pausedAt = null;
+  let total = 0;
+  let hasPause = false;
+
+  for (const entry of history || []) {
+    if (!entry?.at) continue;
+    if (entry.to === "paused" && !pausedAt) {
+      pausedAt = entry.at;
+      hasPause = true;
+    } else if (pausedAt && entry.from === "paused") {
+      total += getWorkingMinutesBetween(pausedAt, entry.at, schedule);
+      pausedAt = null;
+    }
+  }
+
+  if (pausedAt) {
+    total += getWorkingMinutesBetween(pausedAt, endDate, schedule);
+  }
+
+  return hasPause ? total : null;
+}
+
 export function addWorkingMinutes(startDate, minutes, schedule) {
   if (minutes <= 0) return new Date(startDate);
 

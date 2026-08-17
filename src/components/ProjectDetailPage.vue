@@ -442,7 +442,11 @@
 import SidebarNav from "./SidebarNav.vue";
 import { exportProjectDetailPdf, printProjectDetail } from "../utils/pdf";
 import { calcTimePerOperation } from "../utils/calculations";
-import { addWorkingMinutes, getWorkingMinutesBetween } from "../utils/workingTime";
+import {
+  addWorkingMinutes,
+  getPausedWorkingMinutes,
+  getWorkingMinutesBetween,
+} from "../utils/workingTime";
 import api from "../api";
 import { localeCode, operationLabel, projectActions, taskActions } from "../utils/domain";
 
@@ -581,6 +585,7 @@ export default {
             startedAt: aw.startedAt,
             pausedAt: aw.pausedAt,
             totalPausedMs: aw.totalPausedMs || 0,
+            history: aw.history || [],
             completedAt: aw.completedAt,
             drawingIdx: dIdx,
             workerIdx: wIdx,
@@ -790,8 +795,22 @@ export default {
     getTaskProgress(task) {
       if (task.status === "completed") return 100;
       if (!task.startedAt || !task.estimatedMinutes) return 0;
-      const end = task.pausedAt ? new Date(task.pausedAt).getTime() : this.now;
-      const taskElapsed = Math.max(0, (end - new Date(task.startedAt).getTime() - (task.totalPausedMs || 0)) / 60000);
+      const end = task.pausedAt ? new Date(task.pausedAt) : new Date(this.now);
+      const workingMinutes = getWorkingMinutesBetween(
+        task.startedAt,
+        end,
+        this.companySchedule,
+      );
+      const recordedPausedMinutes = getPausedWorkingMinutes(
+        task.history,
+        end,
+        this.companySchedule,
+      );
+      const pausedMinutes = recordedPausedMinutes ?? (task.totalPausedMs || 0) / 60000;
+      const taskElapsed = Math.max(
+        0,
+        workingMinutes - pausedMinutes,
+      );
       return Math.min(
         100,
         Math.round((taskElapsed / task.estimatedMinutes) * 100),
