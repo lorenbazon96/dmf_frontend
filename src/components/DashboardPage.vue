@@ -469,8 +469,12 @@ export default {
   }
 }
 
-.content-wrap {
+.dashboard-layout > .main-content > .content-wrap {
   max-width: 100%;
+  flex: none;
+  min-height: 100%;
+  overflow-y: visible;
+  display: block;
 }
 
 .panel {
@@ -599,7 +603,7 @@ export default {
   }
 }
 @media (max-width: 575.98px) {
-  .content-wrap {
+  .dashboard-layout > .main-content > .content-wrap {
     padding: 0.75rem !important;
   }
   .progress-bar-wrap {
