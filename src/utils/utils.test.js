@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calcPipeCutting, calcTotalTime, formatTime } from "./calculations";
+import { calcPipeCutting, calcTimePerOperation, calcTotalTime, formatTime } from "./calculations";
 import { addWorkingMinutes, getWorkingMinutesBetween } from "./workingTime";
 
 describe("production calculations", () => {
@@ -7,6 +7,10 @@ describe("production calculations", () => {
     expect(calcPipeCutting({ qty: 2, cuts: 3, thickness: 3, length: 1 })).toBeCloseTo(7.8);
     expect(calcTotalTime({ pipeCutting: { qty: 2, cuts: 3, thickness: 3, m: 1 } })).toBeCloseTo(7.8);
     expect(formatTime(90)).toBe("1h 30min");
+  });
+  it("ignores malformed empty treatment entries without hiding projects", () => {
+    expect(calcTimePerOperation([null, undefined])).toEqual({});
+    expect(calcTimePerOperation(null)).toEqual({});
   });
 });
 

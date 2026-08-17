@@ -162,7 +162,8 @@ export function calcAssembly({ qty, mass, complexity }) {
 
 export function calcTimePerOperation(sections) {
   const totals = {};
-  for (const section of sections) {
+  for (const section of Array.isArray(sections) ? sections : []) {
+    if (!section || typeof section !== "object") continue;
     const ops = {
       pipeCutting: calcPipeCutting({
         qty: section.pipeCutting?.qty,
