@@ -132,6 +132,19 @@ export function getTaskWorkingMinutes(task, endDate, schedule) {
   return Math.max(0, workingMinutes - pausedMinutes);
 }
 
+export function getTaskProgressMinutes(task, endDate, schedule) {
+  const previousMinutes = (task?.previousAssignments || []).reduce(
+    (sum, assignment) => sum + Number(assignment.actualMinutes || 0),
+    0,
+  );
+  const remainingEstimate = Number(task?.estimatedMinutes || 0);
+  const estimated = previousMinutes + remainingEstimate;
+  const current = task?.status === "completed"
+    ? remainingEstimate
+    : Math.min(remainingEstimate, getTaskWorkingMinutes(task, endDate, schedule));
+  return { estimated, completed: previousMinutes + current };
+}
+
 export function addWorkingMinutes(startDate, minutes, schedule) {
   if (minutes <= 0) return new Date(startDate);
 

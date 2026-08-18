@@ -82,6 +82,26 @@
               </div>
             </div>
 
+            <div
+              v-if="projectData.status === 'active'"
+              class="panel readiness-panel mb-3"
+            >
+              <div class="readiness-title">{{ $t("project.readinessTitle") }}</div>
+              <div v-if="isProjectReady" class="readiness-ready">
+                {{ $t("project.readyToStart") }}
+              </div>
+              <template v-else>
+                <div class="readiness-description">
+                  {{ $t("project.completeBeforeStart") }}
+                </div>
+                <ul class="readiness-list mb-0">
+                  <li v-for="(issue, index) in readinessIssues" :key="index">
+                    {{ issue }}
+                  </li>
+                </ul>
+              </template>
+            </div>
+
             <div class="d-flex flex-column gap-2">
               <button v-if="projectData.status === 'completed'" class="btn btn-action" @click="exportPdf">
                 <span>{{ $t("drawing.exportPdf") }}</span>
@@ -115,6 +135,7 @@
               <button
                 v-if="projectActions(projectData.status).start"
                 class="btn btn-action btn-action-start"
+                :disabled="!isProjectReady"
                 @click="startProject"
               >
                 <span>{{ $t("project.startProject") }}</span>
@@ -285,21 +306,6 @@
                 <h5 class="panel-title">
                   {{ $t("project.productionPlan") }}
                 </h5>
-                <div class="panel-header-actions pe-2 pt-2">
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    fill="#c0392b"
-                  >
-                    <path
-                      d="M14 14V4.5L9.5 0H4a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2M9.5 3A1.5 1.5 0 0011 4.5h2V14a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1h5.5z"
-                    />
-                    <path
-                      d="M4.603 14.087a.8.8 0 01-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.7 7.7 0 011.482-.645 20 20 0 001.062-2.227 7.3 7.3 0 01-.43-1.295c-.086-.4-.119-.796-.046-1.136.075-.354.274-.672.65-.823.192-.077.4-.12.602-.077a.7.7 0 01.477.365c.088.164.12.356.127.538.007.188-.012.396-.047.614-.084.51-.27 1.134-.52 1.794a11 11 0 00.98 1.686 5.8 5.8 0 011.334.05c.364.066.734.195.96.465.12.144.193.32.2.518.007.192-.047.382-.138.563a1.04 1.04 0 01-.354.416.86.86 0 01-.51.138c-.331-.014-.654-.196-.933-.417a6.1 6.1 0 01-.911-.95 11.7 11.7 0 00-1.997.406 11.3 11.3 0 01-1.02 1.51c-.292.35-.609.656-.927.787a.8.8 0 01-.58.029z"
-                    />
-                  </svg>
-                </div>
               </div>
               <div class="table-responsive">
                 <table class="table align-middle mb-0">
@@ -330,6 +336,13 @@
                       <td>{{ localizedOperation(p.operation) }}</td>
                       <td class="d-none d-sm-table-cell text-muted">
                         <div>{{ p.worksOn }}</div>
+                        <div
+                          v-if="p.previousAssignments.length"
+                          class="previous-workers"
+                        >
+                          {{ $t("project.previousWorkers") }}:
+                          {{ previousWorkersLabel(p.previousAssignments) }}
+                        </div>
                         <span :class="'badge-' + p.status">{{ taskStatusLabel(p.status) }}</span>
                       </td>
                       <td>
@@ -444,7 +457,7 @@ import { exportProjectDetailPdf, printProjectDetail } from "../utils/pdf";
 import { calcTimePerOperation } from "../utils/calculations";
 import {
   addWorkingMinutes,
-  getTaskWorkingMinutes,
+  getTaskProgressMinutes,
   getWorkingMinutesBetween,
 } from "../utils/workingTime";
 import api from "../api";
@@ -502,10 +515,31 @@ export default {
     },
   },
   computed: {
+    readinessIssues() {
+      const drawings = this.projectData.drawings || [];
+      if (!drawings.length) return [this.$t("project.missingDrawing")];
+      const issues = [];
+      drawings.forEach((drawing, index) => {
+        if (drawing.isAssemblyDrawing) return;
+        const drawingNo = drawing.drawingNo || index + 1;
+        const tasks = drawing.assignedWorkers || [];
+        if (!tasks.some(task => task.workerId)) {
+          issues.push(this.$t("project.missingWorkerForDrawing", { drawing: drawingNo }));
+        } else if (!tasks.some(task => task.workerId && task.operation)) {
+          issues.push(this.$t("project.missingOperationForDrawing", { drawing: drawingNo }));
+        }
+      });
+      return issues;
+    },
+    isProjectReady() {
+      return this.readinessIssues.length === 0;
+    },
     drawings() {
       const d = this.projectData.drawings;
       if (!d) return [];
       return d.map((dr) => ({
+        _id: dr._id,
+        id: dr.id,
         no: dr.drawingNo,
         partName: dr.partName,
         assembly: dr.assemblyName || "–",
@@ -586,6 +620,7 @@ export default {
             pausedAt: aw.pausedAt,
             totalPausedMs: aw.totalPausedMs || 0,
             history: aw.history || [],
+            previousAssignments: aw.previousAssignments || [],
             completedAt: aw.completedAt,
             drawingIdx: dIdx,
             workerIdx: wIdx,
@@ -648,17 +683,15 @@ export default {
       const plan = this.productionPlan;
       if (!plan.length) return 0;
       if (plan.every((p) => p.status === "completed")) return 100;
-      const totalEstimate = plan.reduce((sum, task) => sum + Number(task.estimatedMinutes || 0), 0);
+      const progress = plan.map(task =>
+        getTaskProgressMinutes(task, new Date(this.now), this.companySchedule)
+      );
+      const totalEstimate = progress.reduce((sum, task) => sum + task.estimated, 0);
       if (!totalEstimate) {
         const completed = plan.filter((p) => p.status === "completed").length;
         return Math.round((completed / plan.length) * 100);
       }
-      const completedEstimate = plan.reduce((sum, task) => {
-        const estimate = Number(task.estimatedMinutes || 0);
-        if (task.status === "completed") return sum + estimate;
-        const elapsed = getTaskWorkingMinutes(task, new Date(this.now), this.companySchedule);
-        return sum + Math.min(estimate, elapsed);
-      }, 0);
+      const completedEstimate = progress.reduce((sum, task) => sum + task.completed, 0);
       return Math.min(100, Math.round((completedEstimate / totalEstimate) * 100));
     },
     progressColor() {
@@ -788,6 +821,14 @@ export default {
       if (h > 0) return `${h}h ${m}min`;
       return `${m}min`;
     },
+    previousWorkersLabel(assignments) {
+      return assignments
+        .map(assignment => {
+          const duration = this.formatMinutes(assignment.actualMinutes);
+          return duration === "-" ? assignment.workerName : `${assignment.workerName} (${duration})`;
+        })
+        .join(", ");
+    },
     taskStatusLabel(status) {
       return this.$t(`project.taskStatus.${status}`);
     },
@@ -799,11 +840,11 @@ export default {
     },
     getTaskProgress(task) {
       if (task.status === "completed") return 100;
-      if (!task.startedAt || !task.estimatedMinutes) return 0;
-      const taskElapsed = getTaskWorkingMinutes(task, new Date(this.now), this.companySchedule);
+      const progress = getTaskProgressMinutes(task, new Date(this.now), this.companySchedule);
+      if (!progress.estimated) return 0;
       return Math.min(
         100,
-        Math.round((taskElapsed / task.estimatedMinutes) * 100),
+        Math.round((progress.completed / progress.estimated) * 100),
       );
     },
     getTaskEstimatedEndDate(task) {
@@ -1066,6 +1107,34 @@ export default {
 .btn-view:hover {
   background: #1e3f73;
   color: #fff;
+}
+
+.previous-workers {
+  font-size: 0.68rem;
+  color: #6c757d;
+}
+
+.readiness-panel {
+  padding: 0.85rem 1rem;
+}
+.readiness-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+.readiness-ready {
+  color: #198754;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.readiness-description,
+.readiness-list {
+  color: #9a6700;
+  font-size: 0.75rem;
+}
+.readiness-list {
+  padding-left: 1.1rem;
+  margin-top: 0.3rem;
 }
 
 .btn-action {

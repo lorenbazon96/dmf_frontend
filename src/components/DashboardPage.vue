@@ -207,7 +207,7 @@
 <script>
 import SidebarNav from "./SidebarNav.vue";
 import { calcTimePerOperation } from "../utils/calculations";
-import { getTaskWorkingMinutes } from "../utils/workingTime";
+import { getTaskProgressMinutes } from "../utils/workingTime";
 import { operationLabel } from "../utils/domain";
 import api from "../api";
 
@@ -405,16 +405,14 @@ export default {
         if (!taskCount) return 0;
         const completedCount = tasks.filter(task => task.status === "completed").length;
         if (completedCount === taskCount) return 100;
-        const totalEstimate = tasks.reduce((sum, task) => sum + Number(task.estimatedMinutes || 0), 0);
+        const progress = tasks.map(task =>
+          getTaskProgressMinutes(task, new Date(this.now), this.companySchedule)
+        );
+        const totalEstimate = progress.reduce((sum, task) => sum + task.estimated, 0);
         if (!totalEstimate) {
           return Math.round((completedCount / taskCount) * 100);
         }
-        const completedEstimate = tasks.reduce((sum, task) => {
-          const estimate = Number(task.estimatedMinutes || 0);
-          if (task.status === "completed") return sum + estimate;
-          const elapsed = getTaskWorkingMinutes(task, new Date(this.now), this.companySchedule);
-          return sum + Math.min(estimate, elapsed);
-        }, 0);
+        const completedEstimate = progress.reduce((sum, task) => sum + task.completed, 0);
         return Math.min(100, Math.round((completedEstimate / totalEstimate) * 100));
       } catch (error) {
         console.error("Failed to calculate project progress:", p?._id, error);

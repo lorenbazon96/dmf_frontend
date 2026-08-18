@@ -3,6 +3,7 @@ import i18n from "../i18n";
 
 const errorCodeKeys = {
   COMPLETED_PROJECT_IMMUTABLE: "completedProjectImmutable",
+  COMPLETED_TASK_IMMUTABLE: "completedTaskImmutable",
   COMPANY_ACCESS_DENIED: "companyAccessDenied",
   CONFIRM_NAME_MISMATCH: "confirmNameMismatch",
   DUPLICATE_COMPANY: "duplicateCompany",
@@ -19,8 +20,11 @@ const errorCodeKeys = {
   NOT_FOUND: "notFound",
   PROJECT_CONFLICT: "projectConflict",
   PROJECT_NOT_RUNNING: "projectNotRunning",
+  PROJECT_NOT_READY: "projectNotReady",
   TASK_ALREADY_STARTED: "taskAlreadyStarted",
   TASK_NOT_FOUND: "taskNotFound",
+  STARTED_TASK_OPERATION_IMMUTABLE: "startedTaskOperationImmutable",
+  STARTED_TASK_REASSIGNMENT_REQUIRED: "startedTaskReassignmentRequired",
   UNRESOLVED_WAREHOUSE_ITEM: "unresolvedMaterial",
   WAREHOUSE_ITEM_IN_USE: "warehouseItemInUse",
   WORKER_BUSY: "workerBusy",

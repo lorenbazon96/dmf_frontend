@@ -168,7 +168,7 @@
                 <span class="action-icon">+</span>
               </button>
               <button class="btn btn-action" @click="saveAndFinish">
-                <span>{{ $t(editProject ? "createProject.saveDrawing" : "createProject.saveAndFinish") }}</span>
+                <span>{{ $t(editProject ? "createProject.saveDrawing" : "createProject.saveDraft") }}</span>
                 <svg
                   width="18"
                   height="18"
@@ -368,11 +368,27 @@
                               "
                               >{{ aw.type === "auto" ? "A" : "R" }}</span
                             >
-                            <strong>{{ aw.name }}</strong>
+                            <select
+                              v-if="aw.taskId && ['in-progress', 'paused'].includes(aw.status)"
+                              class="form-select form-select-sm worker-reassign-select"
+                              :value="aw.id"
+                              :title="$t('createProject.changeWorker')"
+                              @change="reassignWorker(aw._idx, $event.target.value)"
+                            >
+                              <option
+                                v-for="worker in workersForOperation(aw.operation, aw.id)"
+                                :key="worker.id"
+                                :value="worker.id"
+                              >
+                                {{ worker.name }}
+                              </option>
+                            </select>
+                            <strong v-else>{{ aw.name }}</strong>
                             <span v-if="aw.note" class="text-muted ms-1"
                               >– {{ aw.note }}</span
                             >
                             <button
+                              v-if="aw.status !== 'completed'"
                               class="btn btn-sm p-0 ms-2"
                               @click="removeAssignedWorker(aw._idx)"
                             >
@@ -416,31 +432,30 @@
                     {{ $t("createProject.treatments") }}:
                   </h6>
 
-                  <div
-                    v-for="(section, sIdx) in treatmentSections"
-                    :key="sIdx"
-                    class="treatments-grid mb-3"
-                  >
-                    <div v-if="sIdx > 0" class="treatment-section-divider mb-2">
-                      <span class="section-label"
-                        >{{ $t("createProject.treatments") }} #{{
-                          sIdx + 1
-                        }}</span
-                      >
-                      <button
-                        class="btn btn-sm p-0 ms-2 text-danger"
-                        @click="treatmentSections.splice(sIdx, 1)"
-                      >
-                        ✕
-                      </button>
-                    </div>
-
-                    <div class="treatment-op-block mb-3">
+                  <div class="treatments-grid mb-3">
+                    <div class="treatment-op-block treatment-op-pipe mb-3">
                       <div class="treatment-op-title">
                         {{ $t("createProject.pipeCutting") }}
                       </div>
+                      <div
+                        v-for="({ section, sIdx }, variantIdx) in operationVariants('pipeCutting')"
+                        :key="sIdx"
+                        class="treatment-variant"
+                      >
+                        <div class="treatment-variant-header">
+                          <span>{{ $t("createProject.variant", { number: variantIdx + 1 }) }}</span>
+                          <button
+                            v-if="operationVariants('pipeCutting').length > 1"
+                            type="button"
+                            class="btn btn-sm p-0 text-danger"
+                            @click="removeOperationVariant('pipeCutting', sIdx)"
+                          >
+                            ✕
+                          </button>
+                        </div>
                       <div class="row g-2 align-items-end">
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.quantity") }}</label>
                           <input
                             v-model="section.pipeCutting.qty"
                             type="text"
@@ -459,6 +474,7 @@
                           />
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.lengthMeters") }}</label>
                           <input
                             v-model="section.pipeCutting.m"
                             type="text"
@@ -477,6 +493,7 @@
                           />
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.thicknessMillimeters") }}</label>
                           <input
                             v-model="section.pipeCutting.thickness"
                             type="text"
@@ -499,6 +516,7 @@
                           />
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.cutsPerPiece") }}</label>
                           <input
                             v-model="section.pipeCutting.cuts"
                             type="text"
@@ -517,6 +535,7 @@
                           />
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.cutType") }}</label>
                           <select
                             v-model="section.pipeCutting.cutType"
                             class="form-select form-select-sm"
@@ -533,6 +552,7 @@
                           </select>
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.profileType") }}</label>
                           <select
                             v-model="section.pipeCutting.profile"
                             class="form-select form-select-sm"
@@ -552,14 +572,39 @@
                           </select>
                         </div>
                       </div>
+                      </div>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary treatment-add-variant"
+                        @click="addOperationVariant('pipeCutting')"
+                      >
+                        + {{ $t("createProject.addVariant") }}
+                      </button>
                     </div>
 
-                    <div class="treatment-op-block mb-3">
+                    <div class="treatment-op-block treatment-op-sheet mb-3">
                       <div class="treatment-op-title">
                         {{ $t("createProject.sheetCutting") }}
                       </div>
+                      <div
+                        v-for="({ section, sIdx }, variantIdx) in operationVariants('sheetCutting')"
+                        :key="sIdx"
+                        class="treatment-variant"
+                      >
+                        <div class="treatment-variant-header">
+                          <span>{{ $t("createProject.variant", { number: variantIdx + 1 }) }}</span>
+                          <button
+                            v-if="operationVariants('sheetCutting').length > 1"
+                            type="button"
+                            class="btn btn-sm p-0 text-danger"
+                            @click="removeOperationVariant('sheetCutting', sIdx)"
+                          >
+                            ×
+                          </button>
+                        </div>
                       <div class="row g-2 align-items-end">
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.lengthMeters") }}</label>
                           <input
                             v-model="section.sheetCutting.m"
                             type="text"
@@ -578,6 +623,7 @@
                           />
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.thicknessMillimeters") }}</label>
                           <input
                             v-model="section.sheetCutting.thickness"
                             type="text"
@@ -600,6 +646,7 @@
                           />
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.complexityLabel") }}</label>
                           <select
                             v-model="section.sheetCutting.complexity"
                             class="form-select form-select-sm"
@@ -616,6 +663,7 @@
                           </select>
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.cuttingMethod") }}</label>
                           <select
                             v-model="section.sheetCutting.method"
                             class="form-select form-select-sm"
@@ -638,14 +686,39 @@
                           </select>
                         </div>
                       </div>
+                      </div>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary treatment-add-variant"
+                        @click="addOperationVariant('sheetCutting')"
+                      >
+                        + {{ $t("createProject.addVariant") }}
+                      </button>
                     </div>
 
-                    <div class="treatment-op-block mb-3">
+                    <div class="treatment-op-block treatment-op-drilling mb-3">
                       <div class="treatment-op-title">
                         {{ $t("createProject.drilling") }}
                       </div>
+                      <div
+                        v-for="({ section, sIdx }, variantIdx) in operationVariants('drilling')"
+                        :key="sIdx"
+                        class="treatment-variant"
+                      >
+                        <div class="treatment-variant-header">
+                          <span>{{ $t("createProject.variant", { number: variantIdx + 1 }) }}</span>
+                          <button
+                            v-if="operationVariants('drilling').length > 1"
+                            type="button"
+                            class="btn btn-sm p-0 text-danger"
+                            @click="removeOperationVariant('drilling', sIdx)"
+                          >
+                            ×
+                          </button>
+                        </div>
                       <div class="row g-2 align-items-end">
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.quantity") }}</label>
                           <input
                             v-model="section.drilling.qty"
                             type="text"
@@ -664,6 +737,7 @@
                           />
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.diameterMillimeters") }}</label>
                           <input
                             v-model="section.drilling.dia"
                             type="text"
@@ -682,6 +756,7 @@
                           />
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.thicknessMillimeters") }}</label>
                           <input
                             v-model="section.drilling.thickness"
                             type="text"
@@ -700,6 +775,7 @@
                           />
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.machineType") }}</label>
                           <select
                             v-model="section.drilling.machine"
                             class="form-select form-select-sm"
@@ -719,14 +795,39 @@
                           </select>
                         </div>
                       </div>
+                      </div>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary treatment-add-variant"
+                        @click="addOperationVariant('drilling')"
+                      >
+                        + {{ $t("createProject.addVariant") }}
+                      </button>
                     </div>
 
-                    <div class="treatment-op-block mb-3">
+                    <div class="treatment-op-block treatment-op-welding mb-3">
                       <div class="treatment-op-title">
                         {{ $t("createProject.welding") }}
                       </div>
+                      <div
+                        v-for="({ section, sIdx }, variantIdx) in operationVariants('welding')"
+                        :key="sIdx"
+                        class="treatment-variant"
+                      >
+                        <div class="treatment-variant-header">
+                          <span>{{ $t("createProject.variant", { number: variantIdx + 1 }) }}</span>
+                          <button
+                            v-if="operationVariants('welding').length > 1"
+                            type="button"
+                            class="btn btn-sm p-0 text-danger"
+                            @click="removeOperationVariant('welding', sIdx)"
+                          >
+                            ×
+                          </button>
+                        </div>
                       <div class="row g-2 align-items-end">
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.lengthMeters") }}</label>
                           <input
                             v-model="section.welding.m"
                             type="text"
@@ -743,6 +844,7 @@
                           />
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.weldSizeMillimeters") }}</label>
                           <input
                             v-model="section.welding.size"
                             type="text"
@@ -761,6 +863,7 @@
                           />
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.weldType") }}</label>
                           <select
                             v-model="section.welding.weldType"
                             class="form-select form-select-sm"
@@ -777,6 +880,7 @@
                           </select>
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.weldPosition") }}</label>
                           <select
                             v-model="section.welding.position"
                             class="form-select form-select-sm"
@@ -796,6 +900,7 @@
                           </select>
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.passes") }}</label>
                           <select
                             v-model="section.welding.passes"
                             class="form-select form-select-sm"
@@ -809,14 +914,39 @@
                           </select>
                         </div>
                       </div>
+                      </div>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary treatment-add-variant"
+                        @click="addOperationVariant('welding')"
+                      >
+                        + {{ $t("createProject.addVariant") }}
+                      </button>
                     </div>
 
-                    <div class="treatment-op-block mb-3">
+                    <div class="treatment-op-block treatment-op-grinding mb-3">
                       <div class="treatment-op-title">
                         {{ $t("createProject.grinding") }}
                       </div>
+                      <div
+                        v-for="({ section, sIdx }, variantIdx) in operationVariants('grinding')"
+                        :key="sIdx"
+                        class="treatment-variant"
+                      >
+                        <div class="treatment-variant-header">
+                          <span>{{ $t("createProject.variant", { number: variantIdx + 1 }) }}</span>
+                          <button
+                            v-if="operationVariants('grinding').length > 1"
+                            type="button"
+                            class="btn btn-sm p-0 text-danger"
+                            @click="removeOperationVariant('grinding', sIdx)"
+                          >
+                            ×
+                          </button>
+                        </div>
                       <div class="row g-2 align-items-end">
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.lengthMeters") }}</label>
                           <input
                             v-model="section.grinding.m"
                             type="text"
@@ -833,6 +963,7 @@
                           />
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.grindType") }}</label>
                           <select
                             v-model="section.grinding.grindType"
                             class="form-select form-select-sm"
@@ -852,14 +983,39 @@
                           </select>
                         </div>
                       </div>
+                      </div>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary treatment-add-variant"
+                        @click="addOperationVariant('grinding')"
+                      >
+                        + {{ $t("createProject.addVariant") }}
+                      </button>
                     </div>
 
-                    <div class="treatment-op-block mb-3">
+                    <div class="treatment-op-block treatment-op-bending mb-3">
                       <div class="treatment-op-title">
                         {{ $t("createProject.bending") }}
                       </div>
+                      <div
+                        v-for="({ section, sIdx }, variantIdx) in operationVariants('bending')"
+                        :key="sIdx"
+                        class="treatment-variant"
+                      >
+                        <div class="treatment-variant-header">
+                          <span>{{ $t("createProject.variant", { number: variantIdx + 1 }) }}</span>
+                          <button
+                            v-if="operationVariants('bending').length > 1"
+                            type="button"
+                            class="btn btn-sm p-0 text-danger"
+                            @click="removeOperationVariant('bending', sIdx)"
+                          >
+                            ×
+                          </button>
+                        </div>
                       <div class="row g-2 align-items-end">
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.quantity") }}</label>
                           <input
                             v-model="section.bending.qty"
                             type="text"
@@ -876,6 +1032,7 @@
                           />
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.bendsPerPiece") }}</label>
                           <input
                             v-model="section.bending.bends"
                             type="text"
@@ -894,6 +1051,7 @@
                           />
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.lengthMeters") }}</label>
                           <input
                             v-model="section.bending.length"
                             type="text"
@@ -912,6 +1070,7 @@
                           />
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.thicknessMillimeters") }}</label>
                           <input
                             v-model="section.bending.thickness"
                             type="text"
@@ -930,14 +1089,39 @@
                           />
                         </div>
                       </div>
+                      </div>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary treatment-add-variant"
+                        @click="addOperationVariant('bending')"
+                      >
+                        + {{ $t("createProject.addVariant") }}
+                      </button>
                     </div>
 
-                    <div class="treatment-op-block mb-3">
+                    <div class="treatment-op-block treatment-op-assembly mb-3">
                       <div class="treatment-op-title">
                         {{ $t("createProject.assembly") }}
                       </div>
+                      <div
+                        v-for="({ section, sIdx }, variantIdx) in operationVariants('assembly')"
+                        :key="sIdx"
+                        class="treatment-variant"
+                      >
+                        <div class="treatment-variant-header">
+                          <span>{{ $t("createProject.variant", { number: variantIdx + 1 }) }}</span>
+                          <button
+                            v-if="operationVariants('assembly').length > 1"
+                            type="button"
+                            class="btn btn-sm p-0 text-danger"
+                            @click="removeOperationVariant('assembly', sIdx)"
+                          >
+                            ×
+                          </button>
+                        </div>
                       <div class="row g-2 align-items-end">
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.quantity") }}</label>
                           <input
                             v-model="section.assembly.qty"
                             type="text"
@@ -956,6 +1140,7 @@
                           />
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.weightKilograms") }}</label>
                           <input
                             v-model="section.assembly.kg"
                             type="text"
@@ -972,6 +1157,7 @@
                           />
                         </div>
                         <div class="col">
+                          <label class="treatment-field-label">{{ $t("createProject.complexityLabel") }}</label>
                           <select
                             v-model="section.assembly.complexity"
                             class="form-select form-select-sm"
@@ -991,24 +1177,20 @@
                           </select>
                         </div>
                       </div>
-                    </div>
-
-                    <div class="estimated-time-box">
-                      <strong>{{ $t("createProject.estimatedTime") }}:</strong>
-                      {{ getSectionTime(section) }}
+                      </div>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-primary treatment-add-variant"
+                        @click="addOperationVariant('assembly')"
+                      >
+                        + {{ $t("createProject.addVariant") }}
+                      </button>
                     </div>
                   </div>
 
-                  <div class="d-flex align-items-center gap-3 flex-wrap">
-                    <span class="section-label mb-0">{{
-                      $t("createProject.moreTreatments")
-                    }}</span>
-                    <button
-                      class="btn btn-sm btn-primary-action"
-                      @click="addTreatmentSection"
-                    >
-                      {{ $t("createProject.addMoreTreatments") }} +
-                    </button>
+                  <div class="estimated-time-box">
+                    <strong>{{ $t("createProject.estimatedTime") }}:</strong>
+                    {{ totalEstimatedTime }}
                   </div>
                 </template>
 
@@ -1770,8 +1952,56 @@ export default {
     getSectionTime(section) {
       return formatTime(calcTotalTime(section));
     },
-    addTreatmentSection() {
-      this.treatmentSections.push(this.createEmptyTreatment());
+    operationHasValues(operation) {
+      return Object.entries(operation || {}).some(
+        ([field, value]) => field !== "_variant" && value !== "",
+      );
+    },
+    operationVariants(operation) {
+      const variants = this.treatmentSections
+        .map((section, sIdx) => ({ section, sIdx }))
+        .filter(
+          ({ section }) =>
+            section[operation]?._variant ||
+            this.operationHasValues(section[operation]),
+        );
+
+      return variants.length
+        ? variants
+        : [{ section: this.treatmentSections[0], sIdx: 0 }];
+    },
+    addOperationVariant(operation) {
+      const hasExistingVariant = this.treatmentSections.some(
+        section =>
+          section[operation]?._variant ||
+          this.operationHasValues(section[operation]),
+      );
+      if (!hasExistingVariant) {
+        Object.defineProperty(this.treatmentSections[0][operation], "_variant", {
+          value: true,
+          configurable: true,
+        });
+      }
+
+      const section = this.createEmptyTreatment();
+      Object.defineProperty(section[operation], "_variant", {
+        value: true,
+        configurable: true,
+      });
+      this.treatmentSections.push(section);
+    },
+    removeOperationVariant(operation, sectionIndex) {
+      const section = this.treatmentSections[sectionIndex];
+      if (!section) return;
+
+      this.$set(section, operation, this.createEmptyTreatment()[operation]);
+      const sectionIsUnused = Object.values(section).every(
+        treatment =>
+          !treatment?._variant && !this.operationHasValues(treatment),
+      );
+      if (sectionIsUnused && this.treatmentSections.length > 1) {
+        this.treatmentSections.splice(sectionIndex, 1);
+      }
     },
 
     openManualModal() {
@@ -1846,6 +2076,19 @@ export default {
     },
     removeAssignedWorker(idx) {
       this.assignedWorkers.splice(idx, 1);
+    },
+    workersForOperation(operation, currentWorkerId) {
+      const opKey = this.getOpKeyFromLabel(operation);
+      return this.workers.filter(worker =>
+        worker.id === currentWorkerId ||
+        worker.operations?.[opKey]
+      );
+    },
+    reassignWorker(idx, workerId) {
+      const worker = this.workers.find(item => item.id === workerId);
+      if (!worker) return;
+      this.assignedWorkers[idx].id = worker.id;
+      this.assignedWorkers[idx].name = worker.name;
     },
 
     openAutoModal() {
@@ -2238,12 +2481,6 @@ export default {
       }
       if (!this.form.name.trim()) errors.name = req;
       if (!this.form.client) errors.client = req;
-      if (!this.form.isAssemblyDrawing && !this.assignedWorkers.length) {
-        errors.workers = this.$t("createProject.workerRequired");
-        this.errorMessage = errors.workers;
-        this.showErrorModal = true;
-      }
-
       if (this.part.weight !== "" && !this.isNumeric(this.part.weight))
         errors.weight = num;
       if (this.part.quantity !== "" && !this.isNumeric(this.part.quantity))
@@ -2377,6 +2614,7 @@ export default {
         opKey: this.getOpKeyFromLabel(aw.operation),
         note: aw.note || "",
         type: aw.type || "manual",
+        status: aw.status || "pending",
         estimatedMinutes: aw.estimatedMinutes || 0,
       }));
 
@@ -2579,8 +2817,9 @@ export default {
 .treatment-section-divider {
   display: flex;
   align-items: center;
-  border-top: 1px dashed #bbb;
-  padding-top: 0.5rem;
+  justify-content: space-between;
+  border-bottom: 1px solid #d8dee8;
+  padding: 0.25rem 0 0.5rem;
 }
 
 .btn-action {
@@ -2621,6 +2860,11 @@ export default {
   padding: 0.2rem 0.5rem;
   font-size: 0.78rem;
   margin: 0.15rem 0.25rem 0.15rem 0;
+}
+.worker-reassign-select {
+  width: auto;
+  min-width: 150px;
+  margin-left: 0.35rem;
 }
 .assigned-type-badge {
   display: inline-flex;
@@ -2786,14 +3030,43 @@ export default {
 }
 
 .treatment-op-block {
-  border-left: 3px solid #2b579a;
-  padding-left: 0.75rem;
+  --operation-color: #2b579a;
+  border: 1px solid #dce3ed;
+  border-left: 5px solid var(--operation-color);
+  border-radius: 8px;
+  padding: 0.8rem;
+  background: #fff;
 }
 .treatment-op-title {
-  font-size: 0.78rem;
+  font-size: 0.82rem;
   font-weight: 700;
-  color: #2b579a;
-  margin-bottom: 0.3rem;
+  color: var(--operation-color);
+  margin-bottom: 0.65rem;
+}
+.treatment-variant + .treatment-variant {
+  border-top: 1px solid #dce3ed;
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+}
+.treatment-variant-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #5f6b7a;
+  font-size: 0.74rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+.treatment-add-variant {
+  margin-top: 0.75rem;
+}
+.treatment-field-label {
+  display: block;
+  min-height: 1.7em;
+  margin-bottom: 0.2rem;
+  color: #4b5563;
+  font-size: 0.68rem;
+  font-weight: 600;
 }
 
 .save-modal-overlay {

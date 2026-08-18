@@ -3,6 +3,7 @@ import { calcPipeCutting, calcTimePerOperation, calcTotalTime, formatTime } from
 import {
   addWorkingMinutes,
   getPausedWorkingMinutes,
+  getTaskProgressMinutes,
   getTaskWorkingMinutes,
   getWorkingMinutesBetween,
 } from "./workingTime";
@@ -40,5 +41,12 @@ describe("working time", () => {
       startedAt: new Date(2026, 7, 3, 14),
       history,
     }, new Date(2026, 7, 3, 19), schedule)).toBe(30);
+  });
+  it("keeps completed work in progress after a worker is reassigned", () => {
+    expect(getTaskProgressMinutes({
+      status: "pending",
+      estimatedMinutes: 40,
+      previousAssignments: [{ actualMinutes: 20 }],
+    }, new Date(), schedule)).toEqual({ estimated: 60, completed: 20 });
   });
 });
