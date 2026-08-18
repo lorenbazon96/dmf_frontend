@@ -123,6 +123,15 @@ export function getPausedWorkingMinutes(history, endDate, schedule) {
   return hasPause ? total : null;
 }
 
+export function getTaskWorkingMinutes(task, endDate, schedule) {
+  if (!task?.startedAt) return 0;
+  const end = task.completedAt || task.pausedAt || endDate;
+  const workingMinutes = getWorkingMinutesBetween(task.startedAt, end, schedule);
+  const recordedPausedMinutes = getPausedWorkingMinutes(task.history, end, schedule);
+  const pausedMinutes = recordedPausedMinutes ?? (task.totalPausedMs || 0) / 60000;
+  return Math.max(0, workingMinutes - pausedMinutes);
+}
+
 export function addWorkingMinutes(startDate, minutes, schedule) {
   if (minutes <= 0) return new Date(startDate);
 

@@ -207,7 +207,7 @@
 <script>
 import SidebarNav from "./SidebarNav.vue";
 import { calcTimePerOperation } from "../utils/calculations";
-import { getWorkingMinutesBetween } from "../utils/workingTime";
+import { getTaskWorkingMinutes } from "../utils/workingTime";
 import { operationLabel } from "../utils/domain";
 import api from "../api";
 
@@ -395,53 +395,27 @@ export default {
     },
     getProjectProgress(p) {
       try {
+        if (p.status === "active") return 0;
         if (!p.drawings || !p.drawings.length) return 0;
-        const operationPhases = [
-          ["Rezanje cijevi", "Rezanje lima"],
-          ["Savijanje", "Bušenje"],
-          ["Montaža"],
-          ["Zavarivanje"],
-          ["Brušenje"],
-        ];
-        const opTotals = {};
-        let taskCount = 0,
-          completedCount = 0;
-        for (const d of p.drawings) {
-          if (d.isAssemblyDrawing || !d.assignedWorkers) continue;
-          const opMaxInDrawing = {};
-          for (const aw of d.assignedWorkers) {
-            taskCount++;
-            if (aw.status === "completed") completedCount++;
-            const op = aw.operation || "";
-            const est = aw.estimatedMinutes || 0;
-            if (!opMaxInDrawing[op] || est > opMaxInDrawing[op])
-              opMaxInDrawing[op] = est;
-          }
-          for (const [op, maxEst] of Object.entries(opMaxInDrawing)) {
-            opTotals[op] = (opTotals[op] || 0) + maxEst;
-          }
-        }
+        const tasks = p.drawings
+          .filter(drawing => drawing && !drawing.isAssemblyDrawing)
+          .flatMap(drawing => drawing.assignedWorkers || [])
+          .filter(Boolean);
+        const taskCount = tasks.length;
         if (!taskCount) return 0;
+        const completedCount = tasks.filter(task => task.status === "completed").length;
         if (completedCount === taskCount) return 100;
-        let prevPhaseEnd = 0;
-        let maxEnd = 0;
-        for (let pi = 0; pi < operationPhases.length; pi++) {
-          const phaseOps = operationPhases[pi];
-          const phaseStart = pi === 0 ? 0 : prevPhaseEnd;
-          const phaseMaxDuration = Math.max(0, ...phaseOps.map(op => opTotals[op] || 0));
-          const end = phaseStart + phaseMaxDuration;
-          if (end > maxEnd) maxEnd = end;
-          prevPhaseEnd = phaseStart + Math.round(phaseMaxDuration * 0.15);
-        }
-        const totalEst = maxEnd;
-        if (!p.startedAt || !totalEst) {
+        const totalEstimate = tasks.reduce((sum, task) => sum + Number(task.estimatedMinutes || 0), 0);
+        if (!totalEstimate) {
           return Math.round((completedCount / taskCount) * 100);
         }
-        let pausedMs = p.totalPausedMs || 0;
-        if (p.pausedAt) pausedMs += this.now - new Date(p.pausedAt).getTime();
-        const workingMins = getWorkingMinutesBetween(p.startedAt, new Date(this.now), this.companySchedule);
-        const elapsed = workingMins - pausedMs / 60000;
-        return Math.min(100, Math.round((Math.max(0, elapsed) / totalEst) * 100));
+        const completedEstimate = tasks.reduce((sum, task) => {
+          const estimate = Number(task.estimatedMinutes || 0);
+          if (task.status === "completed") return sum + estimate;
+          const elapsed = getTaskWorkingMinutes(task, new Date(this.now), this.companySchedule);
+          return sum + Math.min(estimate, elapsed);
+        }, 0);
+        return Math.min(100, Math.round((completedEstimate / totalEstimate) * 100));
       } catch (error) {
         console.error("Failed to calculate project progress:", p?._id, error);
         return 0;

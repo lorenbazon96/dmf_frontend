@@ -444,7 +444,7 @@ import { exportProjectDetailPdf, printProjectDetail } from "../utils/pdf";
 import { calcTimePerOperation } from "../utils/calculations";
 import {
   addWorkingMinutes,
-  getPausedWorkingMinutes,
+  getTaskWorkingMinutes,
   getWorkingMinutesBetween,
 } from "../utils/workingTime";
 import api from "../api";
@@ -644,17 +644,22 @@ export default {
       return Math.max(0, workingMins - this.totalPausedMinutes);
     },
     overallProgress() {
+      if (this.projectData.status === "active") return 0;
       const plan = this.productionPlan;
       if (!plan.length) return 0;
       if (plan.every((p) => p.status === "completed")) return 100;
-      if (!this.totalEstimatedMinutes || !this.projectData.startedAt) {
+      const totalEstimate = plan.reduce((sum, task) => sum + Number(task.estimatedMinutes || 0), 0);
+      if (!totalEstimate) {
         const completed = plan.filter((p) => p.status === "completed").length;
         return Math.round((completed / plan.length) * 100);
       }
-      return Math.min(
-        100,
-        Math.round((this.effectiveElapsedMinutes / this.totalEstimatedMinutes) * 100),
-      );
+      const completedEstimate = plan.reduce((sum, task) => {
+        const estimate = Number(task.estimatedMinutes || 0);
+        if (task.status === "completed") return sum + estimate;
+        const elapsed = getTaskWorkingMinutes(task, new Date(this.now), this.companySchedule);
+        return sum + Math.min(estimate, elapsed);
+      }, 0);
+      return Math.min(100, Math.round((completedEstimate / totalEstimate) * 100));
     },
     progressColor() {
       const p = this.overallProgress;
@@ -795,22 +800,7 @@ export default {
     getTaskProgress(task) {
       if (task.status === "completed") return 100;
       if (!task.startedAt || !task.estimatedMinutes) return 0;
-      const end = task.pausedAt ? new Date(task.pausedAt) : new Date(this.now);
-      const workingMinutes = getWorkingMinutesBetween(
-        task.startedAt,
-        end,
-        this.companySchedule,
-      );
-      const recordedPausedMinutes = getPausedWorkingMinutes(
-        task.history,
-        end,
-        this.companySchedule,
-      );
-      const pausedMinutes = recordedPausedMinutes ?? (task.totalPausedMs || 0) / 60000;
-      const taskElapsed = Math.max(
-        0,
-        workingMinutes - pausedMinutes,
-      );
+      const taskElapsed = getTaskWorkingMinutes(task, new Date(this.now), this.companySchedule);
       return Math.min(
         100,
         Math.round((taskElapsed / task.estimatedMinutes) * 100),

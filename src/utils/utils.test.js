@@ -3,6 +3,7 @@ import { calcPipeCutting, calcTimePerOperation, calcTotalTime, formatTime } from
 import {
   addWorkingMinutes,
   getPausedWorkingMinutes,
+  getTaskWorkingMinutes,
   getWorkingMinutesBetween,
 } from "./workingTime";
 
@@ -35,5 +36,9 @@ describe("working time", () => {
       { from: "paused", to: "in-progress", at: new Date(2026, 7, 3, 18) },
     ];
     expect(getPausedWorkingMinutes(history, new Date(2026, 7, 3, 19), schedule)).toBe(30);
+    expect(getTaskWorkingMinutes({
+      startedAt: new Date(2026, 7, 3, 14),
+      history,
+    }, new Date(2026, 7, 3, 19), schedule)).toBe(30);
   });
 });
