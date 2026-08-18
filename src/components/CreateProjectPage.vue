@@ -1435,6 +1435,49 @@
           </button>
         </div>
         <div class="modal-body-custom">
+          <div class="row g-2 align-items-end mb-3 material-filters">
+            <div class="col-md-6">
+              <label class="form-label form-label-sm mb-1">
+                {{ $t("warehouse.search") }}
+              </label>
+              <input
+                v-model="materialSearch"
+                type="search"
+                class="form-control form-control-sm"
+                :placeholder="$t('createProject.materialSearchPlaceholder')"
+              />
+            </div>
+            <div class="col-md-3">
+              <label class="form-label form-label-sm mb-1">
+                {{ $t("warehouse.type") }}
+              </label>
+              <select
+                v-model="materialTypeFilter"
+                class="form-select form-select-sm"
+              >
+                <option value="">{{ $t("warehouse.all") }}</option>
+                <option v-for="type in materialTypes" :key="type" :value="type">
+                  {{ type }}
+                </option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <div class="form-check material-available-filter">
+                <input
+                  id="material-available-filter"
+                  v-model="materialAvailableOnly"
+                  type="checkbox"
+                  class="form-check-input"
+                />
+                <label
+                  class="form-check-label form-label-sm"
+                  for="material-available-filter"
+                >
+                  {{ $t("createProject.availableOnly") }}
+                </label>
+              </div>
+            </div>
+          </div>
           <div class="table-responsive">
             <table class="table table-sm align-middle mb-0">
               <thead>
@@ -1447,7 +1490,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="m in warehouseItems" :key="m.id">
+                <tr v-for="m in filteredWarehouseItems" :key="m.id">
                   <td>
                     <input
                       type="checkbox"
@@ -1469,6 +1512,11 @@
                       @input="setMaterialQty(m.id, $event.target.value)"
                       style="width: 80px"
                     />
+                  </td>
+                </tr>
+                <tr v-if="!filteredWarehouseItems.length">
+                  <td colspan="5" class="text-center text-muted py-3">
+                    {{ $t("createProject.noMatchingMaterials") }}
                   </td>
                 </tr>
               </tbody>
@@ -1743,6 +1791,9 @@ export default {
 
       showMaterialModal: false,
       materialSelected: [],
+      materialSearch: "",
+      materialTypeFilter: "",
+      materialAvailableOnly: false,
 
       showPreviewModal: false,
 
@@ -1816,6 +1867,25 @@ export default {
       return this.allWarehouseItems.filter(
         (i) => i.company === this.selectedCompany,
       );
+    },
+    materialTypes() {
+      return [...new Set(this.warehouseItems.map(item => item.type).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b));
+    },
+    filteredWarehouseItems() {
+      const search = this.materialSearch.trim().toLocaleLowerCase();
+      return this.warehouseItems.filter(item => {
+        const matchesSearch =
+          !search ||
+          [item.type, item.name, item.specs].some(value =>
+            String(value || "").toLocaleLowerCase().includes(search),
+          );
+        const matchesType =
+          !this.materialTypeFilter || item.type === this.materialTypeFilter;
+        const matchesAvailability =
+          !this.materialAvailableOnly || availableQty(item) > 0;
+        return matchesSearch && matchesType && matchesAvailability;
+      });
     },
     activeOperations() {
       const opMap = {
@@ -2958,6 +3028,17 @@ export default {
 .form-check-sm {
   min-height: auto;
   margin-bottom: 0;
+}
+
+.material-filters {
+  padding: 0.75rem;
+  background: #f7f9fc;
+  border: 1px solid #dce3ed;
+  border-radius: 8px;
+}
+
+.material-available-filter {
+  padding-bottom: 0.3rem;
 }
 
 .estimated-time-box {
