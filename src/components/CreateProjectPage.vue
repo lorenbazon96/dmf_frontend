@@ -2402,8 +2402,10 @@ export default {
       let pdfPath = "";
       let dwgPath = "";
       if (this.editProject && this.editingDrawingIndex >= 0) {
-        const existingDrawing =
-          this.editProject.drawings[this.editingDrawingIndex];
+        const drawings = this.isCopy
+          ? this.draftDrawings
+          : this.editProject.drawings;
+        const existingDrawing = drawings[this.editingDrawingIndex];
         if (existingDrawing) {
           pdfPath = existingDrawing.pdfFile || "";
           dwgPath = existingDrawing.dwgFile || "";
@@ -2653,6 +2655,10 @@ export default {
       this.part.quantity = drawing.quantity || "";
       this.form.isAssemblyDrawing = !!drawing.isAssemblyDrawing;
 
+      this.pdfFile = null;
+      this.pdfFileName = "";
+      this.dwgFile = null;
+      this.dwgFileName = "";
       if (drawing.pdfFile) {
         this.pdfFileName = drawing.pdfFile.split("/").pop();
       }
