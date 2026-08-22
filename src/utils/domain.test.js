@@ -12,6 +12,7 @@ describe("domain helpers", () => {
     expect(projectActions("completed")).toEqual({ start: false, pause: false, resume: false });
     expect(taskActions("pending", "in-progress")).toEqual({ pause: false, resume: false, complete: false });
     expect(taskActions("in-progress", "in-progress")).toEqual({ pause: true, resume: false, complete: true });
+    expect(taskActions("estimated-completed", "in-progress")).toEqual({ pause: false, resume: false, complete: true });
     expect(taskActions("paused", "in-progress")).toEqual({ pause: false, resume: true, complete: false });
     expect(taskActions("in-progress", "paused")).toEqual({ pause: false, resume: false, complete: false });
   });

@@ -9,7 +9,9 @@ export const projectActions = status => ({
 export const taskActions = (status, projectStatus) => ({
   pause: projectStatus === "in-progress" && status === "in-progress",
   resume: projectStatus === "in-progress" && status === "paused",
-  complete: projectStatus === "in-progress" && status === "in-progress",
+  complete:
+    projectStatus === "in-progress" &&
+    ["in-progress", "estimated-completed"].includes(status),
 });
 
 const operationKeys = {

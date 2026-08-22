@@ -388,7 +388,7 @@
                             class="btn btn-sm btn-complete"
                             :disabled="!canCompleteTask(p)"
                             :title="!canCompleteTask(p) ? $t('project.prerequisiteNotDone') : ''"
-                            @click="canCompleteTask(p) && runTaskAction(p, 'complete')"
+                            @click="canCompleteTask(p) && openCompletionModal(p)"
                           >
                             {{ $t("project.completeTask") }}
                           </button>
@@ -414,6 +414,48 @@
         </div>
       </div>
     </main>
+
+    <Transition name="modal-fade">
+      <div
+        v-if="completionTask"
+        class="save-modal-overlay"
+        @click.self="closeCompletionModal"
+      >
+        <div class="save-modal-card">
+          <div class="save-modal-icon">✓</div>
+          <h6 class="save-modal-title">{{ $t("project.confirmComplete") }}</h6>
+          <p class="save-modal-text">
+            {{ completionTask.drawingNo }} — {{ localizedOperation(completionTask.operation) }}
+          </p>
+          <label class="form-label fw-semibold" for="task-completed-at">
+            {{ $t("project.actualFinishTime") }}
+          </label>
+          <input
+            id="task-completed-at"
+            v-model="completionTime"
+            type="datetime-local"
+            class="form-control mb-2"
+            :min="completionMin()"
+            :max="localDateTime(new Date())"
+          />
+          <div v-if="completionError" class="text-danger small mb-2">
+            {{ completionError }}
+          </div>
+          <div class="d-flex gap-2 justify-content-center mt-3">
+            <button class="btn btn-sm save-modal-btn-cancel" @click="closeCompletionModal">
+              {{ $t("project.cancel") }}
+            </button>
+            <button
+              class="btn btn-sm btn-complete"
+              :disabled="completionSaving || !completionTime"
+              @click="confirmTaskCompletion"
+            >
+              {{ $t("project.confirmComplete") }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <Transition name="modal-fade">
       <div
@@ -493,11 +535,16 @@ export default {
       clientData: null,
       now: Date.now(),
       timer: null,
+      completionTask: null,
+      completionTime: "",
+      completionError: "",
+      completionSaving: false,
     };
   },
   created() {
-    this.timer = setInterval(() => {
+    this.timer = setInterval(async () => {
       this.now = Date.now();
+      if (this.projectData.status === "in-progress") await this.refreshProject();
     }, 30000);
   },
   beforeUnmount() {
@@ -621,6 +668,8 @@ export default {
             totalPausedMs: aw.totalPausedMs || 0,
             history: aw.history || [],
             previousAssignments: aw.previousAssignments || [],
+            estimatedCompletedAt: aw.estimatedCompletedAt,
+            startedFromTaskId: aw.startedFromTaskId,
             completedAt: aw.completedAt,
             drawingIdx: dIdx,
             workerIdx: wIdx,
@@ -705,8 +754,28 @@ export default {
       const start = this.projectData.startedAt || this.projectData.createdAt;
       if (!start || !this.totalEstimatedMinutes) return "–";
       const adjustedStart = new Date(new Date(start).getTime() + this.totalPausedMinutes * 60000);
-      const end = addWorkingMinutes(adjustedStart, this.totalEstimatedMinutes, this.companySchedule);
+      const end = addWorkingMinutes(
+        adjustedStart,
+        Math.max(0, this.totalEstimatedMinutes + this.timelineCorrectionMinutes),
+        this.companySchedule,
+      );
       return end.toLocaleString(localeCode(this.$i18n.locale));
+    },
+    timelineCorrectionMinutes() {
+      const confirmed = this.productionPlan
+        .filter(task =>
+          task.status === "completed" &&
+          task.completedAt &&
+          task.estimatedCompletedAt
+        )
+        .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+      const latest = confirmed[0];
+      if (!latest) return 0;
+      const estimated = new Date(latest.estimatedCompletedAt);
+      const actual = new Date(latest.completedAt);
+      return actual >= estimated
+        ? getWorkingMinutesBetween(estimated, actual, this.companySchedule)
+        : -getWorkingMinutesBetween(actual, estimated, this.companySchedule);
     },
     actualEndAt() {
       if (this.projectData.status !== "completed") return null;
@@ -839,7 +908,7 @@ export default {
       return operationLabel(operation, key => this.$t(key));
     },
     getTaskProgress(task) {
-      if (task.status === "completed") return 100;
+      if (["estimated-completed", "completed"].includes(task.status)) return 100;
       const progress = getTaskProgressMinutes(task, new Date(this.now), this.companySchedule);
       if (!progress.estimated) return 0;
       return Math.min(
@@ -849,6 +918,12 @@ export default {
     },
     getTaskEstimatedEndDate(task) {
       if (task.status === "pending") return this.$t("project.queued");
+      if (task.estimatedCompletedAt) {
+        return new Date(task.estimatedCompletedAt).toLocaleString(
+          localeCode(this.$i18n.locale),
+          { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" },
+        );
+      }
       const start = this.projectData.startedAt || this.projectData.createdAt;
       if (!start || !task.estimatedMinutes) return "–";
       const adjustedStart = new Date(new Date(start).getTime() + this.totalPausedMinutes * 60000);
@@ -947,6 +1022,52 @@ export default {
       await api.put(`/projects/${this.projectData._id}/tasks/${task.taskId}/${action}`);
       await this.refreshProject();
     },
+    localDateTime(value) {
+      const date = new Date(value);
+      const offset = date.getTimezoneOffset() * 60000;
+      return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+    },
+    openCompletionModal(task) {
+      this.completionTask = task;
+      this.completionTime = this.localDateTime(new Date());
+      this.completionError = "";
+    },
+    closeCompletionModal() {
+      if (this.completionSaving) return;
+      this.completionTask = null;
+      this.completionTime = "";
+      this.completionError = "";
+    },
+    async confirmTaskCompletion() {
+      if (!this.completionTask || !this.completionTime || this.completionSaving) return;
+      const completedAt = new Date(this.completionTime);
+      const startedAt = this.completionTask.startedAt
+        ? new Date(this.completionTask.startedAt)
+        : null;
+      if (completedAt > new Date() || (startedAt && completedAt < startedAt)) {
+        this.completionError = this.$t("project.invalidCompletionTime");
+        return;
+      }
+      this.completionSaving = true;
+      try {
+        await api.put(
+          `/projects/${this.projectData._id}/tasks/${this.completionTask.taskId}/complete`,
+          { completedAt: completedAt.toISOString() },
+        );
+        this.closeCompletionModal();
+        await this.refreshProject();
+      } catch (error) {
+        this.completionError = error.userMessage || error.message;
+      } finally {
+        this.completionSaving = false;
+        if (!this.completionError) this.closeCompletionModal();
+      }
+    },
+    completionMin() {
+      return this.completionTask?.startedAt
+        ? this.localDateTime(this.completionTask.startedAt)
+        : "";
+    },
     canCompleteTask(task) {
       const phases = this.operationPhases;
       const taskOp = task.operation || "";
@@ -963,6 +1084,10 @@ export default {
         if (tasksInPhase.length > 0 && !tasksInPhase.every(aw => aw.status === "completed")) {
           return false;
         }
+      }
+      if (task.startedFromTaskId) {
+        const source = this.productionPlan.find(item => item.taskId === task.startedFromTaskId);
+        if (source && source.status !== "completed") return false;
       }
       return true;
     },
@@ -1394,6 +1519,14 @@ export default {
 }
 .badge-completed {
   background: #27ae60;
+  color: #fff;
+  border-radius: 4px;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.badge-estimated-completed {
+  background: #f39c12;
   color: #fff;
   border-radius: 4px;
   padding: 0.15rem 0.5rem;

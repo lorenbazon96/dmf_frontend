@@ -242,8 +242,9 @@ export default {
     };
   },
   created() {
-    this.timer = setInterval(() => {
+    this.timer = setInterval(async () => {
       this.now = Date.now();
+      await this.fetchProjects();
     }, 30000);
   },
   beforeUnmount() {
