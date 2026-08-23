@@ -269,6 +269,104 @@
                     </div>
                   </div>
                 </div>
+
+                <hr class="section-divider" />
+                <div v-if="isEditing" class="mb-4">
+                  <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
+                    <h5 class="panel-heading mb-0">{{ $t("workerDetail.monthlyHours") }}</h5>
+                    <div>
+                      <label class="form-label-sm d-block">{{ $t("workerDetail.month") }}</label>
+                      <input v-model="selectedMonth" type="month" class="form-control form-control-sm" />
+                    </div>
+                  </div>
+                  <div class="row g-2">
+                    <div class="col-md-4">
+                      <div class="hours-card">
+                        <span>{{ $t("workerDetail.scheduledHours") }}</span>
+                        <strong>{{ formatHours(monthlyStats.scheduledMinutes) }}</strong>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="hours-card">
+                        <span>{{ $t("workerDetail.effectiveHours") }}</span>
+                        <strong>{{ formatHours(monthlyStats.effectiveMinutes) }}</strong>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="hours-card">
+                        <span>{{ $t("workerDetail.utilization") }}</span>
+                        <strong>{{ monthlyStats.utilization }}%</strong>
+                      </div>
+                    </div>
+                  </div>
+                  <p class="text-muted small mt-2 mb-0">{{ $t("workerDetail.hoursHint") }}</p>
+                </div>
+
+                <hr v-if="isEditing" class="section-divider" />
+                <div v-if="isEditing">
+                  <h5 class="panel-heading">{{ $t("workerDetail.availabilityExceptions") }}</h5>
+                  <p class="text-muted small">{{ $t("workerDetail.availabilityHint") }}</p>
+                  <div class="row g-2 align-items-end mb-2">
+                    <div class="col-lg-2 col-md-4">
+                      <label class="form-label-sm">{{ $t("workerDetail.date") }}</label>
+                      <input v-model="exceptionForm.date" type="date" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-lg-3 col-md-4">
+                      <label class="form-label-sm">{{ $t("workerDetail.exceptionType") }}</label>
+                      <select v-model="exceptionForm.type" class="form-select form-select-sm">
+                        <option value="absence">{{ $t("workerDetail.absence") }}</option>
+                        <option value="custom-hours">{{ $t("workerDetail.customHours") }}</option>
+                      </select>
+                    </div>
+                    <template v-if="exceptionForm.type === 'custom-hours'">
+                      <div class="col-lg-2 col-md-2">
+                        <label class="form-label-sm">{{ $t("workerDetail.from") }}</label>
+                        <input v-model="exceptionForm.from" type="time" class="form-control form-control-sm" />
+                      </div>
+                      <div class="col-lg-2 col-md-2">
+                        <label class="form-label-sm">{{ $t("workerDetail.to") }}</label>
+                        <input v-model="exceptionForm.to" type="time" class="form-control form-control-sm" />
+                      </div>
+                    </template>
+                    <div class="col-lg">
+                      <label class="form-label-sm">{{ $t("workerDetail.reason") }}</label>
+                      <input v-model.trim="exceptionForm.reason" type="text" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-auto">
+                      <button class="btn btn-sm btn-action-inline" @click="addScheduleException">
+                        {{ $t("workerDetail.addException") }}
+                      </button>
+                    </div>
+                  </div>
+                  <div v-if="exceptionError" class="text-danger small mb-2">{{ exceptionError }}</div>
+                  <div v-if="scheduleExceptions.length" class="table-responsive">
+                    <table class="table table-sm align-middle mb-0 exception-table">
+                      <thead>
+                        <tr>
+                          <th>{{ $t("workerDetail.date") }}</th>
+                          <th>{{ $t("workerDetail.exceptionType") }}</th>
+                          <th>{{ $t("workerDetail.hours") }}</th>
+                          <th>{{ $t("workerDetail.reason") }}</th>
+                          <th></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr v-for="(item, index) in scheduleExceptions" :key="item.date">
+                          <td>{{ formatExceptionDate(item.date) }}</td>
+                          <td>{{ $t(`workerDetail.${item.type === 'absence' ? 'absence' : 'customHours'}`) }}</td>
+                          <td>{{ item.type === "custom-hours" ? `${item.from}–${item.to}` : "—" }}</td>
+                          <td>{{ item.reason || "—" }}</td>
+                          <td class="text-end">
+                            <button class="btn btn-sm btn-outline-danger" @click="removeScheduleException(index)">
+                              {{ $t("workerDetail.remove") }}
+                            </button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <p v-else class="text-muted small mb-0">{{ $t("workerDetail.noExceptions") }}</p>
+                </div>
               </div>
             </section>
           </div>
@@ -322,6 +420,7 @@ export default {
   data() {
     const ratings = this.worker.ratings || {};
     const ops = this.worker.operations || {};
+    const now = new Date();
     return {
       form: {
         fullName: this.worker.fullName || "",
@@ -349,12 +448,25 @@ export default {
         assembly: ratings.assembly ?? 100,
       },
       projectsCompleted: 0,
+      scheduleExceptions: [...(this.worker.scheduleExceptions || [])]
+        .map(item => ({ date:item.date, type:item.type, from:item.from || "", to:item.to || "", reason:item.reason || "" }))
+        .sort((a, b) => a.date.localeCompare(b.date)),
+      exceptionForm: { date:"", type:"absence", from:"07:00", to:"15:00", reason:"" },
+      exceptionError: "",
+      selectedMonth: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+      monthlyStats: { scheduledMinutes:0, effectiveMinutes:0, utilization:0 },
       showSuccessModal: false,
       showDeleteModal: false,
     };
   },
   created() {
     this.fetchProjectsCount();
+    this.fetchMonthlyStats();
+  },
+  watch: {
+    selectedMonth() {
+      this.fetchMonthlyStats();
+    },
   },
   computed: {
     operationsList() {
@@ -400,6 +512,7 @@ export default {
         operations: this.form.operations,
         ratings,
         projectsCompleted: this.projectsCompleted,
+        scheduleExceptions: this.scheduleExceptions,
       };
       const workerId = this.worker?._id || this.worker?.id;
       if (workerId) {
@@ -408,6 +521,50 @@ export default {
         await api.post("/workers", payload);
       }
       this.showSuccessModal = true;
+      await this.fetchMonthlyStats();
+    },
+    addScheduleException() {
+      this.exceptionError = "";
+      if (!this.exceptionForm.date) {
+        this.exceptionError = this.$t("workerDetail.dateRequired");
+        return;
+      }
+      if (this.exceptionForm.type === "custom-hours" &&
+          (!this.exceptionForm.from || !this.exceptionForm.to || this.exceptionForm.from >= this.exceptionForm.to)) {
+        this.exceptionError = this.$t("workerDetail.invalidHours");
+        return;
+      }
+      const item = {
+        date:this.exceptionForm.date,
+        type:this.exceptionForm.type,
+        from:this.exceptionForm.type === "custom-hours" ? this.exceptionForm.from : "",
+        to:this.exceptionForm.type === "custom-hours" ? this.exceptionForm.to : "",
+        reason:this.exceptionForm.reason,
+      };
+      const existing = this.scheduleExceptions.findIndex(value => value.date === item.date);
+      if (existing >= 0) this.scheduleExceptions.splice(existing, 1, item);
+      else this.scheduleExceptions.push(item);
+      this.scheduleExceptions.sort((a, b) => a.date.localeCompare(b.date));
+      this.exceptionForm = { date:"", type:"absence", from:"07:00", to:"15:00", reason:"" };
+    },
+    removeScheduleException(index) {
+      this.scheduleExceptions.splice(index, 1);
+    },
+    async fetchMonthlyStats() {
+      const workerId = this.worker?._id || this.worker?.id;
+      if (!workerId) return;
+      const { data } = await api.get(`/workers/${workerId}/stats`, {
+        params:{ month:this.selectedMonth },
+      });
+      this.monthlyStats = data;
+    },
+    formatHours(minutes) {
+      return `${(Number(minutes || 0) / 60).toLocaleString(localeCode(this.$i18n.locale), { maximumFractionDigits:1 })} h`;
+    },
+    formatExceptionDate(value) {
+      if (!value) return "";
+      const [year, month, day] = value.split("-").map(Number);
+      return new Date(year, month - 1, day).toLocaleDateString(localeCode(this.$i18n.locale));
     },
     async exportPdf() {
       await exportSingleWorkerPdf(this.form, this.ratings, this.form.operations, this.totalRating, this.projectsCompleted, this.userName, this.selectedCompany);
@@ -673,5 +830,35 @@ export default {
 .form-check-input:checked {
   background-color: #2b579a;
   border-color: #2b579a;
+}
+.section-divider {
+  border-color: #d5d8dc;
+  margin: 1.25rem 0;
+}
+.hours-card {
+  background: #fff;
+  border: 1px solid #dcdcdc;
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+.hours-card span {
+  display: block;
+  color: #666;
+  font-size: 0.78rem;
+}
+.hours-card strong {
+  color: #1c2936;
+  font-size: 1.1rem;
+}
+.btn-action-inline {
+  background: #2b579a;
+  color: #fff;
+}
+.btn-action-inline:hover {
+  background: #1e3f73;
+  color: #fff;
+}
+.exception-table {
+  font-size: 0.8rem;
 }
 </style>

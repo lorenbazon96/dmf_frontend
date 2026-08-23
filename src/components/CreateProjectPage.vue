@@ -1978,6 +1978,10 @@ export default {
         name: w.fullName,
         busy: w.busy,
         freeIn: w.freeIn,
+        availableAt: w.availableAt,
+        availableInMinutes: w.availableInMinutes,
+        monthlyEffectiveMinutes: w.monthlyEffectiveMinutes || 0,
+        monthlyScheduledMinutes: w.monthlyScheduledMinutes || 0,
         company: w.company,
         ratings: w.ratings,
         operations: w.operations,
@@ -2189,7 +2193,10 @@ export default {
         const eligible = this.workers
           .filter((w) => w.operations[op])
           .sort((a, b) => {
-            if (a.busy !== b.busy) return a.busy ? 1 : -1;
+            const waitDifference = this.workerWaitMinutes(a) - this.workerWaitMinutes(b);
+            if (waitDifference) return waitDifference;
+            const workloadDifference = a.monthlyEffectiveMinutes - b.monthlyEffectiveMinutes;
+            if (workloadDifference) return workloadDifference;
             return b.ratings[op] - a.ratings[op];
           });
         if (!eligible.length) continue;
@@ -2220,7 +2227,7 @@ export default {
       }
 
       const freeWorkers = this.workers.filter(
-        (w) => !w.busy && !usedWorkerIds.has(w.id),
+        (w) => this.workerWaitMinutes(w) === 0 && !usedWorkerIds.has(w.id),
       );
       for (const fw of freeWorkers) {
         let bestItem = null;
@@ -2259,7 +2266,7 @@ export default {
       const adjusted = item.baseMinutes / (efficiency * workers.length);
       const maxWait = Math.max(
         0,
-        ...workers.map((w) => (w.busy ? this.parseFreeInMinutes(w.freeIn) : 0)),
+        ...workers.map((w) => this.workerWaitMinutes(w)),
       );
       item.adjustedMinutes = adjusted + maxWait;
     },
@@ -2318,6 +2325,11 @@ export default {
       if (hMatch) minutes += parseInt(hMatch[1]) * 60;
       if (mMatch) minutes += parseInt(mMatch[1]);
       return minutes;
+    },
+    workerWaitMinutes(worker) {
+      const taskWait = worker.busy ? this.parseFreeInMinutes(worker.freeIn) : 0;
+      const availabilityWait = Number(worker.availableInMinutes || 0);
+      return Math.max(taskWait, availabilityWait);
     },
     confirmAuto() {
       for (const item of this.autoSchedule) {
