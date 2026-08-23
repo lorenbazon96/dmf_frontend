@@ -567,10 +567,20 @@ export default {
       return new Date(year, month - 1, day).toLocaleDateString(localeCode(this.$i18n.locale));
     },
     async exportPdf() {
-      await exportSingleWorkerPdf(this.form, this.ratings, this.form.operations, this.totalRating, this.projectsCompleted, this.userName, this.selectedCompany);
+      await exportSingleWorkerPdf(this.workerReportData(), this.ratings, this.form.operations, this.totalRating, this.projectsCompleted, this.userName, this.selectedCompany);
     },
     printWorker() {
-      printSingleWorker(this.form, this.ratings, this.form.operations, this.totalRating, this.projectsCompleted, this.userName, this.selectedCompany);
+      printSingleWorker(this.workerReportData(), this.ratings, this.form.operations, this.totalRating, this.projectsCompleted, this.userName, this.selectedCompany);
+    },
+    workerReportData() {
+      return {
+        ...this.form,
+        company:this.worker.company || this.selectedCompany,
+        createdAt:this.worker.createdAt,
+        scheduleExceptions:this.scheduleExceptions,
+        monthlyStats:this.monthlyStats,
+        selectedMonth:this.selectedMonth,
+      };
     },
     async fetchProjectsCount() {
       try {

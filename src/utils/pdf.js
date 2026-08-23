@@ -9,12 +9,28 @@ const logoUrl = require("@/assets/logo-dmf.png");
 let logoBase64 = null;
 
 const report = key => i18n.global.t(`reports.${key}`);
+const workerDetail = key => i18n.global.t(`workerDetail.${key}`);
 const operation = value => operationLabel(value, key => i18n.global.t(key));
 const projectStatus = value => i18n.global.t(`project.projectStatus.${value || "active"}`);
 const reportLocale = () => localeCode(
   typeof i18n.global.locale === "string" ? i18n.global.locale : i18n.global.locale.value,
 );
 const yesNo = value => report(value ? "yes" : "no");
+const reportDate = value => {
+  if (!value) return "";
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const date = dateOnly
+    ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
+    : new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString(reportLocale());
+};
+const reportMonth = value => {
+  const match = /^(\d{4})-(\d{2})$/.exec(value || "");
+  return match
+    ? new Date(Number(match[1]), Number(match[2]) - 1, 1).toLocaleDateString(reportLocale(), { month:"long", year:"numeric" })
+    : value || "";
+};
+const reportHours = minutes => `${(Number(minutes || 0) / 60).toLocaleString(reportLocale(), { maximumFractionDigits:1 })} h`;
 const clientType = value => report(value === "person" ? "person" : "company");
 const itemType = value => {
   const key = {
@@ -193,13 +209,19 @@ export async function exportSingleWorkerPdf(
       [report("address"), worker.address || ""],
       [report("contact"), worker.contact || ""],
       [report("jobPosition"), worker.jobPosition || ""],
+      [report("company"), worker.company || companyName || ""],
+      [workerDetail("createdAt"), reportDate(worker.createdAt)],
       [report("totalRating"), String(totalRating)],
       [report("completedProjects"), String(projectsCompleted)],
+      [workerDetail("month"), reportMonth(worker.selectedMonth)],
+      [workerDetail("scheduledHours"), reportHours(worker.monthlyStats?.scheduledMinutes)],
+      [workerDetail("effectiveHours"), reportHours(worker.monthlyStats?.effectiveMinutes)],
+      [workerDetail("utilization"), `${worker.monthlyStats?.utilization || 0}%`],
     ],
     ...tableStyles,
     columnStyles: { 0: { fontStyle: "bold", cellWidth: 50 } },
   });
-  autoTable(doc, {
+  const t2 = autoTable(doc, {
     startY: t1.finalY + 8,
     head: [[report("operation"), report("rating"), report("active")]],
     body: [
@@ -219,6 +241,24 @@ export async function exportSingleWorkerPdf(
       [i18n.global.t("createProject.drilling"), ratings.drilling, yesNo(operations.drilling)],
       [i18n.global.t("createProject.assembly"), ratings.assembly, yesNo(operations.assembly)],
     ],
+    ...tableStyles,
+  });
+  autoTable(doc, {
+    startY: t2.finalY + 8,
+    head: [[
+      workerDetail("date"),
+      workerDetail("exceptionType"),
+      workerDetail("hours"),
+      workerDetail("reason"),
+    ]],
+    body: worker.scheduleExceptions?.length
+      ? worker.scheduleExceptions.map(item => [
+        reportDate(item.date),
+        workerDetail(item.type === "absence" ? "absence" : "customHours"),
+        item.type === "custom-hours" ? `${item.from}–${item.to}` : "—",
+        item.reason || "—",
+      ])
+      : [[workerDetail("noExceptions"), "", "", ""]],
     ...tableStyles,
   });
   doc.save(`${report("fileWorker")}-${(worker.fullName || report("fileWorker")).replace(/\s+/g, "_")}.pdf`);
@@ -349,8 +389,14 @@ export function printSingleWorker(
     <tr><td><b>${report("address")}</b></td><td>${worker.address || ""}</td></tr>
     <tr><td><b>${report("contact")}</b></td><td>${worker.contact || ""}</td></tr>
     <tr><td><b>${report("jobPosition")}</b></td><td>${worker.jobPosition || ""}</td></tr>
+    <tr><td><b>${report("company")}</b></td><td>${worker.company || companyName || ""}</td></tr>
+    <tr><td><b>${workerDetail("createdAt")}</b></td><td>${reportDate(worker.createdAt)}</td></tr>
     <tr><td><b>${report("totalRating")}</b></td><td>${totalRating}</td></tr>
     <tr><td><b>${report("completedProjects")}</b></td><td>${projectsCompleted}</td></tr>
+    <tr><td><b>${workerDetail("month")}</b></td><td>${reportMonth(worker.selectedMonth)}</td></tr>
+    <tr><td><b>${workerDetail("scheduledHours")}</b></td><td>${reportHours(worker.monthlyStats?.scheduledMinutes)}</td></tr>
+    <tr><td><b>${workerDetail("effectiveHours")}</b></td><td>${reportHours(worker.monthlyStats?.effectiveMinutes)}</td></tr>
+    <tr><td><b>${workerDetail("utilization")}</b></td><td>${worker.monthlyStats?.utilization || 0}%</td></tr>
   </table><br><table><tr><th>${report("operation")}</th><th>${report("rating")}</th><th>${report("active")}</th></tr>
     <tr><td>${i18n.global.t("createProject.pipeCutting")}</td><td>${ratings.pipeCutting}</td><td>${
     yesNo(operations.pipeCutting)
@@ -373,7 +419,16 @@ export function printSingleWorker(
     <tr><td>${i18n.global.t("createProject.assembly")}</td><td>${ratings.assembly}</td><td>${
     yesNo(operations.assembly)
   }</td></tr>
-  </table>`;
+  </table><br><h3 style="color:#2b579a;">${workerDetail("availabilityExceptions")}</h3>
+  <table><tr><th>${workerDetail("date")}</th><th>${workerDetail("exceptionType")}</th><th>${workerDetail("hours")}</th><th>${workerDetail("reason")}</th></tr>`;
+  if (worker.scheduleExceptions?.length) {
+    worker.scheduleExceptions.forEach(item => {
+      info += `<tr><td>${reportDate(item.date)}</td><td>${workerDetail(item.type === "absence" ? "absence" : "customHours")}</td><td>${item.type === "custom-hours" ? `${item.from}–${item.to}` : "—"}</td><td>${item.reason || "—"}</td></tr>`;
+    });
+  } else {
+    info += `<tr><td colspan="4">${workerDetail("noExceptions")}</td></tr>`;
+  }
+  info += "</table>";
   printContent(`${report("worker")}: ${worker.fullName}`, info, userName, companyName);
 }
 
