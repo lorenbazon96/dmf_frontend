@@ -753,29 +753,30 @@ export default {
     estimatedEndDate() {
       const start = this.projectData.startedAt || this.projectData.createdAt;
       if (!start || !this.totalEstimatedMinutes) return "–";
-      const adjustedStart = new Date(new Date(start).getTime() + this.totalPausedMinutes * 60000);
-      const end = addWorkingMinutes(
-        adjustedStart,
-        Math.max(0, this.totalEstimatedMinutes + this.timelineCorrectionMinutes),
-        this.companySchedule,
-      );
+      const anchors = this.productionPlan
+        .map(task => ({
+          position: (task.startOffset || 0) + Number(task.estimatedMinutes || 0),
+          at: task.status === "completed"
+            ? task.completedAt
+            : task.estimatedCompletedAt,
+        }))
+        .filter(anchor => anchor.at);
+
+      let end;
+      if (anchors.length) {
+        const furthestPosition = Math.max(...anchors.map(anchor => anchor.position));
+        const latestAnchor = anchors
+          .filter(anchor => anchor.position === furthestPosition)
+          .sort((a, b) => new Date(b.at) - new Date(a.at))[0];
+        const remainingMinutes = Math.max(0, this.totalEstimatedMinutes - furthestPosition);
+        end = addWorkingMinutes(latestAnchor.at, remainingMinutes, this.companySchedule);
+      } else {
+        const adjustedStart = new Date(
+          new Date(start).getTime() + this.totalPausedMinutes * 60000,
+        );
+        end = addWorkingMinutes(adjustedStart, this.totalEstimatedMinutes, this.companySchedule);
+      }
       return end.toLocaleString(localeCode(this.$i18n.locale));
-    },
-    timelineCorrectionMinutes() {
-      const confirmed = this.productionPlan
-        .filter(task =>
-          task.status === "completed" &&
-          task.completedAt &&
-          task.estimatedCompletedAt
-        )
-        .sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
-      const latest = confirmed[0];
-      if (!latest) return 0;
-      const estimated = new Date(latest.estimatedCompletedAt);
-      const actual = new Date(latest.completedAt);
-      return actual >= estimated
-        ? getWorkingMinutesBetween(estimated, actual, this.companySchedule)
-        : -getWorkingMinutesBetween(actual, estimated, this.companySchedule);
     },
     actualEndAt() {
       if (this.projectData.status !== "completed") return null;
