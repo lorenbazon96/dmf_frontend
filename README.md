@@ -1,38 +1,40 @@
 # DMF frontend
 
-Vue 3 / Vue CLI klijent za DMF. Autentikacija zadržava postojeći Bearer token ugovor.
+Vue 3 / Vue CLI klijent za DMF, objavljen na Vercelu. Aplikacija komunicira s backendom objavljenim na Railwayu i za autentikaciju koristi Bearer JWT token.
 
-## Project setup
+## Lokalno pokretanje
+
+Instalacija ovisnosti:
+
 ```
 npm ci
 ```
 
-### Compiles and hot-reloads for development
+Pokretanje razvojnog poslužitelja:
+
 ```
 npm run serve
 ```
 
-### Compiles and minifies for production
+## Produkcijska izgradnja
+
 ```
 npm run build
 ```
 
-### Lints and fixes files
+Vercel pri objavi automatski izrađuje produkcijsku verziju frontenda.
+
+## Provjera koda
+
 ```
 npm run lint
 ```
 
-### Tests
-```
-npm test
-```
+## Konfiguracija API-ja
 
-## API configuration
+Varijabla `VUE_APP_API_URL` mora sadržavati adresu API-ja sa završnim `/api`. U produkcijskom Vercel okruženju postavljena je na javnu adresu Railway backenda. Lokalni razvoj bez te varijable koristi `http://localhost:3000/api`.
 
-Kopirajte `.env.example` u `.env.local` samo kada trebate promijeniti API origin.
-`VUE_APP_API_URL` mora uključiti `/api`. Bez varijable development koristi
-`http://localhost:3000/api`, dok production sigurno koristi same-origin `/api` i nikada
-ne pada natrag na localhost.
+Datoteka `.env.example` služi kao predložak. Za lokalnu promjenu API adrese može se izraditi `.env.local`, koja se ne sprema u Git.
 
 ## Navigacija i reset lozinke
 
@@ -40,4 +42,4 @@ Aplikacija koristi hash URL-ove radi kompatibilnosti sa statičkim hostingom. Pr
 linka je `/#/reset-password?token=...`. Zaštićene rute vraćaju neprijavljenog korisnika na
 login; browser back/forward ostaje sinkroniziran s postojećim pogledima aplikacije.
 
-Za provjeru prije isporuke pokrenite `npm run lint`, `npm test` i `npm run build`.
+Za provjeru prije objave pokreću se `npm run lint` i `npm run build`.
