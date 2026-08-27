@@ -237,6 +237,7 @@ export default {
     return {
       projects: [],
       assemblies: [],
+      workerScheduleExceptions: {},
       now: Date.now(),
       timer: null,
     };
@@ -263,22 +264,34 @@ export default {
         if (!p.drawings) continue;
         const workerTasks = {};
         for (const d of p.drawings) {
-          if (d.isAssemblyDrawing || !d.assignedWorkers) continue;
+          if (d.isViewOnly || !d.assignedWorkers) continue;
           for (const aw of d.assignedWorkers) {
             const key = (aw.workerId || aw.workerName) + '||' + aw.operation;
             if (!workerTasks[key]) {
-              workerTasks[key] = { total: 0, completed: 0, workerName: aw.workerName, operation: aw.operation, hasInProgress: false };
+              workerTasks[key] = {
+                tasks: [],
+                workerId: aw.workerId,
+                workerName: aw.workerName,
+                operation: aw.operation,
+              };
             }
-            workerTasks[key].total++;
-            if (aw.status === 'completed') workerTasks[key].completed++;
-            if (aw.status === 'in-progress') workerTasks[key].hasInProgress = true;
+            workerTasks[key].tasks.push(aw);
           }
         }
         for (const wt of Object.values(workerTasks)) {
-          const progress = wt.total ? Math.round((wt.completed / wt.total) * 100) : 0;
+          const taskProgress = wt.tasks.map(task =>
+            getTaskProgressMinutes(task, new Date(this.now), this.taskSchedule(task)),
+          );
+          const estimated = taskProgress.reduce((sum, task) => sum + task.estimated, 0);
+          const completed = taskProgress.reduce((sum, task) => sum + task.completed, 0);
+          const progress = estimated
+            ? Math.min(100, Math.round((completed / estimated) * 100))
+            : 0;
           let status = 'pending';
-          if (wt.completed === wt.total) status = 'completed';
-          else if (wt.hasInProgress || wt.completed > 0) status = 'in-progress';
+          if (wt.tasks.every(task => task.status === 'completed')) status = 'completed';
+          else if (wt.tasks.some(task => task.status === 'in-progress')) status = 'in-progress';
+          else if (wt.tasks.some(task => task.status === 'estimated-completed')) status = 'estimated-completed';
+          else if (wt.tasks.some(task => task.status === 'paused')) status = 'paused';
           let color = 'blue';
           if (progress >= 100) color = 'green';
           else if (progress >= 50) color = 'yellow';
@@ -315,7 +328,16 @@ export default {
         if (this.selectedCompany) {
           params.company = this.selectedCompany;
         }
-        const { data } = await api.get("/projects", { params });
+        const [{ data }, { data: workers }] = await Promise.all([
+          api.get("/projects", { params }),
+          api.get("/workers", { params, suppressGlobalError: true }),
+        ]);
+        this.workerScheduleExceptions = Object.fromEntries(
+          workers.map(worker => [
+            String(worker._id || worker.id),
+            worker.scheduleExceptions || [],
+          ]),
+        );
         this.projects = data
           .filter((p) => p.status !== "completed")
           .map((p) => {
@@ -354,7 +376,7 @@ export default {
       const drawings = proj.drawings;
       if (!drawings) return;
       for (const dr of drawings) {
-        if (dr.isAssemblyDrawing || !dr.assignedWorkers || !dr.treatments)
+        if (dr.isViewOnly || !dr.assignedWorkers || !dr.treatments)
           continue;
         const hasZeroEst = dr.assignedWorkers.some(
           (aw) => !aw.estimatedMinutes,
@@ -394,12 +416,19 @@ export default {
     localizedOperation(operation) {
       return operationLabel(operation, key => this.$t(key));
     },
+    taskSchedule(task) {
+      const workerId = String(task.workerId || "");
+      const scheduleExceptions = this.workerScheduleExceptions[workerId];
+      return scheduleExceptions
+        ? { ...(this.companySchedule || {}), scheduleExceptions }
+        : this.companySchedule;
+    },
     getProjectProgress(p) {
       try {
         if (p.status === "active") return 0;
         if (!p.drawings || !p.drawings.length) return 0;
         const tasks = p.drawings
-          .filter(drawing => drawing && !drawing.isAssemblyDrawing)
+          .filter(drawing => drawing && !drawing.isViewOnly)
           .flatMap(drawing => drawing.assignedWorkers || [])
           .filter(Boolean);
         const taskCount = tasks.length;
@@ -407,7 +436,7 @@ export default {
         const completedCount = tasks.filter(task => task.status === "completed").length;
         if (completedCount === taskCount) return 100;
         const progress = tasks.map(task =>
-          getTaskProgressMinutes(task, new Date(this.now), this.companySchedule)
+          getTaskProgressMinutes(task, new Date(this.now), this.taskSchedule(task))
         );
         const totalEstimate = progress.reduce((sum, task) => sum + task.estimated, 0);
         if (!totalEstimate) {

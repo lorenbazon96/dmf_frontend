@@ -102,17 +102,33 @@
                   </select>
                 </div>
 
-                <div class="mb-0">
+                <div class="mb-0 d-flex flex-column gap-1">
                   <div class="form-check">
                     <input
                       class="form-check-input"
                       type="checkbox"
                       id="assemblyDrawingCheck"
                       v-model="form.isAssemblyDrawing"
+                      @change="handleAssemblyDrawingChange"
                     />
                     <label
                       class="form-check-label form-label-sm mb-0"
                       for="assemblyDrawingCheck"
+                    >
+                      {{ $t("createProject.assemblyDrawing") }}
+                    </label>
+                  </div>
+                  <div class="form-check">
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="viewOnlyDrawingCheck"
+                      v-model="form.isViewOnly"
+                      @change="handleViewOnlyChange"
+                    />
+                    <label
+                      class="form-check-label form-label-sm mb-0"
+                      for="viewOnlyDrawingCheck"
                     >
                       {{ $t("createProject.assemblyDrawingOnly") }}
                     </label>
@@ -257,13 +273,29 @@
                     <label class="form-label-sm"
                       >{{ $t("createProject.assemblyName") }}:</label
                     >
-                    <input
+                    <select
                       v-model="part.assemblyName"
-                      type="text"
-                      class="form-control form-control-sm"
+                      class="form-select form-select-sm"
                       :class="{ 'is-invalid': formErrors.assemblyName }"
-                      @input="formErrors.assemblyName = ''"
-                    />
+                      @change="formErrors.assemblyName = ''"
+                    >
+                      <option value="">
+                        {{
+                          $t(
+                            form.isAssemblyDrawing
+                              ? "createProject.noParentAssembly"
+                              : "createProject.selectAssembly",
+                          )
+                        }}
+                      </option>
+                      <option
+                        v-for="assembly in availableAssemblyNames"
+                        :key="assembly"
+                        :value="assembly"
+                      >
+                        {{ assembly }}
+                      </option>
+                    </select>
                     <div v-if="formErrors.assemblyName" class="invalid-feedback">
                       {{ formErrors.assemblyName }}
                     </div>
@@ -359,7 +391,7 @@
                   </div>
                 </div>
 
-                <template v-if="!form.isAssemblyDrawing">
+                <template v-if="!form.isViewOnly">
                   <div class="row g-2 mb-4">
                     <div class="col-md-6">
                       <h6 class="section-label">
@@ -1627,7 +1659,7 @@
             <strong>{{ $t("createProject.attachment") }}:</strong> {{ dwgFileName }}
           </div>
           <hr />
-          <div v-if="assignedWorkers.length" class="mb-3">
+          <div v-if="!form.isViewOnly && assignedWorkers.length" class="mb-3">
             <strong>{{ $t("createProject.whoWorks") }}:</strong>
             <div
               v-for="(group, op) in groupedAssignedWorkers"
@@ -1640,13 +1672,13 @@
               }}</span>
             </div>
           </div>
-          <div v-if="assignedMaterials.length" class="mb-3">
+          <div v-if="!form.isViewOnly && assignedMaterials.length" class="mb-3">
             <strong>{{ $t("createProject.materialUsed") }}:</strong>
             <div v-for="(am, idx) in assignedMaterials" :key="idx" class="ms-2">
               {{ am.name }} ({{ am.specs }}) × {{ am.useQty }}
             </div>
           </div>
-          <div v-if="!form.isAssemblyDrawing">
+          <div v-if="!form.isViewOnly">
             <strong>{{ $t("createProject.treatments") }}:</strong>
             <div
               v-for="(section, sIdx) in treatmentSections"
@@ -1801,6 +1833,7 @@ export default {
         client: "",
         responsible: "",
         isAssemblyDrawing: false,
+        isViewOnly: false,
       },
       part: {
         drawingNo: "",
@@ -1922,6 +1955,19 @@ export default {
           !this.materialAvailableOnly || availableQty(item) > 0;
         return matchesSearch && matchesType && matchesAvailability;
       });
+    },
+    availableAssemblyNames() {
+      const drawings = this.draftDrawings.length
+        ? this.draftDrawings
+        : (this.editProject?.drawings || []);
+      return [...new Set(
+        drawings
+          .filter((drawing, index) =>
+            drawing?.isAssemblyDrawing && index !== this.editingDrawingIndex,
+          )
+          .map(drawing => drawing.partName?.trim())
+          .filter(Boolean),
+      )].sort((a, b) => a.localeCompare(b));
     },
     activeOperations() {
       const opMap = {
@@ -2055,6 +2101,13 @@ export default {
       this.form.responsible = "";
       this.syncPersonResponsible();
     },
+    handleAssemblyDrawingChange() {
+      if (!this.form.isAssemblyDrawing) this.form.isViewOnly = false;
+      this.formErrors.assemblyName = "";
+    },
+    handleViewOnlyChange() {
+      if (this.form.isViewOnly) this.form.isAssemblyDrawing = true;
+    },
     syncPersonResponsible() {
       const client = this.clients.find(c => c.clientName === this.form.client);
       if (client?.clientType === "person") this.form.responsible = client.clientName;
@@ -2104,13 +2157,24 @@ export default {
       const section = this.treatmentSections[sectionIndex];
       if (!section) return;
 
-      this.$set(section, operation, this.createEmptyTreatment()[operation]);
+      section[operation] = this.createEmptyTreatment()[operation];
+      if (this.formErrors.treatments?.[sectionIndex]?.[operation]) {
+        delete this.formErrors.treatments[sectionIndex][operation];
+      }
       const sectionIsUnused = Object.values(section).every(
         treatment =>
           !treatment?._variant && !this.operationHasValues(treatment),
       );
       if (sectionIsUnused && this.treatmentSections.length > 1) {
         this.treatmentSections.splice(sectionIndex, 1);
+      }
+      const operationStillExists = this.treatmentSections.some(currentSection =>
+        this.operationHasValues(currentSection[operation]),
+      );
+      if (!operationStillExists) {
+        this.assignedWorkers = this.assignedWorkers.filter(worker =>
+          (worker.opKey || this.getOpKeyFromLabel(worker.operation)) !== operation,
+        );
       }
     },
 
@@ -2478,8 +2542,9 @@ export default {
         pdfFile: pdfPath,
         dwgFile: dwgPath,
         isAssemblyDrawing: this.form.isAssemblyDrawing,
-        treatments: this.form.isAssemblyDrawing ? [] : this.treatmentSections,
-        assignedWorkers: this.form.isAssemblyDrawing
+        isViewOnly: this.form.isViewOnly,
+        treatments: this.form.isViewOnly ? [] : this.treatmentSections,
+        assignedWorkers: this.form.isViewOnly
           ? []
           : this.assignedWorkers.map((aw) => ({
               ...(aw.taskId ? { _id: aw.taskId } : {}),
@@ -2490,7 +2555,9 @@ export default {
               type: aw.type,
               estimatedMinutes: aw.estimatedMinutes || 0,
             })),
-        assignedMaterials: this.assignedMaterials.map(materialPayload),
+        assignedMaterials: this.form.isViewOnly
+          ? []
+          : this.assignedMaterials.map(materialPayload),
       };
     },
 
@@ -2515,6 +2582,18 @@ export default {
           this.editingDrawingIndex >= 0 &&
           this.editingDrawingIndex < project.drawings.length
         ) {
+          const previousDrawing = project.drawings[this.editingDrawingIndex];
+          if (
+            previousDrawing.isAssemblyDrawing &&
+            previousDrawing.partName &&
+            previousDrawing.partName !== drawing.partName
+          ) {
+            project.drawings.forEach(currentDrawing => {
+              if (currentDrawing.assemblyName === previousDrawing.partName) {
+                currentDrawing.assemblyName = drawing.partName;
+              }
+            });
+          }
           project.drawings[this.editingDrawingIndex] = drawing;
         } else {
           project.drawings.push(drawing);
@@ -2527,7 +2606,7 @@ export default {
           responsible: project.responsible,
           drawings: project.drawings,
         }, { suppressGlobalError: true });
-        if (this.isCopy) this.draftDrawings = saved.drawings || [];
+        this.draftDrawings = saved.drawings || [];
       } else {
         const drawings = this.isCopy
           ? this.linkedCopyDrawings(
@@ -2548,7 +2627,7 @@ export default {
           suppressGlobalError: true,
         });
         this.currentProjectId = created._id;
-        if (this.isCopy) this.draftDrawings = created.drawings || [];
+        this.draftDrawings = created.drawings || [];
       }
     },
 
@@ -2611,10 +2690,14 @@ export default {
       if (!this.form.name.trim()) errors.name = req;
       if (!this.form.client) errors.client = req;
       if (!this.part.drawingNo.trim()) errors.drawingNo = req;
-      if (this.form.isAssemblyDrawing) {
-        if (!this.part.assemblyName.trim()) errors.assemblyName = req;
-      } else if (!this.part.partName.trim()) {
-        errors.partName = req;
+      if (!this.part.partName.trim()) errors.partName = req;
+      if (!this.form.isAssemblyDrawing && !this.part.assemblyName) {
+        errors.assemblyName = req;
+      } else if (
+        this.part.assemblyName &&
+        !this.availableAssemblyNames.includes(this.part.assemblyName)
+      ) {
+        errors.assemblyName = this.$t("createProject.validationAssemblyInvalid");
       }
       if (this.part.weight === "") errors.weight = req;
       else if (!this.isNumeric(this.part.weight)) errors.weight = num;
@@ -2624,7 +2707,7 @@ export default {
       else if (!Number.isInteger(Number(this.part.quantity)) || Number(this.part.quantity) <= 0)
         errors.quantity = positiveInteger;
 
-      if (!this.form.isAssemblyDrawing) {
+      if (!this.form.isViewOnly) {
         if (!this.activeOperations.length) {
           errors.workflow = this.$t("createProject.operationRequired");
         } else {
@@ -2744,6 +2827,7 @@ export default {
       this.part.weight = drawing.weight || "";
       this.part.quantity = drawing.quantity || "";
       this.form.isAssemblyDrawing = !!drawing.isAssemblyDrawing;
+      this.form.isViewOnly = drawing.isViewOnly ?? !!drawing.isAssemblyDrawing;
 
       this.pdfFile = null;
       this.pdfFileName = "";
@@ -2820,6 +2904,8 @@ export default {
         weight: "",
         quantity: "",
       };
+      this.form.isAssemblyDrawing = false;
+      this.form.isViewOnly = false;
       this.treatmentSections = [this.createEmptyTreatment()];
       this.assignedWorkers = [];
       this.assignedMaterials = [];

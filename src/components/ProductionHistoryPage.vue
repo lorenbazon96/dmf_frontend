@@ -234,7 +234,7 @@ export default {
       let totalMinutes = 0;
       for (const p of this.companyFilteredProjects) {
         for (const d of p.drawings || []) {
-          if (d.isAssemblyDrawing || !d.assignedWorkers) continue;
+          if (d.isViewOnly || !d.assignedWorkers) continue;
           for (const aw of d.assignedWorkers) {
             totalMinutes += aw.estimatedMinutes || 0;
           }

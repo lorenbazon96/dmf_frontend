@@ -569,7 +569,7 @@ export default {
       if (!drawings.length) return [this.$t("project.missingDrawing")];
       const issues = [];
       drawings.forEach((drawing, index) => {
-        if (drawing.isAssemblyDrawing) return;
+        if (drawing.isViewOnly) return;
         const drawingNo = drawing.drawingNo || index + 1;
         const tasks = drawing.assignedWorkers || [];
         if (!tasks.some(task => task.workerId)) {
@@ -620,7 +620,7 @@ export default {
       if (!d) return {};
       const opTotals = {};
       for (const dr of d) {
-        if (dr.isAssemblyDrawing || !dr.assignedWorkers) continue;
+        if (dr.isViewOnly || !dr.assignedWorkers) continue;
         const opMaxInDrawing = {};
         for (const aw of dr.assignedWorkers) {
           const op = aw.operation || "";
@@ -651,7 +651,7 @@ export default {
       const plan = [];
       const opCumulativeOffset = {};
       d.forEach((dr, dIdx) => {
-        if (dr.isAssemblyDrawing || !dr.assignedWorkers) return;
+        if (dr.isViewOnly || !dr.assignedWorkers) return;
         const opMaxInDrawing = {};
         dr.assignedWorkers.forEach((aw, wIdx) => {
           const op = aw.operation || "";
@@ -694,7 +694,7 @@ export default {
       if (!d) return 0;
       const opTotals = {};
       for (const dr of d) {
-        if (dr.isAssemblyDrawing || !dr.assignedWorkers) continue;
+        if (dr.isViewOnly || !dr.assignedWorkers) continue;
         const opMaxInDrawing = {};
         for (const aw of dr.assignedWorkers) {
           const op = aw.operation || "";
@@ -831,7 +831,7 @@ export default {
       if (!drawings) return;
       let changed = false;
       for (const dr of drawings) {
-        if (dr.isAssemblyDrawing || !dr.assignedWorkers || !dr.treatments)
+        if (dr.isViewOnly || !dr.assignedWorkers || !dr.treatments)
           continue;
         const hasZeroEst = dr.assignedWorkers.some(
           (aw) => !aw.estimatedMinutes,

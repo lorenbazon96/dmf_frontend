@@ -187,7 +187,7 @@ export default {
       if (!d) return {};
       const opTotals = {};
       for (const dr of d) {
-        if (dr.isAssemblyDrawing || !dr.assignedWorkers) continue;
+        if (dr.isViewOnly || !dr.assignedWorkers) continue;
         const opMaxInDrawing = {};
         for (const aw of dr.assignedWorkers) {
           const op = aw.operation || "";
@@ -217,7 +217,7 @@ export default {
       if (!d) return 0;
       const opTotals = {};
       for (const dr of d) {
-        if (dr.isAssemblyDrawing || !dr.assignedWorkers) continue;
+        if (dr.isViewOnly || !dr.assignedWorkers) continue;
         const opMaxInDrawing = {};
         for (const aw of dr.assignedWorkers) {
           const op = aw.operation || "";
@@ -258,7 +258,7 @@ export default {
       if (!d || !d.length) return 0;
       let taskCount = 0, completedCount = 0;
       for (const dr of d) {
-        if (dr.isAssemblyDrawing || !dr.assignedWorkers) continue;
+        if (dr.isViewOnly || !dr.assignedWorkers) continue;
         for (const aw of dr.assignedWorkers) {
           taskCount++;
           if (aw.status === "completed") completedCount++;
@@ -387,7 +387,7 @@ export default {
       const drawings = this.projectData.drawings;
       if (!drawings) return;
       for (const dr of drawings) {
-        if (dr.isAssemblyDrawing || !dr.assignedWorkers || !dr.treatments) continue;
+        if (dr.isViewOnly || !dr.assignedWorkers || !dr.treatments) continue;
         const hasZeroEst = dr.assignedWorkers.some((aw) => !aw.estimatedMinutes);
         if (!hasZeroEst) continue;
         const opTimes = calcTimePerOperation(dr.treatments);
