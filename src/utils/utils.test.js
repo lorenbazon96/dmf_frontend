@@ -31,6 +31,23 @@ describe("working time", () => {
     expect(getWorkingMinutesBetween(startedAt, new Date(2026, 7, 3, 15), schedule)).toBe(60);
     expect(getWorkingMinutesBetween(startedAt, new Date(2026, 7, 3, 19), schedule)).toBe(60);
   });
+  it("does not advance while the assigned worker is absent", () => {
+    const workerSchedule = {
+      ...schedule,
+      scheduleExceptions: [{ date: "2026-08-03", type: "absence" }],
+    };
+    const startedAt = new Date(2026, 7, 3, 7);
+    const end = new Date(2026, 7, 3, 15);
+    expect(getWorkingMinutesBetween(startedAt, end, workerSchedule)).toBe(0);
+    expect(getTaskProgressMinutes({
+      status: "in-progress",
+      startedAt,
+      estimatedMinutes: 60,
+    }, end, workerSchedule)).toEqual({ estimated: 60, completed: 0 });
+    expect(addWorkingMinutes(startedAt, 60, workerSchedule)).toEqual(
+      new Date(2026, 7, 4, 8),
+    );
+  });
   it("counts only the working part of a pause", () => {
     const history = [
       { from: "in-progress", to: "paused", at: new Date(2026, 7, 3, 14, 30) },

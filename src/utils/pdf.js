@@ -4,6 +4,7 @@ import robotoRegular from "@/assets/roboto-regular.js";
 import robotoBold from "@/assets/roboto-bold.js";
 import i18n from "../i18n";
 import { localeCode, operationLabel } from "./domain";
+import { calcTimePerOperation, formatTime } from "./calculations";
 const logoUrl = require("@/assets/logo-dmf.png");
 
 let logoBase64 = null;
@@ -42,6 +43,121 @@ const itemType = value => {
   }[value];
   return key ? i18n.global.t(`warehouseAdd.types.${key}`) : value;
 };
+
+export function treatmentReportRows(sections) {
+  const tr = key => i18n.global.t(`createProject.${key}`);
+  const choices = {
+    cutType: { ravni: "cutStraight", kutni: "cutAngle" },
+    profile: {
+      okrugla: "profileRound",
+      kvadratna: "profileSquare",
+      pravokutna: "profileRect",
+    },
+    sheetComplexity: { ravno: "straight", konture: "contour" },
+    method: { škare: "shears", plazma: "plasma", laser: "laser", brusilica: "grinder" },
+    machine: { stupna: "drillPress", magnetna: "magnetic", ručno: "handheld" },
+    weldType: { kutni: "weldFillet", sučelni: "weldButt" },
+    position: { ravno: "posFlat", vertikalno: "posVertical", "iznad glave": "posOverhead" },
+    grindType: { čišćenje: "grindCleaning", standard: "grindStandard", estetsko: "grindAesthetic" },
+    assemblyComplexity: {
+      jednostavna: "compSimple",
+      srednja: "compMedium",
+      složena: "compComplex",
+    },
+  };
+  const operationFields = {
+    pipeCutting: [
+      ["qty", "quantity"],
+      ["m", "lengthMeters"],
+      ["thickness", "thicknessMillimeters"],
+      ["cuts", "cutsPerPiece"],
+      ["cutType", "cutType", "cutType"],
+      ["profile", "profileType", "profile"],
+    ],
+    sheetCutting: [
+      ["m", "lengthMeters"],
+      ["thickness", "thicknessMillimeters"],
+      ["complexity", "complexityLabel", "sheetComplexity"],
+      ["method", "cuttingMethod", "method"],
+    ],
+    drilling: [
+      ["qty", "quantity"],
+      ["dia", "diameterMillimeters"],
+      ["thickness", "thicknessMillimeters"],
+      ["machine", "machineType", "machine"],
+    ],
+    welding: [
+      ["m", "lengthMeters"],
+      ["size", "weldSizeMillimeters"],
+      ["weldType", "weldType", "weldType"],
+      ["position", "weldPosition", "position"],
+      ["passes", "passes"],
+    ],
+    grinding: [
+      ["m", "lengthMeters"],
+      ["grindType", "grindType", "grindType"],
+    ],
+    bending: [
+      ["qty", "quantity"],
+      ["thickness", "thicknessMillimeters"],
+      ["bends", "bendsPerPiece"],
+      ["length", "lengthMeters"],
+    ],
+    assembly: [
+      ["qty", "quantity"],
+      ["kg", "weightKilograms"],
+      ["complexity", "complexityLabel", "assemblyComplexity"],
+    ],
+  };
+  const variantCounts = {};
+  const rows = [];
+  for (const section of Array.isArray(sections) ? sections : []) {
+    for (const [operationKey, fields] of Object.entries(operationFields)) {
+      const values = section?.[operationKey] || {};
+      const hasValues = Object.entries(values).some(
+        ([field, value]) => field !== "_variant" && value !== "" && value != null,
+      );
+      if (!hasValues) continue;
+      variantCounts[operationKey] = (variantCounts[operationKey] || 0) + 1;
+      const details = fields
+        .filter(([field]) => values[field] !== "" && values[field] != null)
+        .map(([field, label, choice]) => {
+          const translated = choices[choice]?.[values[field]];
+          return `${tr(label)}: ${translated ? tr(translated) : values[field]}`;
+        })
+        .join("; ");
+      rows.push([
+        tr(operationKey),
+        i18n.global.t("createProject.variant", { number: variantCounts[operationKey] }),
+        details || "-",
+        formatTime(calcTimePerOperation([section])[operationKey] || 0),
+      ]);
+    }
+  }
+  return rows;
+}
+
+function reportDuration(minutes) {
+  const value = Number(minutes || 0);
+  if (value <= 0) return "-";
+  const hours = Math.floor(value / 60);
+  const remainingMinutes = Math.round(value % 60);
+  return hours > 0 ? `${hours}h ${remainingMinutes}min` : `${remainingMinutes}min`;
+}
+
+function previousAssignmentsLabel(assignments) {
+  const values = (assignments || []).map(assignment => {
+    const duration = reportDuration(assignment.actualMinutes);
+    return `${assignment.workerName || "-"}${duration === "-" ? "" : ` (${duration})`}`;
+  });
+  return values.length ? values.join(", ") : "-";
+}
+
+function drawingTreatmentRows(drawings) {
+  return (drawings || []).flatMap(drawing =>
+    treatmentReportRows(drawing.treatments).map(row => [drawing.no || "-", ...row]),
+  );
+}
 
 function loadImage(url) {
   return new Promise((resolve) => {
@@ -562,7 +678,7 @@ export async function exportAnalyticsPdf(
     userName,
     companyName,
   );
-  const t1 = autoTable(doc, {
+  autoTable(doc, {
     startY,
     head: [[report("metric"), report("value")]],
     body: [
@@ -576,7 +692,7 @@ export async function exportAnalyticsPdf(
   });
   if (workerPerformance && workerPerformance.length) {
     autoTable(doc, {
-      startY: t1.finalY + 8,
+      startY: doc.lastAutoTable.finalY + 8,
       head: [
         [report("worker"), report("value"), report("tasks"), report("averageTime"), report("efficiency")],
       ],
@@ -738,6 +854,21 @@ export async function exportProjectDetailPdf(
       ...tableStyles,
     });
   }
+  const treatmentRows = drawingTreatmentRows(drawings);
+  if (treatmentRows.length) {
+    autoTable(doc, {
+      startY: doc.lastAutoTable.finalY + 8,
+      head: [[
+        report("drawingNo"),
+        report("operation"),
+        report("variant"),
+        report("details"),
+        report("estimatedTime"),
+      ]],
+      body: treatmentRows,
+      ...tableStyles,
+    });
+  }
   if (productionPlan && productionPlan.length) {
     autoTable(doc, {
       startY: doc.lastAutoTable.finalY + 8,
@@ -746,6 +877,7 @@ export async function exportProjectDetailPdf(
           report("drawingNo"),
           report("operation"),
           report("worksOn"),
+          report("previousWorkers"),
           report("progress"),
           report("estimatedEnd"),
           report("actualEnd"),
@@ -755,6 +887,7 @@ export async function exportProjectDetailPdf(
         p.drawingNo || "",
         operation(p.operation) || "",
         p.worksOn || "",
+        previousAssignmentsLabel(p.previousAssignments),
         (p.progress ?? 0) + "%",
         p.estimatedEndDate || "–",
         p.actualEndDate || "–",
@@ -765,6 +898,45 @@ export async function exportProjectDetailPdf(
   doc.save(`${report("fileProject")}-${(project.rn || report("fileProject")).replace(/\s+/g, "_")}.pdf`);
 }
 
+function projectPreviewSections(data, labels) {
+  return [
+    {
+      title: labels.operations,
+      head: [labels.operation, labels.variant, labels.details, labels.estimate],
+      body: data.operations,
+    },
+    {
+      title: labels.workers,
+      head: [labels.operation, labels.worker, labels.note],
+      body: data.workers,
+    },
+    {
+      title: labels.materials,
+      head: [labels.material, labels.specification, labels.quantity],
+      body: data.materials,
+    },
+  ];
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(
+    /[&<>"']/g,
+    character => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#039;",
+    })[character],
+  );
+}
+
+function previewHtmlTable(head, body) {
+  const rows = body.length ? body : [head.map(() => "-")];
+  return `<table><thead><tr>${head.map(value => `<th>${escapeHtml(value)}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map(row => `<tr>${row.map(value => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+}
+
 export async function exportProjectPreviewPdf(data, labels, userName, companyName) {
   await initPdf();
   const doc = createDoc("p");
@@ -772,34 +944,39 @@ export async function exportProjectPreviewPdf(data, labels, userName, companyNam
   autoTable(doc, {
     startY,
     head: [[labels.field, labels.value]],
-    body: [
-      [labels.rn, data.project.rn || "-"],
-      [labels.name, data.project.name || "-"],
-      [labels.client, data.project.client || "-"],
-      [labels.drawing, [data.drawing.drawingNo, data.drawing.partName].filter(Boolean).join(" - ") || "-"],
-      [labels.estimate, data.estimate || "-"],
-    ],
+    body: data.details,
     ...tableStyles,
   });
   startY = doc.lastAutoTable.finalY + 8;
-  const sections = [
-    [labels.treatments, data.treatments],
-    [labels.workers, data.workers],
-    [labels.materials, data.materials],
-  ];
-  sections.forEach(([title, rows]) => {
+  for (const section of projectPreviewSections(data, labels)) {
+    if (startY > doc.internal.pageSize.getHeight() - 20) {
+      doc.addPage();
+      startY = 15;
+    }
     doc.setFont("Roboto", "bold");
-    doc.text(title, 14, startY);
+    doc.text(section.title, 14, startY);
     autoTable(doc, {
       startY: startY + 2,
-      head: [["#", labels.description]],
-      body: (rows.length ? rows : ["-"]).map((value, index) => [index + 1, value]),
+      head: [section.head],
+      body: section.body.length
+        ? section.body
+        : [section.head.map(() => "-")],
       ...tableStyles,
     });
     startY = doc.lastAutoTable.finalY + 8;
-  });
-  const fileName = (data.project.rn || labels.fileName).replace(/[^\w-]+/g, "_");
+  }
+  const fileName = `${labels.fileName}${data.rn ? `-RN-${data.rn}` : ""}`
+    .replace(/[^\w-]+/g, "_");
   doc.save(`${fileName}.pdf`);
+}
+
+export function printProjectPreview(data, labels, userName, companyName) {
+  let content = previewHtmlTable([labels.field, labels.value], data.details);
+  for (const section of projectPreviewSections(data, labels)) {
+    content += `<h2 style="margin:22px 0 4px;color:#2b579a;font-size:16px;">${escapeHtml(section.title)}</h2>`;
+    content += previewHtmlTable(section.head, section.body);
+  }
+  printContent(labels.title, content, userName, companyName);
 }
 
 export function printProjectDetail(
@@ -839,8 +1016,22 @@ export function printProjectDetail(
     });
     info += "</table>";
   }
+  const treatmentRows = drawingTreatmentRows(drawings);
+  if (treatmentRows.length) {
+    info += `<br><h3 style="color:#2b579a;">${report("operationDetails")}</h3>`;
+    info += previewHtmlTable(
+      [
+        report("drawingNo"),
+        report("operation"),
+        report("variant"),
+        report("details"),
+        report("estimatedTime"),
+      ],
+      treatmentRows,
+    );
+  }
   if (productionPlan && productionPlan.length) {
-    info += `<br><h3 style="color:#2b579a;">${report("productionPlan")}</h3><table><tr><th>${report("drawingNo")}</th><th>${report("operation")}</th><th>${report("worksOn")}</th><th>${report("progress")}</th><th>${report("estimatedEnd")}</th><th>${report("actualEnd")}</th></tr>`;
+    info += `<br><h3 style="color:#2b579a;">${report("productionPlan")}</h3><table><tr><th>${report("drawingNo")}</th><th>${report("operation")}</th><th>${report("worksOn")}</th><th>${report("previousWorkers")}</th><th>${report("progress")}</th><th>${report("estimatedEnd")}</th><th>${report("actualEnd")}</th></tr>`;
     productionPlan.forEach((p) => {
       const color =
         (p.progress ?? 0) >= 100
@@ -852,6 +1043,8 @@ export function printProjectDetail(
         operation(p.operation) || ""
       }</td><td>${
         p.worksOn || ""
+      }</td><td>${
+        previousAssignmentsLabel(p.previousAssignments)
       }</td><td style="color:${color};font-weight:600">${
         p.progress ?? 0
       }%</td><td>${p.estimatedEndDate || "–"}</td><td>${

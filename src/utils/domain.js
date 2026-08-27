@@ -15,18 +15,25 @@ export const taskActions = (status, projectStatus) => ({
 });
 
 const operationKeys = {
+  pipeCutting: "pipeCutting",
   "Rezanje cijevi": "pipeCutting",
   "Pipe cutting": "pipeCutting",
+  sheetCutting: "sheetCutting",
   "Rezanje lima": "sheetCutting",
   "Sheet cutting": "sheetCutting",
+  drilling: "drilling",
   Bušenje: "drilling",
   Drilling: "drilling",
+  welding: "welding",
   Zavarivanje: "welding",
   Welding: "welding",
+  grinding: "grinding",
   Brušenje: "grinding",
   Grinding: "grinding",
+  bending: "bending",
   Savijanje: "bending",
   Bending: "bending",
+  assembly: "assembly",
   Montaža: "assembly",
   Assembly: "assembly",
 };

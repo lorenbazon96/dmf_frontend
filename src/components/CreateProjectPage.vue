@@ -163,13 +163,30 @@
                   />
                 </svg>
               </button>
-              <button class="btn btn-action" @click="saveAndInsertNew">
-                <span>{{ $t("createProject.saveAndInsertNew") }}</span>
-                <span class="action-icon">+</span>
+              <button
+                class="btn btn-action"
+                :disabled="saving"
+                @click="saveAndInsertNew"
+              >
+                <span>{{ $t(saving ? "createProject.saving" : "createProject.saveAndInsertNew") }}</span>
+                <span v-if="!saving" class="action-icon">+</span>
               </button>
-              <button class="btn btn-action" @click="saveAndFinish">
-                <span>{{ $t(editProject ? "createProject.saveDrawing" : "createProject.saveDraft") }}</span>
+              <button
+                class="btn btn-action"
+                :disabled="saving"
+                @click="saveAndFinish"
+              >
+                <span>{{
+                  $t(
+                    saving
+                      ? "createProject.saving"
+                      : editProject
+                        ? "createProject.saveDrawing"
+                        : "createProject.saveDraft",
+                  )
+                }}</span>
                 <svg
+                  v-if="!saving"
                   width="18"
                   height="18"
                   viewBox="0 0 16 16"
@@ -214,7 +231,12 @@
                       v-model="part.drawingNo"
                       type="text"
                       class="form-control form-control-sm"
+                      :class="{ 'is-invalid': formErrors.drawingNo }"
+                      @input="formErrors.drawingNo = ''"
                     />
+                    <div v-if="formErrors.drawingNo" class="invalid-feedback">
+                      {{ formErrors.drawingNo }}
+                    </div>
                   </div>
                   <div class="col-md-4 col-sm-6">
                     <label class="form-label-sm"
@@ -224,7 +246,12 @@
                       v-model="part.partName"
                       type="text"
                       class="form-control form-control-sm"
+                      :class="{ 'is-invalid': formErrors.partName }"
+                      @input="formErrors.partName = ''"
                     />
+                    <div v-if="formErrors.partName" class="invalid-feedback">
+                      {{ formErrors.partName }}
+                    </div>
                   </div>
                   <div class="col-md-4 col-sm-6">
                     <label class="form-label-sm"
@@ -234,7 +261,12 @@
                       v-model="part.assemblyName"
                       type="text"
                       class="form-control form-control-sm"
+                      :class="{ 'is-invalid': formErrors.assemblyName }"
+                      @input="formErrors.assemblyName = ''"
                     />
+                    <div v-if="formErrors.assemblyName" class="invalid-feedback">
+                      {{ formErrors.assemblyName }}
+                    </div>
                   </div>
                 </div>
 
@@ -445,7 +477,7 @@
                         <div class="treatment-variant-header">
                           <span>{{ $t("createProject.variant", { number: variantIdx + 1 }) }}</span>
                           <button
-                            v-if="operationVariants('pipeCutting').length > 1"
+                            v-if="operationHasValues(section.pipeCutting)"
                             type="button"
                             class="btn btn-sm p-0 text-danger"
                             @click="removeOperationVariant('pipeCutting', sIdx)"
@@ -594,7 +626,7 @@
                         <div class="treatment-variant-header">
                           <span>{{ $t("createProject.variant", { number: variantIdx + 1 }) }}</span>
                           <button
-                            v-if="operationVariants('sheetCutting').length > 1"
+                            v-if="operationHasValues(section.sheetCutting)"
                             type="button"
                             class="btn btn-sm p-0 text-danger"
                             @click="removeOperationVariant('sheetCutting', sIdx)"
@@ -708,7 +740,7 @@
                         <div class="treatment-variant-header">
                           <span>{{ $t("createProject.variant", { number: variantIdx + 1 }) }}</span>
                           <button
-                            v-if="operationVariants('drilling').length > 1"
+                            v-if="operationHasValues(section.drilling)"
                             type="button"
                             class="btn btn-sm p-0 text-danger"
                             @click="removeOperationVariant('drilling', sIdx)"
@@ -817,7 +849,7 @@
                         <div class="treatment-variant-header">
                           <span>{{ $t("createProject.variant", { number: variantIdx + 1 }) }}</span>
                           <button
-                            v-if="operationVariants('welding').length > 1"
+                            v-if="operationHasValues(section.welding)"
                             type="button"
                             class="btn btn-sm p-0 text-danger"
                             @click="removeOperationVariant('welding', sIdx)"
@@ -936,7 +968,7 @@
                         <div class="treatment-variant-header">
                           <span>{{ $t("createProject.variant", { number: variantIdx + 1 }) }}</span>
                           <button
-                            v-if="operationVariants('grinding').length > 1"
+                            v-if="operationHasValues(section.grinding)"
                             type="button"
                             class="btn btn-sm p-0 text-danger"
                             @click="removeOperationVariant('grinding', sIdx)"
@@ -1005,7 +1037,7 @@
                         <div class="treatment-variant-header">
                           <span>{{ $t("createProject.variant", { number: variantIdx + 1 }) }}</span>
                           <button
-                            v-if="operationVariants('bending').length > 1"
+                            v-if="operationHasValues(section.bending)"
                             type="button"
                             class="btn btn-sm p-0 text-danger"
                             @click="removeOperationVariant('bending', sIdx)"
@@ -1111,7 +1143,7 @@
                         <div class="treatment-variant-header">
                           <span>{{ $t("createProject.variant", { number: variantIdx + 1 }) }}</span>
                           <button
-                            v-if="operationVariants('assembly').length > 1"
+                            v-if="operationHasValues(section.assembly)"
                             type="button"
                             class="btn btn-sm p-0 text-danger"
                             @click="removeOperationVariant('assembly', sIdx)"
@@ -1731,8 +1763,12 @@
 <script>
 import SidebarNav from "./SidebarNav.vue";
 import api from "../api";
-import { exportProjectPreviewPdf } from "../utils/pdf";
-import { availableQty, linkedMaterials, materialPayload, operationLabel } from "../utils/domain";
+import {
+  exportProjectPreviewPdf,
+  printProjectPreview,
+  treatmentReportRows,
+} from "../utils/pdf";
+import { availableQty, linkedMaterials, materialPayload, operationKey, operationLabel } from "../utils/domain";
 import {
   calcTotalTime,
   calcTimePerOperation,
@@ -1899,9 +1935,9 @@ export default {
       };
       const active = [];
       for (const key of Object.keys(opMap)) {
-        const hasValue = this.treatmentSections.some((s) => {
-          return Object.values(s[key] || {}).some((v) => v !== "");
-        });
+        const hasValue = this.treatmentSections.some(s =>
+          this.operationHasValues(s[key]),
+        );
         if (hasValue) active.push({ key, label: opMap[key] });
       }
       return active;
@@ -2388,17 +2424,24 @@ export default {
 
     onPdfSelected(e) {
       const file = e.target.files[0];
-      if (file) {
+      if (file && this.acceptUploadSize(file, e.target)) {
         this.pdfFile = file;
         this.pdfFileName = file.name;
       }
     },
     onDwgSelected(e) {
       const file = e.target.files[0];
-      if (file) {
+      if (file && this.acceptUploadSize(file, e.target)) {
         this.dwgFile = file;
         this.dwgFileName = file.name;
       }
+    },
+    acceptUploadSize(file, input) {
+      if (file.size <= 25 * 1024 * 1024) return true;
+      input.value = "";
+      this.errorMessage = this.$t("apiErrors.fileTooLarge");
+      this.showErrorModal = true;
+      return false;
     },
     async uploadFile(file) {
       const formData = new FormData();
@@ -2536,6 +2579,8 @@ export default {
       const errors = {};
       const req = this.$t("createProject.validationRequired");
       const num = this.$t("createProject.validationNumeric");
+      const positive = this.$t("createProject.validationPositive");
+      const positiveInteger = this.$t("createProject.validationPositiveInteger");
       const dup = this.$t("createProject.validationRnDuplicate");
 
       if (!this.form.rn.trim()) {
@@ -2565,10 +2610,39 @@ export default {
       }
       if (!this.form.name.trim()) errors.name = req;
       if (!this.form.client) errors.client = req;
-      if (this.part.weight !== "" && !this.isNumeric(this.part.weight))
-        errors.weight = num;
-      if (this.part.quantity !== "" && !this.isNumeric(this.part.quantity))
-        errors.quantity = num;
+      if (!this.part.drawingNo.trim()) errors.drawingNo = req;
+      if (this.form.isAssemblyDrawing) {
+        if (!this.part.assemblyName.trim()) errors.assemblyName = req;
+      } else if (!this.part.partName.trim()) {
+        errors.partName = req;
+      }
+      if (this.part.weight === "") errors.weight = req;
+      else if (!this.isNumeric(this.part.weight)) errors.weight = num;
+      else if (Number(this.part.weight) <= 0) errors.weight = positive;
+      if (this.part.quantity === "") errors.quantity = req;
+      else if (!this.isNumeric(this.part.quantity)) errors.quantity = num;
+      else if (!Number.isInteger(Number(this.part.quantity)) || Number(this.part.quantity) <= 0)
+        errors.quantity = positiveInteger;
+
+      if (!this.form.isAssemblyDrawing) {
+        if (!this.activeOperations.length) {
+          errors.workflow = this.$t("createProject.operationRequired");
+        } else {
+          const assignedOperationKeys = new Set(
+            this.assignedWorkers
+              .filter(worker => worker.id)
+              .map(worker => worker.opKey || this.getOpKeyFromLabel(worker.operation)),
+          );
+          const missingOperation = this.activeOperations.find(
+            operation => !assignedOperationKeys.has(operation.key),
+          );
+          if (missingOperation) {
+            errors.workflow = this.$t("createProject.workerForOperationRequired", {
+              operation: this.localizedOperation(missingOperation.label),
+            });
+          }
+        }
+      }
 
       const numericFields = {
         pipeCutting: ["qty", "m", "thickness", "cuts"],
@@ -2597,6 +2671,10 @@ export default {
       }
 
       this.formErrors = errors;
+      if (errors.workflow) {
+        this.errorMessage = errors.workflow;
+        this.showErrorModal = true;
+      }
       return Object.keys(errors).length === 0;
     },
 
@@ -2714,16 +2792,7 @@ export default {
       }));
     },
     getOpKeyFromLabel(label) {
-      const map = {
-        "Rezanje cijevi": "pipeCutting",
-        "Rezanje lima": "sheetCutting",
-        Bušenje: "drilling",
-        Zavarivanje: "welding",
-        Brušenje: "grinding",
-        Savijanje: "bending",
-        Montaža: "assembly",
-      };
-      return map[label] || "";
+      return operationKey(label) || "";
     },
     syncCurrentDrawingMaterials() {
       if (!this.isCopy || this.editingDrawingIndex < 0) return;
@@ -2761,46 +2830,71 @@ export default {
     },
 
     printPreview() {
-      const content = this.$refs.previewContent;
-      if (!content) return;
-      const win = window.open("", "_blank");
-      win.document
-        .write(`<html><head><title>${this.form.rn} ${this.form.name}</title>
-        <style>body{font-family:'Segoe UI',sans-serif;padding:20px;font-size:14px}
-        .estimated-time-box{background:#e3f2fd;border:1px solid #90caf9;border-radius:6px;padding:8px 12px;font-size:14px}
-        hr{margin:12px 0}</style></head><body>${content.innerHTML}</body></html>`);
-      win.document.close();
-      win.print();
+      const report = this.previewReport();
+      printProjectPreview(report.data, report.labels, this.userName, this.selectedCompany);
     },
 
     exportPreviewPdf() {
-      const describeTreatment = (item) => [item.operation, item.type, item.note]
-        .filter(Boolean).join(" - ");
-      const workerName = (item) => item.fullName || item.name || item.workerName || String(item);
-      const materialName = (item) => [item.name, item.qty || item.quantity, item.unit]
-        .filter(value => value !== undefined && value !== "").join(" - ");
-      return exportProjectPreviewPdf({
-        project: this.form,
-        drawing: this.part,
-        treatments: this.treatmentSections.map(describeTreatment).filter(Boolean),
-        workers: this.assignedWorkers.map(workerName),
-        materials: this.assignedMaterials.map(materialName),
-        estimate: this.autoEstimatedTime || "-",
-      }, {
-        title: this.$t("createProject.previewProcess"),
+      const report = this.previewReport();
+      return exportProjectPreviewPdf(
+        report.data,
+        report.labels,
+        this.userName,
+        this.selectedCompany,
+      );
+    },
+    previewReport() {
+      const tr = key => this.$t(`createProject.${key}`);
+
+      const labels = {
+        title: tr("previewProcess"),
         field: this.$t("reports.field"),
         value: this.$t("reports.value"),
-        rn: this.$t("createProject.rnNumber"),
-        name: this.$t("createProject.name"),
-        client: this.$t("createProject.selectClient"),
-        drawing: this.$t("createProject.drawingNumber"),
-        estimate: this.$t("createProject.estimatedTime"),
-        treatments: this.$t("createProject.treatments"),
-        workers: this.$t("createProject.assignedWorkers"),
-        materials: this.$t("createProject.assignedMaterials"),
-        description: this.$t("createProject.description"),
-        fileName: "project-preview",
-      }, this.userName, this.selectedCompany);
+        operations: tr("treatments"),
+        workers: tr("assignedWorkers"),
+        materials: tr("assignedMaterials"),
+        operation: tr("operation"),
+        variant: tr("variantLabel"),
+        details: tr("details"),
+        estimate: tr("estimatedTime"),
+        worker: tr("workerName"),
+        note: tr("noteForWorker"),
+        material: tr("materialName"),
+        specification: tr("specification"),
+        quantity: tr("useQty"),
+        fileName: tr("previewFileName"),
+      };
+      return {
+        labels,
+        data: {
+          rn: this.form.rn,
+          details: [
+            [tr("rnNumber"), this.form.rn || "-"],
+            [tr("name"), this.form.name || "-"],
+            [tr("clientLabel"), this.form.client || "-"],
+            [tr("responsibleLabel"), this.form.responsible || "-"],
+            [this.$t("project.drawingNo"), this.part.drawingNo || "-"],
+            [this.$t("project.partName"), this.part.partName || "-"],
+            [tr("assemblyName"), this.part.assemblyName || "-"],
+            [tr("weightKg"), this.part.weight || "-"],
+            [tr("quantity"), this.part.quantity || "-"],
+            ["PDF", this.pdfFileName || "-"],
+            [tr("attachment"), this.dwgFileName || "-"],
+            [tr("totalEstimatedTime"), this.totalEstimatedTime],
+          ],
+          operations: treatmentReportRows(this.treatmentSections),
+          workers: this.assignedWorkers.map(worker => [
+            worker.opKey ? tr(worker.opKey) : this.localizedOperation(worker.operation),
+            worker.name || worker.workerName || "-",
+            worker.note || "-",
+          ]),
+          materials: this.assignedMaterials.map(material => [
+            material.name || "-",
+            material.specs || "-",
+            material.useQty ?? "-",
+          ]),
+        },
+      };
     },
   },
 };

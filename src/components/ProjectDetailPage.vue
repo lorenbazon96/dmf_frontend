@@ -533,6 +533,7 @@ export default {
       showDeleteModal: false,
       projectData: { ...this.project },
       clientData: null,
+      workerScheduleExceptions: {},
       now: Date.now(),
       timer: null,
       completionTask: null,
@@ -558,6 +559,7 @@ export default {
         this.projectData = { ...val };
         this.recalcMissingEstimates();
         this.fetchClientData();
+        this.fetchWorkerSchedules();
       },
     },
   },
@@ -601,6 +603,7 @@ export default {
           .join(", "),
         pdfFile: dr.pdfFile || "",
         dwgFile: dr.dwgFile || "",
+        treatments: dr.treatments || [],
       }));
     },
     operationPhases() {
@@ -733,7 +736,7 @@ export default {
       if (!plan.length) return 0;
       if (plan.every((p) => p.status === "completed")) return 100;
       const progress = plan.map(task =>
-        getTaskProgressMinutes(task, new Date(this.now), this.companySchedule)
+        getTaskProgressMinutes(task, new Date(this.now), this.taskSchedule(task))
       );
       const totalEstimate = progress.reduce((sum, task) => sum + task.estimated, 0);
       if (!totalEstimate) {
@@ -873,6 +876,36 @@ export default {
           data.find((c) => c.clientName === this.projectData.client) || null;
       } catch (e) { console.error("Failed to load client data", e); }
     },
+    async fetchWorkerSchedules() {
+      const company = this.projectData.company;
+      if (!company) {
+        this.workerScheduleExceptions = {};
+        return;
+      }
+      try {
+        const { data } = await api.get("/workers", {
+          params: { company },
+          suppressGlobalError: true,
+        });
+        if (this.projectData.company !== company) return;
+        this.workerScheduleExceptions = Object.fromEntries(
+          data.map(worker => [
+            String(worker._id || worker.id),
+            worker.scheduleExceptions || [],
+          ]),
+        );
+      } catch (e) {
+        this.workerScheduleExceptions = {};
+        console.error("Failed to load worker schedules", e);
+      }
+    },
+    taskSchedule(task) {
+      const workerId = String(task.workerId || "");
+      const scheduleExceptions = this.workerScheduleExceptions[workerId];
+      return scheduleExceptions
+        ? { ...(this.companySchedule || {}), scheduleExceptions }
+        : this.companySchedule;
+    },
     async refreshProject() {
       try {
         const { data } = await api.get("/projects/" + this.projectData._id);
@@ -910,7 +943,7 @@ export default {
     },
     getTaskProgress(task) {
       if (["estimated-completed", "completed"].includes(task.status)) return 100;
-      const progress = getTaskProgressMinutes(task, new Date(this.now), this.companySchedule);
+      const progress = getTaskProgressMinutes(task, new Date(this.now), this.taskSchedule(task));
       if (!progress.estimated) return 0;
       return Math.min(
         100,
@@ -929,7 +962,7 @@ export default {
       if (!start || !task.estimatedMinutes) return "–";
       const adjustedStart = new Date(new Date(start).getTime() + this.totalPausedMinutes * 60000);
       const totalMinutes = (task.startOffset || 0) + task.estimatedMinutes;
-      const end = addWorkingMinutes(adjustedStart, totalMinutes, this.companySchedule);
+      const end = addWorkingMinutes(adjustedStart, totalMinutes, this.taskSchedule(task));
       return end.toLocaleString(localeCode(this.$i18n.locale), {
         day: "2-digit",
         month: "2-digit",
@@ -1055,13 +1088,13 @@ export default {
           `/projects/${this.projectData._id}/tasks/${this.completionTask.taskId}/complete`,
           { completedAt: completedAt.toISOString() },
         );
+        this.completionSaving = false;
         this.closeCompletionModal();
         await this.refreshProject();
       } catch (error) {
         this.completionError = error.userMessage || error.message;
       } finally {
         this.completionSaving = false;
-        if (!this.completionError) this.closeCompletionModal();
       }
     },
     completionMin() {
