@@ -432,6 +432,7 @@ export default {
   overflow-y: auto;
   font-size: 0.85rem;
   height: 100vh;
+  height: 100dvh;
 }
 .sidebar::-webkit-scrollbar {
   width: 4px;

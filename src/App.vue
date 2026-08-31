@@ -492,4 +492,37 @@ html, body, #app {
   display: flex;
   flex-direction: column;
 }
+
+@media (max-width: 991.98px) {
+  html, body, #app {
+    height: auto;
+    max-height: none;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
+  .dashboard-layout {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: visible !important;
+  }
+  .dashboard-layout > *:first-child {
+    height: auto;
+    overflow: visible;
+  }
+  .dashboard-layout > .main-content {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: visible;
+    padding-top: 60px !important;
+  }
+  .dashboard-layout > .main-content > .content-wrap {
+    flex: none;
+    min-height: auto;
+    overflow: visible;
+  }
+}
 </style>
