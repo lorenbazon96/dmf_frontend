@@ -482,6 +482,7 @@ html, body, #app {
   height: 100vh;
   overflow-y: auto;
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -514,6 +515,7 @@ html, body, #app {
   }
   .dashboard-layout > .main-content {
     height: auto;
+    width: 100%;
     min-height: 100vh;
     min-height: 100dvh;
     overflow: visible;

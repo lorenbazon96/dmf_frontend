@@ -13,7 +13,7 @@
 
     <main class="main-content flex-grow-1">
       <div class="content-wrap p-3 p-lg-4">
-        <section class="panel mb-3 d-flex flex-column" style="flex:1;min-height:0;overflow:hidden;">
+        <section class="panel workers-panel mb-3 d-flex flex-column" style="flex:1;min-height:0;overflow:hidden;">
           <div class="panel-header d-flex align-items-center justify-content-between">
             <h5 class="panel-title">{{ $t("workersClients.workers") }}</h5>
             <div class="d-flex gap-1 me-3">
@@ -90,8 +90,8 @@
           </div>
         </section>
 
-        <div class="row g-3 g-lg-4" style="flex:1;min-height:0;overflow:hidden;">
-          <div class="col-lg-3 col-md-4 col-12" style="overflow-y:auto;">
+        <div class="row workers-clients-row g-3 g-lg-4" style="flex:1;min-height:0;overflow:hidden;">
+          <div class="actions-column col-lg-3 col-md-4 col-12" style="overflow-y:auto;">
             <div class="summary-box mb-3">
               <div class="summary-row">
                 <span>{{ $t("workersClients.workers") }}:</span>
@@ -148,8 +148,8 @@
             </div>
           </div>
 
-          <div class="col-lg-9 col-md-8 col-12 d-flex flex-column" style="min-height:0;overflow:hidden;">
-            <section class="panel d-flex flex-column" style="flex:1;min-height:0;overflow:hidden;">
+          <div class="clients-column col-lg-9 col-md-8 col-12 d-flex flex-column" style="min-height:0;overflow:hidden;">
+            <section class="panel clients-panel d-flex flex-column" style="flex:1;min-height:0;overflow:hidden;">
               <div class="d-flex align-items-center justify-content-between">
                 <h5 class="panel-title">{{ $t("workersClients.clients") }}</h5>
                 <div class="d-flex gap-1 me-3">
@@ -304,6 +304,25 @@ export default {
 @media (max-width: 991.98px) {
   .main-content {
     padding-top: 50px;
+    min-width: 0;
+  }
+  .content-wrap {
+    display: block !important;
+    min-width: 0;
+    overflow: visible !important;
+  }
+  .workers-panel,
+  .workers-clients-row,
+  .actions-column,
+  .clients-column,
+  .clients-panel {
+    flex: none !important;
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+  .workers-clients-row,
+  .workers-clients-row > * {
+    min-width: 0;
   }
   .dark-header.sticky-top {
     position: static !important;
