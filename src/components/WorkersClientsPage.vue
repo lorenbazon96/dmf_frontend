@@ -35,7 +35,7 @@
               </button>
             </div>
           </div>
-          <div class="table-responsive" style="flex:1;min-height:0;overflow-y:auto;">
+          <div class="table-responsive workers-table-scroll" style="flex:1;min-height:0;overflow-y:auto;">
             <table class="table align-middle mb-0">
               <thead class="dark-header sticky-top">
                 <tr>
@@ -167,7 +167,7 @@
                   </button>
                 </div>
               </div>
-              <div class="table-responsive" style="flex:1;min-height:0;overflow-y:auto;">
+              <div class="table-responsive clients-table-scroll" style="flex:1;min-height:0;overflow-y:auto;">
                 <table class="table align-middle mb-0">
                   <thead class="dark-header sticky-top">
                     <tr>
@@ -304,6 +304,23 @@ export default {
 @media (max-width: 991.98px) {
   .main-content {
     padding-top: 50px;
+  }
+  .dark-header.sticky-top {
+    position: static !important;
+  }
+  .workers-table-scroll,
+  .clients-table-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+  }
+  .workers-table-scroll .table {
+    min-width: 760px;
+  }
+  .clients-table-scroll .table {
+    min-width: 600px;
   }
 }
 

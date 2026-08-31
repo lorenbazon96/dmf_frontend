@@ -563,6 +563,8 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
 }
 .edit-modal-card {
   background: #fff;
@@ -570,6 +572,9 @@ export default {
   padding: 1.5rem;
   width: 90%;
   max-width: 350px;
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
 }
 .edit-modal-title {
